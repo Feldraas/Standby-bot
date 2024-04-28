@@ -40,7 +40,7 @@ async def log_restart_reason(bot):
         await db.log(bot, "Could not find error channel")
         return
     async with aiohttp.ClientSession() as cs:
-        async with cs.get("https://api.github.com/repos/Derevin/Standby-bot/commits/main") as r:
+        async with cs.get("https://api.github.com/repos/Feldraas/Standby-bot/commits/main") as r:
             data = await r.json()
             time_now = dt.now().astimezone(BOT_TZ)
             format = "%Y-%m-%dT%H:%M:%S%z"

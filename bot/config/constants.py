@@ -80,7 +80,7 @@ STAR_THRESHOLD = 4
 
 # Links
 INVITE_LINK = "https://discord.gg/x7nsqEj"
-GIT_STATIC_URL = "https://raw.githubusercontent.com/Derevin/Standby-bot/main/static/"
+GIT_STATIC_URL = "https://raw.githubusercontent.com/Feldraas/Standby-bot/main/static/"
 LOCAL_STATIC_PATH = Path(__file__).parent.parent.parent / "static"
 DISCORD_MESSAGE_LINK_PATTERN = r"https:\/\/(\w+\.)?discord(app)?\.com\/channels\/\d+\/\d+\/\d+"
 
