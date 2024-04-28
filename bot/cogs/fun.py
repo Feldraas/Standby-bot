@@ -20,6 +20,7 @@ from config.constants import *
 from db_integration import db_functions as db
 from utils import util_functions as uf
 
+
 TOUCAN_PRAISE = """
 ░░░░░░░░▄▄▄▀▀▀▄▄███▄░░░░░░░░░░░░░░
 ░░░░░▄▀▀░░░░░░░▐░▀██▌░░░░░░░░░░░░░
@@ -685,7 +686,7 @@ class Fun(Cog):
         description="Your rating",
         choices={"1 (Horrible)": 1, "2 (Bad)": 2, "3 (Decent)": 3, "4 (Good)": 4, "5 (Great)": 5}),
                    review=SlashOption(description="Review or comment (optional)", required=False)):
-
+        title = uf.titlecase(title)
         exists = await self.bot.pg_pool.fetch(
             f"SELECT * FROM movies Where usr_id = '{interaction.user.id}' AND title = '{title}'")
         if exists:
@@ -709,6 +710,7 @@ class Fun(Cog):
 
     @movie.subcommand(description="Check a movie's average score")
     async def score(self, interaction, title):
+        title = uf.titlecase(title)
         ratings = await self.bot.pg_pool.fetch(
             f"SELECT COUNT(rating) AS count, ROUND(AVG(rating), 1) AS score FROM movies WHERE title = '{title}'")
         count, score = ratings[0]
@@ -720,6 +722,7 @@ class Fun(Cog):
 
     @movie.subcommand(description="Read all reviews for a movie")
     async def reviews(self, interaction, title):
+        title = uf.titlecase(title)
         recs = await self.bot.pg_pool.fetch(
             f"SELECT usr_id, rating, review FROM movies WHERE title = '{title}'")
         if not recs:

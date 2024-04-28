@@ -287,3 +287,7 @@ def ordinal_suffix(n):
     if 11 <= (n % 100) <= 13:
         return 'th'
     return ['th', 'st', 'nd', 'rd', 'th'][min(n % 10, 4)]
+
+
+def titlecase(s):
+    return s.replace("'", "xxxplaceholderxxx").title().replace("xxxplaceholderxxx", "'")
