@@ -8,7 +8,7 @@ import aiohttp
 import nextcord
 from nextcord import Game
 
-from config.constants import *
+from config.constants import BOT_TZ, ID, URL, Format
 from db_integration import db_functions as db
 
 
@@ -23,37 +23,31 @@ async def set_status(bot, status):
 
 
 async def log_restart_reason(bot):
-    channel = bot.get_channel(ERROR_CHANNEL_ID)
+    channel = bot.get_channel(ID.ERROR_CHANNEL)
     if not channel:
         await db.log(bot, "Could not find error channel")
         return
-    async with aiohttp.ClientSession() as cs:
-        async with cs.get(
-            "https://api.github.com/repos/Feldraas/Standby-bot/commits/main"
-        ) as r:
-            data = await r.json()
-            time_now = dt.now().astimezone(BOT_TZ)
-            fmt = "%Y-%m-%dT%H:%M:%S%z"
-            commit_time = dt.strptime(
-                data["commit"]["committer"]["date"], fmt
-            ).astimezone(BOT_TZ)
-            time_past = time_now - timedelta(minutes=15)
-            if time_past < commit_time:
-                author = data["author"]["login"]
-                message = data["commit"]["message"]
-                link = data["html_url"]
-                reason = (
-                    f"commit from {author} with message `{message}`. Link: <{link}>"
-                )
-            else:
-                reason = "Heroku restart or crash."
-        reboot_message = f"Reboot complete. Caused by {reason}"
-        await channel.send(reboot_message)
-        await db.log(bot, reboot_message)
+    async with aiohttp.ClientSession() as cs, cs.get(URL.GITHUB_COMMITS) as r:
+        data = await r.json()
+        time_now = dt.now().astimezone(BOT_TZ)
+        commit_time = dt.strptime(
+            data["commit"]["committer"]["date"], Format.YYYYMMDD_HHMMSSZ
+        ).astimezone(BOT_TZ)
+        time_past = time_now - timedelta(minutes=15)
+        if time_past < commit_time:
+            author = data["author"]["login"]
+            message = data["commit"]["message"]
+            link = data["html_url"]
+            reason = f"commit from {author} with message `{message}`. Link: <{link}>"
+        else:
+            reason = "Heroku restart or crash."
+    reboot_message = f"Reboot complete. Caused by {reason}"
+    await channel.send(reboot_message)
+    await db.log(bot, reboot_message)
 
 
 async def reconnect_buttons(bot):
-    guild = bot.get_guild(GUILD_ID)
+    guild = bot.get_guild(ID.GUILD)
     buttons = await bot.pg_pool.fetch("SELECT * FROM buttons")
     for button in buttons:
         try:

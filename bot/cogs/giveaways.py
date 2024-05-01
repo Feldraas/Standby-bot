@@ -7,11 +7,12 @@ import nextcord.utils
 from nextcord import Embed, SlashOption, slash_command
 from nextcord.ext.commands import Cog
 
-from config.constants import *
+from config.constants import EMPTY_STRING, ID, URL, ChannelName, Color, Permissions
 from db_integration import db_functions as db
 from utils import util_functions as uf
 
-giveaway_lock = asyncio.Lock()
+GIVEAWAY_LOCK = asyncio.Lock()
+TADA = "🎉"
 
 
 class Giveaways(Cog):
@@ -41,7 +42,7 @@ class Giveaways(Cog):
 
         end_time = uf.utcnow() + timedelta(days=days, hours=hours, minutes=minutes)
         embed = giveaway_embed(end_time, winners, interaction.user, title)
-        giveaway_channel = uf.get_channel(interaction.guild, GIVEAWAY_CHANNEL_NAME)
+        giveaway_channel = uf.get_channel(interaction.guild, ChannelName.GIVEAWAYS)
         giveaway = await giveaway_channel.send(embed=embed)
         await giveaway.add_reaction(TADA)
         await interaction.send(
@@ -50,7 +51,7 @@ class Giveaways(Cog):
 
     @slash_command(
         description="Mod commands for editing giveaways",
-        default_member_permissions=MODS_AND_GUIDES,
+        default_member_permissions=Permissions.MODS_AND_GUIDES,
     )
     async def giveaway_tools(self, interaction):
         pass
@@ -64,7 +65,7 @@ class Giveaways(Cog):
             default=0,
         ),
     ):
-        channel = uf.get_channel(interaction.guild, GIVEAWAY_CHANNEL_NAME)
+        channel = uf.get_channel(interaction.guild, ChannelName.GIVEAWAYS)
 
         if id != 0:
             try:
@@ -78,7 +79,7 @@ class Giveaways(Cog):
                 )
 
         else:
-            await giveaway_lock.acquire()
+            await GIVEAWAY_LOCK.acquire()
             try:
                 async for message in channel.history(limit=50):
                     if is_active_giveaway(message):
@@ -86,7 +87,7 @@ class Giveaways(Cog):
                         await interaction.send("Giveaway finished", ephemeral=True)
                         return
             finally:
-                giveaway_lock.release()
+                GIVEAWAY_LOCK.release()
 
     @giveaway_tools.subcommand(description="Draw a new winner for a giveaway")
     async def redraw(  # noqa: C901, PLR0912
@@ -98,7 +99,7 @@ class Giveaways(Cog):
             default=0,
         ),
     ):
-        channel = uf.get_channel(interaction.guild, GIVEAWAY_CHANNEL_NAME)
+        channel = uf.get_channel(interaction.guild, ChannelName.GIVEAWAYS)
         giveaway = None
         if message_id == 0:
             async for message in channel.history():
@@ -181,7 +182,7 @@ class Giveaways(Cog):
             default=0,
         ),
     ):
-        channel = uf.get_channel(interaction.guild, GIVEAWAY_CHANNEL_NAME)
+        channel = uf.get_channel(interaction.guild, ChannelName.GIVEAWAYS)
         giveaway = None
 
         if message_id != 0:
@@ -219,18 +220,18 @@ class Giveaways(Cog):
     @uf.delayed_loop(seconds=10)
     async def check_giveaways(self):
         try:
-            guild = await self.bot.fetch_guild(GUILD_ID)
+            guild = await self.bot.fetch_guild(ID.GUILD)
         except Exception:
             await db.log(self.bot, "Could not fetch guild")
             return
 
         if guild:
             channels = await guild.fetch_channels()
-            giveaway_channel = nextcord.utils.get(channels, name=GIVEAWAY_CHANNEL_NAME)
+            giveaway_channel = nextcord.utils.get(channels, name=ChannelName.GIVEAWAYS)
             if not giveaway_channel:
                 await db.log(self.bot, "Giveaway channel not found")
                 return
-            await giveaway_lock.acquire()
+            await GIVEAWAY_LOCK.acquire()
             active_giveaway_field_count = 3
             try:
                 async for message in giveaway_channel.history(limit=25):
@@ -241,7 +242,7 @@ class Giveaways(Cog):
                     ):
                         await update_giveaway(message)
             finally:
-                giveaway_lock.release()
+                GIVEAWAY_LOCK.release()
 
 
 async def who_reacted(message, emoji):
@@ -250,7 +251,7 @@ async def who_reacted(message, emoji):
     for reaction in reactions:
         if reaction.emoji == emoji:
             async for user in reaction.users():
-                if user.id != BOT_ID:
+                if user.id != ID.BOT:
                     users.append(user)  # noqa: PERF401
     return users
 
@@ -261,7 +262,7 @@ async def giveaway_handler(bot, payload):
         message = await channel.fetch_message(payload.message_id)
         if (
             payload.emoji.name == TADA
-            and payload.user_id != BOT_ID
+            and payload.user_id != ID.BOT
             and message.embeds
             and (re.search("finished", message.embeds[0].description))
         ):
@@ -281,9 +282,9 @@ async def update_giveaway(giveaway):
 
 async def finish_giveaway(giveaway):
     embed = giveaway.embeds[0]
-    embed.description = EMPTY + "\nThe giveaway has finished!\n" + EMPTY
-    embed.set_field_at(1, name=EMPTY, value=EMPTY)
-    embed.set_field_at(2, name=EMPTY, value=EMPTY)
+    embed.description = EMPTY_STRING + "\nThe giveaway has finished!\n" + EMPTY_STRING
+    embed.set_field_at(1, name=EMPTY_STRING, value=EMPTY_STRING)
+    embed.set_field_at(2, name=EMPTY_STRING, value=EMPTY_STRING)
     embed.set_footer(text=re.sub("Ends", "Ended", embed.footer.text))
     embed.timestamp = uf.utcnow()
 
@@ -332,10 +333,10 @@ def is_finished_giveaway(message):
 
 
 def giveaway_embed(end_time, winners, author, title) -> Embed:
-    embed = Embed(color=LIGHT_BLUE)
+    embed = Embed(color=Color.LIGHT_BLUE)
     embed.title = ":tada:**   " + title.upper() + " GIVEAWAY   **:tada:"
     remaining = delta_to_text(end_time - uf.utcnow())
-    embed.description = EMPTY + "\nReact with :tada: to enter!\n" + EMPTY
+    embed.description = EMPTY_STRING + "\nReact with :tada: to enter!\n" + EMPTY_STRING
 
     winner_text = f"{winners} winner"
     if winners > 1:
@@ -344,9 +345,9 @@ def giveaway_embed(end_time, winners, author, title) -> Embed:
     embed.set_footer(text=winner_text + "  •  Ends at")
     embed.timestamp = end_time
     embed.add_field(name="Hosted by", value=author.mention)
-    embed.add_field(name=EMPTY, value=EMPTY)
+    embed.add_field(name=EMPTY_STRING, value=EMPTY_STRING)
     embed.add_field(name="Time remaining", value=remaining)
-    embed.set_thumbnail(GIT_STATIC_URL + "/images/presents.png")
+    embed.set_thumbnail(URL.GITHUB_STATIC + "/images/presents.png")
     return embed
 
 

@@ -3,7 +3,7 @@ import asyncio
 from nextcord import Embed, Message
 from nextcord.ext.commands import Cog, Context, errors
 
-from config.constants import *
+from config.constants import ID, ChannelName, Color
 from db_integration import db_functions as db
 from utils import util_functions as uf
 
@@ -31,8 +31,8 @@ class ErrorHandler(Cog):
                     )
                 )
             )
-        elif ctx.guild.id == GUILD_ID:
-            channel = uf.get_channel(ctx.guild, ERROR_CHANNEL_NAME)
+        elif ctx.guild.id == ID.GUILD:
+            channel = uf.get_channel(ctx.guild, ChannelName.ERRORS)
             if channel is not None:
                 await channel.send(
                     embed=unhandled_error_embed(ctx.message.content, ctx.channel, e)
@@ -43,7 +43,7 @@ class ErrorHandler(Cog):
         Return an embed that contains the exception.
         credits: https://github.com/python-discord
         """
-        return Embed(title=title, colour=SOFT_RED, description=body)
+        return Embed(title=title, color=Color.SOFT_RED, description=body)
 
     async def _sleep_and_delete(self, msg: Message):
         await asyncio.sleep(20)
@@ -101,7 +101,7 @@ class ErrorHandler(Cog):
 
 
 def unhandled_error_embed(cont, chan, e) -> Embed:
-    embed = Embed(colour=SOFT_RED)
+    embed = Embed(color=Color.SOFT_RED)
     embed.add_field(name="Message", value=f"```{cont}```", inline=False)
     embed.add_field(name="Trigger channel", value=chan, inline=False)
     embed.add_field(name="Error", value=str(e), inline=False)

@@ -1,9 +1,31 @@
 from nextcord import ButtonStyle, Embed, PermissionOverwrite, slash_command, ui
 from nextcord.ext.commands import Cog
 
-from config.constants import *
+from config.constants import CategoryName, ChannelName, Color, Permissions, RoleName
 from db_integration import db_functions as db
 from utils import util_functions as uf
+
+CLAIMABLE_CHANNEL_MESSAGE = (
+    "If you have an issue and want to talk to the mod team, this is the place.\n"
+    "Press the button to open a ticket in a private channel "
+    "visible only to you and the mod team."
+)
+CLAIMED_MESSAGE = (
+    "You have successfully opened a ticket - please let us know "
+    "what you want to discuss.\nYou can make sure you're talking only to the mod team"
+    " by looking at the channel's current member list (right side of discord).\n"
+    "Once this issue has been resolved, use the `/resolve` command."
+)
+RESOLVED_MESSAGE = (
+    "This ticket has been marked as resolved. If this was a mistake or you have"
+    " additional questions, use the button below to reopen the ticket.\n"
+    "For other issues, please create a new ticket in XXX.\n Moderators can use "
+    "the Scrap button to scrap this ticket. (Scrapping takes a while to complete)"
+)
+REOPENED_MESSAGE = (
+    "This ticket has been reopened. Once it is resolved, "
+    "use the `/resolve` command again."
+)
 
 
 class Tickets(Cog):
@@ -12,7 +34,7 @@ class Tickets(Cog):
 
     @slash_command(description="Mark your ticket as resolved")
     async def resolve(self, interaction):
-        if interaction.channel.category.name != ACTIVE_TICKETS_CAT_NAME:
+        if interaction.channel.category.name != CategoryName.ACTIVE_TICKETS:
             await interaction.send(
                 "This command can only be used in an active ticket channel",
                 ephemeral=True,
@@ -22,7 +44,7 @@ class Tickets(Cog):
         resolved_ticket_cat = await get_or_create_resolved_cat(interaction)
         await interaction.channel.edit(category=resolved_ticket_cat)
 
-        claimable_channel = uf.get_channel(interaction.guild, CLAIMABLE_CHANNEL_NAME)
+        claimable_channel = uf.get_channel(interaction.guild, ChannelName.CLAIMABLE)
         view = ResolvedTicketView()
         await interaction.send(
             RESOLVED_MESSAGE.replace("XXX", claimable_channel.mention), view=view
@@ -35,7 +57,7 @@ class Tickets(Cog):
 
     @slash_command(
         description="Initiates ticket system - creates categories, channels etc",
-        default_member_permissions=MODS_AND_GUIDES,
+        default_member_permissions=Permissions.MODS_AND_GUIDES,
     )
     async def initiate_ticket_system(self, interaction):
         claimable_ticket_cat = await get_or_create_claimable_cat(interaction)
@@ -48,7 +70,7 @@ class Tickets(Cog):
 
 
 def get_tickets_log_embed(message):
-    embed = Embed(colour=DARK_BLUE)
+    embed = Embed(color=Color.DARK_BLUE)
     if message.attachments:
         embed.set_image(url=message.attachments[0].url)
     content_msg = "[Empty message]"
@@ -69,7 +91,7 @@ def get_tickets_log_embed(message):
 
 async def create_claimable_channel(bot, cat):
     chnl = await cat.create_text_channel(
-        name=CLAIMABLE_CHANNEL_NAME, reason="Making a claimable channel."
+        name=ChannelName.CLAIMABLE, reason="Making a claimable channel."
     )
     muted_role = uf.get_role(cat.guild, "Muted")
     if muted_role:
@@ -81,18 +103,18 @@ async def create_claimable_channel(bot, cat):
 
 async def get_or_create_tickets_log(interaction):
     resolved_cat = await get_or_create_resolved_cat(interaction)
-    tickets_log = uf.get_channel(interaction.guild, TICKETS_LOG_CHANNEL_NAME)
+    tickets_log = uf.get_channel(interaction.guild, ChannelName.TICKETS_LOG)
     if tickets_log is None:
         overwrites = {
             interaction.guild.default_role: PermissionOverwrite(read_messages=False)
         }
 
         tickets_log = await resolved_cat.create_text_channel(
-            name=TICKETS_LOG_CHANNEL_NAME,
+            name=ChannelName.TICKETS_LOG,
             reason="Making a channel for ticket logs.",
             overwrites=overwrites,
         )
-        for mod_role_name in MOD_ROLE_NAMES:
+        for mod_role_name in RoleName.mod_role_names():
             role = uf.get_role(interaction.guild, mod_role_name)
             if role is not None:
                 await tickets_log.set_permissions(role, read_messages=True)
@@ -101,30 +123,32 @@ async def get_or_create_tickets_log(interaction):
 
 async def get_or_create_claimable_cat(interaction):
     guild = interaction.guild
-    claimable_ticket_cat = uf.get_category(guild, CLAIMABLE_TICKETS_CAT_NAME)
+    claimable_ticket_cat = uf.get_category(guild, CategoryName.CLAIMABLE_TICKETS)
     if claimable_ticket_cat is None:
         claimable_ticket_cat = await guild.create_category(
-            name=CLAIMABLE_TICKETS_CAT_NAME,
+            name=CategoryName.CLAIMABLE_TICKETS,
             reason="Making a category for claimable tickets.",
         )
     return claimable_ticket_cat
 
 
 async def get_or_create_active_cat(interaction):
-    active_ticket_cat = uf.get_category(interaction.guild, ACTIVE_TICKETS_CAT_NAME)
+    active_ticket_cat = uf.get_category(interaction.guild, CategoryName.ACTIVE_TICKETS)
     if active_ticket_cat is None:
         active_ticket_cat = await interaction.guild.create_category(
-            name=ACTIVE_TICKETS_CAT_NAME,
+            name=CategoryName.ACTIVE_TICKETS,
             reason="Making a category for claimable tickets.",
         )
     return active_ticket_cat
 
 
 async def get_or_create_resolved_cat(interaction):
-    resolved_ticket_cat = uf.get_category(interaction.guild, RESOLVED_TICKETS_CAT_NAME)
+    resolved_ticket_cat = uf.get_category(
+        interaction.guild, CategoryName.RESOLVED_TICKETS
+    )
     if resolved_ticket_cat is None:
         resolved_ticket_cat = await interaction.guild.create_category(
-            name=RESOLVED_TICKETS_CAT_NAME,
+            name=CategoryName.RESOLVED_TICKETS,
             reason="Making a category for claimable tickets.",
         )
     return resolved_ticket_cat
@@ -160,7 +184,7 @@ class OpenTicketView(ui.View):
 
     @ui.button(style=ButtonStyle.green, label="Open ticket")
     async def create(self, button, interaction):  # noqa: ARG002
-        claimable_channel = uf.get_channel(interaction.guild, CLAIMABLE_CHANNEL_NAME)
+        claimable_channel = uf.get_channel(interaction.guild, ChannelName.CLAIMABLE)
         if interaction.channel != claimable_channel:
             await interaction.send(
                 f"This command can only be used in {claimable_channel.mention}.",
@@ -181,7 +205,7 @@ class OpenTicketView(ui.View):
             overwrites=overwrites,
         )
         await ticket_chnl.set_permissions(interaction.user, read_messages=True)
-        for mod_role_name in MOD_ROLE_NAMES:
+        for mod_role_name in RoleName.mod_role_names():
             role = uf.get_role(interaction.guild.roles, name=mod_role_name)
             if role is not None:
                 await ticket_chnl.set_permissions(role, read_messages=True)

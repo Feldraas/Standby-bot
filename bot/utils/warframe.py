@@ -1,9 +1,9 @@
 import requests
 
-from config.constants import WARFRAME_MODS_URL
+from config.constants import URL
 
 mod_list = {}
 
-for mod in requests.get(url=WARFRAME_MODS_URL).json():
+for mod in requests.get(url=URL.WARFRAME_MODS).json():
     if "wikiaThumbnail" in mod:
         mod_list[mod["name"].lower()] = mod["wikiaThumbnail"]

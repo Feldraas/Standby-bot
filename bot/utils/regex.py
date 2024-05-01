@@ -7,7 +7,7 @@ from dataclasses import dataclass
 import nextcord
 import requests
 
-from config.constants import *
+from config.constants import ID, URL, ChannelName
 from db_integration import db_functions as db
 from utils import util_functions as uf
 from utils import warframe as wf
@@ -37,8 +37,8 @@ regex_responses.append(
 
 async def ping_resp(bot, message):
     custom_responses = {
-        DARKNESS_ID: GIT_STATIC_URL + "/images/darkness.jpg",
-        AIRU_ID: GIT_STATIC_URL + "/images/airu.gif",
+        ID.DARKNESS: URL.GITHUB_STATIC + "/images/darkness.jpg",
+        ID.AIRU: URL.GITHUB_STATIC + "/images/airu.gif",
     }
 
     if message.author.id in custom_responses:
@@ -50,7 +50,7 @@ async def ping_resp(bot, message):
         await message.channel.send(f"{message.author.mention}")
 
 
-regex_responses.append(RegexResponse(trigger=str(BOT_ID), response=ping_resp))
+regex_responses.append(RegexResponse(trigger=str(ID.BOT), response=ping_resp))
 
 
 async def uwu_resp(bot, message):
@@ -79,10 +79,10 @@ async def uwu_resp(bot, message):
         )
         await message.channel.send(txt)
     elif random.randint(1, 2) == 1:
-        warning_video = nextcord.File(LOCAL_STATIC_PATH / "videos" / "warning.mp4")
+        warning_video = nextcord.File(URL.LOCAL_STATIC / "videos" / "warning.mp4")
         await message.channel.send(file=warning_video)
     else:
-        await message.channel.send(GIT_STATIC_URL + "/images/uwu.png")
+        await message.channel.send(URL.GITHUB_STATIC + "/images/uwu.png")
 
 
 regex_responses.append(
@@ -104,21 +104,21 @@ async def kenobi_resp(bot, message):
     if random.randint(1, 2) == 1:
         await message.channel.send("General " + message.author.mention)
     else:
-        await message.channel.send(GIT_STATIC_URL + "/images/kenobi.png")
+        await message.channel.send(URL.GITHUB_STATIC + "/images/kenobi.png")
 
 
 regex_responses.append(RegexResponse(trigger="hello there", response=kenobi_resp))
 
 
 async def bell_resp(bot, message):
-    await message.channel.send(GIT_STATIC_URL + "/images/bell.gif")
+    await message.channel.send(URL.GITHUB_STATIC + "/images/bell.gif")
 
 
 regex_responses.append(RegexResponse(trigger="ringing my bell", response=bell_resp))
 
 
 async def no_u_resp(bot, message):
-    await message.channel.send(GIT_STATIC_URL + "/images/no_u.png")
+    await message.channel.send(URL.GITHUB_STATIC + "/images/no_u.png")
 
 
 regex_responses.append(RegexResponse(trigger="^no u$", response=no_u_resp))
@@ -228,7 +228,7 @@ regex_responses.append(
         trigger=r"(^|\W)[LlI|][Oo0][LlI|][Ii]",
         response=loli_resp,
         flags=re.M,
-        accepts=lambda msg: msg.author.id != JORM_ID and "http" not in msg.content,
+        accepts=lambda msg: msg.author.id != ID.JORM and "http" not in msg.content,
     )
 )
 
@@ -262,7 +262,7 @@ regex_responses.append(RegexResponse(trigger=r"\[.*\]", response=mod_resp))
 
 
 async def x_is_x_resp(bot, message):
-    await message.channel.send(GIT_STATIC_URL + "/images/x%20is%20x.png")
+    await message.channel.send(URL.GITHUB_STATIC + "/images/x%20is%20x.png")
 
 
 regex_responses.append(
@@ -303,7 +303,7 @@ regex_responses.append(
 
 
 async def now_resp(bot, message):
-    await message.channel.send(GIT_STATIC_URL + "/images/now.png")
+    await message.channel.send(URL.GITHUB_STATIC + "/images/now.png")
 
 
 regex_responses.append(
@@ -313,7 +313,7 @@ regex_responses.append(
 
 async def maybe_resp(bot, message):
     await message.channel.send(
-        GIT_STATIC_URL + "/images/memes/Maybe%20I%20am%20a%20monster.png"
+        URL.GITHUB_STATIC + "/images/memes/Maybe%20I%20am%20a%20monster.png"
     )
 
 
@@ -387,7 +387,7 @@ regex_responses.append(
 
 async def ahoy_resp(bot, message):
     await message.channel.send("Ahoy Matey!")
-    if message.guild.id == GUILD_ID:
+    if message.guild.id == ID.GUILD:
         await message.add_reaction("BlobWave:382606234148143115")
 
 
@@ -406,7 +406,7 @@ regex_responses.append(
 
 
 async def wait_min_resp(bot, message):
-    if message.guild.id == GUILD_ID:
+    if message.guild.id == ID.GUILD:
         await message.add_reaction("Thonk:383190394457948181")
 
 
@@ -487,7 +487,7 @@ async def link_resp(bot, message):
     except Exception:
         pass
 
-    if not ((int(guild_id) == GUILD_ID) and channel and source_message):
+    if not ((int(guild_id) == ID.GUILD) and channel and source_message):
         return
 
     embed = uf.message_embed(source_message, "link", message.author)
@@ -499,6 +499,9 @@ async def link_resp(bot, message):
 
 
 # TODO: Better regex # noqa: TD002, TD003, FIX002
+DISCORD_MESSAGE_LINK_PATTERN = (
+    r"https:\/\/(\w+\.)?discord(app)?\.com\/channels\/\d+\/\d+\/\d+"
+)
 regex_responses.append(
     RegexResponse(
         trigger=DISCORD_MESSAGE_LINK_PATTERN,
@@ -874,7 +877,7 @@ regex_responses.append(
 
 
 async def wave_resp(bot, message):
-    if message.author.id == FEL_ID:
+    if message.author.id == ID.FEL:
         reacts = [
             "BlobWave:382606234148143115",
             "🇫",
@@ -922,13 +925,13 @@ regex_responses.append(
     RegexResponse(
         trigger="wood",
         response=wood_resp,
-        accepts=lambda message: message.author.id == KROSS_ID,
+        accepts=lambda message: message.author.id == ID.KROSS,
     )
 )
 
 
 async def stradavar_resp(bot, message):
-    await message.channel.send(f"Quickly, <@{JORM_ID}>, quickly!")
+    await message.channel.send(f"Quickly, <@{ID.JORM}>, quickly!")
     await message.add_reaction("👏")
 
 
@@ -947,7 +950,7 @@ async def keto_resp(bot, message):
 
 def keto_resp_check(message):
     return (
-        message.author.id == ANA_ID
+        message.author.id == ID.ANA
         and message.channel.name == "awww"
         and len(message.attachments) > 0
         and (message.attachments[0].height)
@@ -1008,7 +1011,7 @@ def offers_resp_check(message):
         "code",
         "sale",
     ]
-    return message.channel.name == OFFERS_CHANNEL_NAME and not (
+    return message.channel.name == ChannelName.OFFERS and not (
         message.attachments
         or any(word in message.content.lower() for word in whitelist)
     )
@@ -1047,7 +1050,7 @@ regex_responses.append(
 
 
 async def hms_resp(bot, message):
-    await message.channel.send(GIT_STATIC_URL + "/images/hms%20fucking.png")
+    await message.channel.send(URL.GITHUB_STATIC + "/images/hms%20fucking.png")
 
 
 regex_responses.append(
@@ -1056,7 +1059,7 @@ regex_responses.append(
 
 
 async def gramps_resp(bot, message):
-    await message.channel.send(GIT_STATIC_URL + "/images/markus.gif")
+    await message.channel.send(URL.GITHUB_STATIC + "/images/markus.gif")
     await message.channel.send(message.content)
 
 
@@ -1074,7 +1077,7 @@ async def reputation_resp(bot, message):
         await bot.pg_pool.execute(
             f"UPDATE usr SET thanks = thanks + 1 WHERE usr_id = {mentioned_user.id}"
         )
-        await message.channel.send(f"Gave +1 {THANK_TYPE} to {mentioned_user.mention}")
+        await message.channel.send(f"Gave +1 Void to {mentioned_user.mention}")
 
 
 regex_responses.append(
@@ -1088,7 +1091,7 @@ regex_responses.append(
 
 
 async def so_true_resp(bot, message):
-    await message.channel.send(GIT_STATIC_URL + "/videos/so_true.mov")
+    await message.channel.send(URL.GITHUB_STATIC + "/videos/so_true.mov")
 
 
 regex_responses.append(

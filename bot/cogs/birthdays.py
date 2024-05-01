@@ -2,7 +2,7 @@ import nextcord.utils
 from nextcord import SlashOption, slash_command
 from nextcord.ext.commands import Cog
 
-from config.constants import *
+from config.constants import ID, RoleName
 from db_integration import db_functions as db
 from utils import util_functions as uf
 
@@ -108,9 +108,9 @@ class Birthdays(Cog):
 
         await self.bot.wait_until_ready()
 
-        guild = await self.bot.fetch_guild(GUILD_ID)
+        guild = await self.bot.fetch_guild(ID.GUILD)
 
-        bday_role = uf.get_role(guild, BIRTHDAY_NAME)
+        bday_role = uf.get_role(guild, RoleName.BIRTHDAY)
 
         async for member in guild.fetch_members():
             if bday_role in member.roles:

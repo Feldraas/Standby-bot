@@ -5,7 +5,7 @@ from datetime import timedelta
 from nextcord import SlashOption, slash_command
 from nextcord.ext.commands import Cog
 
-from config.constants import *
+from config.constants import TimerType
 from db_integration import db_functions as db
 from utils import util_functions as uf
 
@@ -22,40 +22,45 @@ class Timers(Cog):
     async def check_timers(self):
         try:
             gtable = await self.bot.pg_pool.fetch(
-                f"SELECT * FROM tmers WHERE ttype={DB_TMER_REMINDER}"
+                f"SELECT * FROM tmers WHERE ttype={TimerType.REMINDER}"
             )
             for rec in gtable:
-                if rec["ttype"] == DB_TMER_REMINDER:
-                    timenow = dt.now()
-                    if timenow <= rec["expires"]:
-                        continue
+                if rec["ttype"] != TimerType.REMINDER:
+                    continue
+                timenow = dt.now()
+                if timenow <= rec["expires"]:
+                    continue
 
-                    params_dict = json.loads(rec["params"])
-                    if "msg" not in params_dict or "channel" not in params_dict:
-                        await db.log(self.bot, f"Deleting invalid json: {params_dict}")
-                        await self.bot.pg_pool.execute(
-                            "DELETE FROM tmers WHERE tmer_id = $1;", rec["tmer_id"]
-                        )
-                        continue
-                    channel = self.bot.get_channel(params_dict["channel"])
-                    if channel:
-                        message = (
-                            f"<@{rec['usr_id']}> "
-                            f"{uf.dynamic_timestamp(rec['expires'], 'date and time')}: "
-                            f"{params_dict['msg']}"
-                        )
-                        try:
-                            confirmation_id = params_dict["confirmation_id"]
-                            confirmation = await channel.fetch_message(confirmation_id)
-                            message += " " + confirmation.jump_url
-                        except Exception:
-                            pass
-
-                        await channel.send(message)
-
+                params_dict = json.loads(rec["params"])
+                if "msg" not in params_dict or "channel" not in params_dict:
+                    await db.log(self.bot, f"Deleting invalid json: {params_dict}")
                     await self.bot.pg_pool.execute(
                         "DELETE FROM tmers WHERE tmer_id = $1;", rec["tmer_id"]
                     )
+                    continue
+
+                channel = self.bot.get_channel(params_dict["channel"])
+                if not channel:
+                    continue
+
+                message = (
+                    f"<@{rec['usr_id']}> "
+                    f"{uf.dynamic_timestamp(rec['expires'], 'date and time')}: "
+                    f"{params_dict['msg']}"
+                )
+
+                try:
+                    confirmation_id = params_dict["confirmation_id"]
+                    confirmation = await channel.fetch_message(confirmation_id)
+                    message += " " + confirmation.jump_url
+                except Exception:
+                    pass
+
+                await channel.send(message)
+
+                await self.bot.pg_pool.execute(
+                    "DELETE FROM tmers WHERE tmer_id = $1;", rec["tmer_id"]
+                )
         except AttributeError:  # bot hasn't loaded yet and pg_pool doesn't exist
             return
         except Exception as e:
@@ -166,7 +171,7 @@ async def create_reminder(bot, interaction, tfuture, message, confirmation_id):
         "INSERT INTO tmers (usr_id, expires, ttype, params) VALUES ($1, $2, $3, $4);",
         interaction.user.id,
         tfuture,
-        DB_TMER_REMINDER,
+        TimerType.REMINDER,
         params_json,
     )
 

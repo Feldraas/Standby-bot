@@ -13,7 +13,7 @@ from nextcord.ext.tasks import LF, Loop
 from nextcord.utils import MISSING
 from PIL import Image, ImageDraw, ImageFont
 
-from config.constants import *
+from config.constants import BOT_TZ, EMPTY_STRING, URL, Color, RoleName
 
 
 def get_emoji(guild, name):
@@ -142,7 +142,7 @@ def simpsons_error_image(dad, son, text=None, filename="error.png"):
     dad_url = dad.display_avatar.url
     son_url = son.display_avatar.url
 
-    template_url = GIT_STATIC_URL + "/images/simpsons.png"
+    template_url = URL.GITHUB_STATIC + "/images/simpsons.png"
 
     template = Image.open(requests.get(template_url, stream=True).raw)
 
@@ -166,7 +166,7 @@ def simpsons_error_image(dad, son, text=None, filename="error.png"):
 
         draw = ImageDraw.Draw(template)
 
-        font_path = LOCAL_STATIC_PATH / "fonts" / "impact.ttf"
+        font_path = URL.LOCAL_STATIC / "fonts" / "impact.ttf"
         font = ImageFont.truetype(font=str(font_path), size=40)
         width, height = get_text_dimensions(text, font)
 
@@ -239,9 +239,9 @@ def now():
 
 
 def role_prio(role):
-    if role.name in PRIO_ROLES:
+    if role.name in RoleName.prio_role_names():
         return "0" + role.name
-    if role.name in ROLE_DESCRIPTIONS:
+    if role.name in RoleName.descriptions():
         return "1" + role.name
     return "2" + role.name
 
@@ -259,7 +259,7 @@ def message_embed(msg, cmd, trigger_author) -> nextcord.Embed:
         "link": "Linked by",
     }
 
-    embed = nextcord.Embed(color=PALE_BLUE)
+    embed = nextcord.Embed(color=Color.PALE_BLUE)
     embed.title = embed_titles[cmd]
     if msg.author.display_avatar:
         embed.set_thumbnail(url=msg.author.display_avatar.url)
@@ -271,7 +271,7 @@ def message_embed(msg, cmd, trigger_author) -> nextcord.Embed:
     else:
         timestamp = timestamp.strftime("%b %d, %H:%M")
     embed.add_field(name="Sent at", value=timestamp)
-    embed.add_field(name=EMPTY, value=EMPTY)
+    embed.add_field(name=EMPTY_STRING, value=EMPTY_STRING)
     embed.add_field(name="Original poster", value=msg.author.mention)
 
     embed.add_field(name=trigger_field_titles[cmd], value=trigger_author.mention)

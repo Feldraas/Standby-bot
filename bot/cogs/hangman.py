@@ -4,10 +4,10 @@ import re
 from nextcord import Embed, Interaction, SlashOption, slash_command
 from nextcord.ext.commands import Cog
 
-from config.constants import *
+from config.constants import URL, Color
 from utils import util_functions as uf
 
-IMAGE_LINKS = [GIT_STATIC_URL + f"/images/Hangman-{num}.png" for num in range(7)]
+IMAGE_LINKS = [URL.GITHUB_STATIC + f"/images/Hangman-{num}.png" for num in range(7)]
 MAX_PHRASE_LENGTH = 85
 MAX_WRONG_GUESSES = 6
 
@@ -24,7 +24,7 @@ class HangmanGame:
         self.embed = None
 
     def create_embed(self):
-        embed = Embed(color=PALE_GREEN)
+        embed = Embed(color=Color.PALE_GREEN)
         title = re.sub(" ", "   ", self.progress)
         title = re.sub("_", r"\_ ", title)
         title = re.sub(r"(\w)", r"\1 ", title)

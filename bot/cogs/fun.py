@@ -25,7 +25,7 @@ from PIL import Image, ImageDraw, ImageFont
 from transliterate import translit
 from transliterate.base import TranslitLanguagePack, registry
 
-from config.constants import *
+from config.constants import EMPTY_STRING, ID, URL, Duration, Threshold, TimerType
 from db_integration import db_functions as db
 from utils import util_functions as uf
 
@@ -154,7 +154,7 @@ class Fun(Cog):
         user: Member = SlashOption(description="The user you want to send a hug to"),
     ):
         if user == interaction.user:
-            await interaction.send(GIT_STATIC_URL + "/images/selfhug.png")
+            await interaction.send(URL.GITHUB_STATIC + "/images/selfhug.png")
         else:
             await interaction.send(
                 f"{user.mention}, {interaction.user.mention} sent you a hug!"
@@ -220,8 +220,8 @@ class Fun(Cog):
             )
             return
 
-        if "horny" in query.lower() and interaction.user.id == FEL_ID:
-            link = GIT_STATIC_URL + "/images/memes/Horny%20(2).png"
+        if "horny" in query.lower() and interaction.user.id == ID.FEL:
+            link = URL.GITHUB_STATIS + "/images/memes/Horny%20(2).png"
             await interaction.response.send_message(link)
         else:
             matches = []
@@ -238,7 +238,9 @@ class Fun(Cog):
             if matches:
                 meme = random.choice(matches)
                 filename = meme[0] + "." + meme[1]
-                link = GIT_STATIC_URL + "/images/memes/" + re.sub(" ", "%20", filename)
+                link = (
+                    URL.GITHUB_STATIC + "/images/memes/" + re.sub(" ", "%20", filename)
+                )
                 await interaction.response.send_message(link)
 
             else:
@@ -307,17 +309,19 @@ class Fun(Cog):
                 await interaction.user.remove_roles(burgered)
                 await target.add_roles(burgered)
                 await interaction.send(target.mention)
-                await interaction.channel.send(GIT_STATIC_URL + "/images/burgered.png")
-                expires = dt.now() + BURGER_TIMEOUT
+                await interaction.channel.send(
+                    URL.GITHUB_STATIC + "/images/burgered.png"
+                )
+                expires = dt.now() + Duration.BURGER_TIMEOUT
                 await db.get_or_insert_usr(self.bot, target.id, interaction.guild.id)
                 await self.bot.pg_pool.execute(
-                    f"DELETE FROM tmers WHERE ttype = {DB_TMER_BURGER};"
+                    f"DELETE FROM tmers WHERE ttype = {TimerType.BURGER};"
                 )
                 await self.bot.pg_pool.execute(
                     "INSERT INTO tmers (usr_id, expires, ttype) VALUES ($1, $2, $3);",
                     target.id,
                     expires,
-                    DB_TMER_BURGER,
+                    TimerType.BURGER,
                 )
                 await self.bot.pg_pool.execute(
                     f"UPDATE usr SET burgers = burgers + 1 WHERE usr_id = {target.id}"
@@ -371,15 +375,15 @@ class Fun(Cog):
         current_holder = holders[0]
         await current_holder.remove_roles(burgered_role)
         await self.bot.pg_pool.execute(
-            f"DELETE FROM tmers WHERE ttype = {DB_TMER_BURGER}"
+            f"DELETE FROM tmers WHERE ttype = {TimerType.BURGER}"
         )
         await interaction.user.add_roles(burgered_role)
-        expires = dt.now() + BURGER_TIMEOUT
+        expires = dt.now() + Duration.BURGER_TIMEOUT
         await self.bot.pg_pool.execute(
             "INSERT INTO tmers (usr_id, expires, ttype) VALUES ($1, $2, $3);",
             interaction.user.id,
             expires,
-            DB_TMER_BURGER,
+            TimerType.BURGER,
         )
         await self.bot.pg_pool.execute(
             f"UPDATE usr SET last_yoink = '{dt.now()}', burgers = burgers + 1 "
@@ -402,23 +406,23 @@ class Fun(Cog):
     async def check_burger(self):
         try:
             gtable = await self.bot.pg_pool.fetch(
-                f"SELECT * FROM tmers WHERE ttype = {DB_TMER_BURGER}"
+                f"SELECT * FROM tmers WHERE ttype = {TimerType.BURGER}"
             )
             for rec in gtable:
                 timenow = dt.now()
                 if timenow <= rec["expires"]:
                     continue
 
-                guild = self.bot.get_guild(GUILD_ID)
+                guild = self.bot.get_guild(ID.GUILD)
 
                 if not guild:
                     await db.log(self.bot, "Could not fetch guild")
                     return
-                general = await guild.fetch_channel(GENERAL_ID)
+                general = await guild.fetch_channel(ID.GENERAL)
                 user = await guild.fetch_member(rec["usr_id"])
                 burgered = uf.get_role(guild, "Burgered")
                 if len(burgered.members) > 1:
-                    maint = await guild.fetch_channel(ERROR_CHANNEL_ID)
+                    maint = await guild.fetch_channel(ID.ERROR_CHANNEL)
                     await maint.send(
                         "Multiple burgers detected: "
                         f"{', '.join([usr.mention for usr in burgered.members])}"
@@ -437,7 +441,33 @@ class Fun(Cog):
                     }
                 except:
                     await db.log(self.bot, "Invalid response from Trivia API")
-                    params = random.choice(BURGER_QUESTIONS)
+                    questions = [
+                        dict(
+                            question="How much does the average "
+                            "American ambulance trip cost?",
+                            correct=["$1200"],
+                            wrong=["$200", "$800"],
+                        ),
+                        dict(
+                            question="How many Americans think the sun "
+                            "revolves around the earth?",
+                            correct=["1 in 4"],
+                            wrong=["1 in 2", "1 in 3", "1 in 5"],
+                        ),
+                        dict(
+                            question="How many avocados do Americans "
+                            "eat a year combined?",
+                            correct=["4.2 bn"],
+                            wrong=["2 bn", "6.5 bn"],
+                        ),
+                        dict(
+                            question="How many Americans get injuries "
+                            "related to a TV falling every year?",
+                            correct=["11 800"],
+                            wrong=["5 200", "13 900"],
+                        ),
+                    ]
+                    params = random.choice(questions)
 
                 answers = [*params["correct"], *params["wrong"]]
                 shuffled = answers.copy()
@@ -466,7 +496,7 @@ class Fun(Cog):
                 )
                 await db.log_buttons(self.bot, view, general.id, msg.id, params)
                 await self.bot.pg_pool.execute(
-                    f"DELETE FROM tmers WHERE ttype = {DB_TMER_BURGER};"
+                    f"DELETE FROM tmers WHERE ttype = {TimerType.BURGER};"
                 )
 
         except AttributeError:  # bot hasn't loaded yet and pg_pool doesn't exist
@@ -523,8 +553,8 @@ class Fun(Cog):
             view = PredictionView(bot=self.bot, **params)
             await interaction.send(
                 f"On {predictions[label]['timestamp']}, {interaction.user.mention} "
-                f"made the following prediction:\n{EMPTY}\n"
-                f"{predictions[label]['text']}\n{EMPTY}\n"
+                f"made the following prediction:\n{EMPTY_STRING}\n"
+                f"{predictions[label]['text']}\n{EMPTY_STRING}\n"
                 f"Does this prediction deserve an 🔮? Vote below!",
                 view=view,
             )
@@ -552,7 +582,7 @@ class Fun(Cog):
         if label in predictions:
             await interaction.send(
                 f"Prediction '{label}' made on {predictions[label]['timestamp']}:"
-                f"\n{EMPTY}\n"
+                f"\n{EMPTY_STRING}\n"
                 f"{predictions[label]['text']}",
                 ephemeral=True,
             )
@@ -572,7 +602,7 @@ class Fun(Cog):
             for label, prediction in predictions.items():
                 await interaction.send(
                     f"Prediction '{label}' made on {prediction['timestamp']}:"
-                    f"\n{EMPTY}\n"
+                    f"\n{EMPTY_STRING}\n"
                     f"{prediction['text']}",
                     ephemeral=True,
                 )
@@ -645,11 +675,13 @@ class Fun(Cog):
             query, font_size, align = "Megamind no bitches", 125, "top"
 
         img = Image.open(
-            requests.get(GIT_STATIC_URL + f"/images/memes/{query}.png", stream=True).raw
+            requests.get(
+                URL.GITHUB_STATIC + f"/images/memes/{query}.png", stream=True
+            ).raw
         )
         draw = ImageDraw.Draw(img)
 
-        font_path = LOCAL_STATIC_PATH / "fonts" / "impact.ttf"
+        font_path = URL.LOCAL_STATIC / "fonts" / "impact.ttf"
 
         font = ImageFont.truetype(font=str(font_path), size=font_size)
         text = caption.upper()
@@ -709,7 +741,7 @@ class Fun(Cog):
     async def roulette(self, interaction):
         cooldown = await self.bot.pg_pool.fetch(
             "SELECT * FROM tmers "
-            f"WHERE usr_id = {interaction.user.id} AND ttype = {DB_TMER_ROULETTE}"
+            f"WHERE usr_id = {interaction.user.id} AND ttype = {TimerType.ROULETTE}"
         )
 
         if cooldown:
@@ -717,7 +749,7 @@ class Fun(Cog):
             if dt.now() >= expires:
                 await self.bot.pg_pool.execute(
                     f"DELETE FROM tmers WHERE usr_id = {interaction.user.id} "
-                    f"AND ttype = {DB_TMER_ROULETTE}"
+                    f"AND ttype = {TimerType.ROULETTE}"
                 )
             else:
                 await interaction.send(
@@ -730,7 +762,7 @@ class Fun(Cog):
 
         await interaction.response.defer()
 
-        stats = await db.ensured_get_usr(self.bot, interaction.user.id, GUILD_ID)
+        stats = await db.ensured_get_usr(self.bot, interaction.user.id, ID.GUILD)
         lose = random.randint(1, 6) == 6  # noqa: PLR2004
 
         if lose:
@@ -744,15 +776,15 @@ class Fun(Cog):
                 "Your streak has been reset."
             )
             try:
-                await interaction.user.timeout(ROULETTE_TIMEOUT)
+                await interaction.user.timeout(Duration.ROULETTE_TIMEOUT)
                 message = message[:-1] + " and you have been timed out."
             except nextcord.errors.Forbidden:
-                expires = dt.now() + ROULETTE_TIMEOUT
+                expires = dt.now() + Duration.ROULETTE_TIMEOUT
                 await self.bot.pg_pool.execute(
                     "INSERT INTO tmers (usr_id, expires, ttype) VALUES ($1, $2, $3);",
                     interaction.user.id,
                     expires,
-                    DB_TMER_ROULETTE,
+                    TimerType.ROULETTE,
                 )
             await interaction.send(message)
 
@@ -868,7 +900,7 @@ class Fun(Cog):
                 self.stop()
             else:
                 await interaction.send(
-                    GIT_STATIC_URL + "/images/bobby.gif", ephemeral=True
+                    URL.GITHUB_STATIC + "/images/bobby.gif", ephemeral=True
                 )
 
         @ui.button(label="No", style=ButtonStyle.red)
@@ -878,10 +910,10 @@ class Fun(Cog):
                 self.stop()
             else:
                 await interaction.send(
-                    GIT_STATIC_URL + "/images/bobby.gif", ephemeral=True
+                    URL.GITHUB_STATIC + "/images/bobby.gif", ephemeral=True
                 )
 
-    @user_command(name="Thank", guild_ids=[GUILD_ID])
+    @user_command(name="Thank", guild_ids=[ID.GUILD])
     async def thank_context(self, interaction, user):
         if user == interaction.user:
             await interaction.send(
@@ -893,7 +925,7 @@ class Fun(Cog):
         await self.bot.pg_pool.execute(
             f"UPDATE usr SET thanks = thanks + 1 WHERE usr_id = {user.id}"
         )
-        await interaction.send(f"Gave +1 {THANK_TYPE} to {user.mention}")
+        await interaction.send(f"Gave +1 Void to {user.mention}")
 
     @slash_command(description="Posts a random animal image")
     async def animal(
@@ -1094,8 +1126,8 @@ class BurgerView(ui.View):
                 await self.bot.pg_pool.execute(
                     "INSERT INTO tmers (usr_id, expires, ttype) VALUES ($1, $2, $3);",
                     interaction.user.id,
-                    dt.now() + BURGER_TIMEOUT,
-                    DB_TMER_BURGER,
+                    dt.now() + Duration.BURGER_TIMEOUT,
+                    TimerType.BURGER,
                 )
                 await db.log_or_update_note(self.bot, "burger history", history)
 
@@ -1138,7 +1170,7 @@ class PredictionView(ui.View):
         self.votes_for.append(interaction.user.id)
         await interaction.send("Vote recorded!", ephemeral=True)
 
-        if len(self.votes_for) >= PREDICTION_VOTE_THRESHOLD:
+        if len(self.votes_for) >= Threshold.PREDICTIONS:
             await interaction.send(
                 f"{uf.id_to_mention(self.owner_id)} has been awarded an orb!"
             )
@@ -1185,7 +1217,7 @@ class PredictionView(ui.View):
         self.votes_against.append(interaction.user.id)
         await interaction.send("Vote recorded!", ephemeral=True)
 
-        if len(self.votes_against) >= PREDICTION_VOTE_THRESHOLD:
+        if len(self.votes_against) >= Threshold.PREDICTIONS:
             await interaction.send(
                 f"{uf.id_to_mention(self.owner_id)}'s prediction has been deemed "
                 "unworthy of an 🔮!"

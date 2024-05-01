@@ -11,7 +11,7 @@ from nextcord import (
 )
 from nextcord.ext.commands import Cog
 
-from config.constants import *
+from config.constants import EMPTY_STRING, ID, ChannelName, Color, Format
 from db_integration import db_functions as db
 from utils import util_functions as uf
 
@@ -29,11 +29,11 @@ class Logs(Cog):
     @Cog.listener()
     async def on_raw_message_delete(self, payload):
         channel = self.bot.get_channel(payload.channel_id)
-        if channel.name == LOGS_CHANNEL_NAME:
+        if channel.name == ChannelName.LOGS:
             return
         embed, files = await deleted_embed(payload, channel)
         if embed:
-            logs = uf.get_channel(channel.guild, LOGS_CHANNEL_NAME)
+            logs = uf.get_channel(channel.guild, ChannelName.LOGS)
             if logs:
                 main = await logs.send(embed=embed)
                 for file in files:
@@ -44,7 +44,7 @@ class Logs(Cog):
         embed = await edited_embed(self.bot, payload)
         if embed:
             channel = self.bot.get_channel(payload.channel_id)
-            logs = uf.get_channel(channel.guild, LOGS_CHANNEL_NAME)
+            logs = uf.get_channel(channel.guild, ChannelName.LOGS)
             if logs:
                 await logs.send(embed=embed)
 
@@ -55,13 +55,13 @@ class Logs(Cog):
 
         embed = await voice_embed(member, before.channel, after.channel)
 
-        logs = uf.get_channel(member.guild, LOGS_CHANNEL_NAME)
+        logs = uf.get_channel(member.guild, ChannelName.LOGS)
         if logs:
             await logs.send(embed=embed)
 
     @Cog.listener()
     async def on_interaction(self, interaction):
-        logs = uf.get_channel(interaction.guild, LOGS_CHANNEL_NAME)
+        logs = uf.get_channel(interaction.guild, ChannelName.LOGS)
 
         if logs:
             if interaction.type == InteractionType.application_command:
@@ -99,7 +99,7 @@ class Logs(Cog):
         if now.hour != 0:
             return
 
-        yesterday = (now - timedelta(days=1)).strftime(YYYYMMDD)
+        yesterday = (now - timedelta(days=1)).strftime(Format.YYYYMMDD)
         query = f"SELECT * FROM logs WHERE timestamp LIKE '{yesterday}%'"
         try:
             log_table = await self.bot.pg_pool.fetch(query)
@@ -112,7 +112,7 @@ class Logs(Cog):
         if not log_table:
             return
 
-        maint = await self.bot.fetch_channel(ERROR_CHANNEL_ID)
+        maint = await self.bot.fetch_channel(ID.ERROR_CHANNEL)
         if not maint:
             await db.log(self.bot, "Error channel not found")
             return
@@ -125,7 +125,7 @@ class Logs(Cog):
 
 
 async def deleted_embed(payload, channel):
-    embed = Embed(color=SOFT_RED)
+    embed = Embed(color=Color.SOFT_RED)
     embed.title = "Message deleted"
     files = []
     if payload.cached_message is not None:
@@ -194,7 +194,7 @@ async def edited_embed(bot, payload):  # noqa: C901, PLR0912
         avatar_url = author.display_avatar.url
         attachment_url = message.attachments[0].url if message.attachments else None
 
-    embed = Embed(color=LIGHT_BLUE)
+    embed = Embed(color=Color.LIGHT_BLUE)
     embed.title = "Message edited"
     if len(before_message) > EMBED_DESCRIPTION_LIMIT:
         before_message = before_message[0:EMBED_DESCRIPTION_LIMIT]
@@ -221,7 +221,7 @@ async def edited_embed(bot, payload):  # noqa: C901, PLR0912
 
 
 async def voice_embed(member, before, after):
-    embed = Embed(color=PALE_BLUE)
+    embed = Embed(color=Color.PALE_BLUE)
     embed.title = "Voice channel update"
 
     discriminator = f"#{member.discriminator}" if member.discriminator != "0" else ""
@@ -264,7 +264,7 @@ async def command_embed(interaction):  # noqa: C901, PLR0912, PLR0915
         cmd_type = "Unknown command type"
         cmd_prefix = "?"
 
-    embed = Embed(color=VIE_PURPLE)
+    embed = Embed(color=Color.VIE_PURPLE)
     embed.title = f"{cmd_type} triggered"
 
     try:
@@ -291,7 +291,7 @@ async def command_embed(interaction):  # noqa: C901, PLR0912, PLR0915
         )
 
     elif "options" in interaction.data:  # Slash
-        embed.add_field(name=EMPTY, value=EMPTY)
+        embed.add_field(name=EMPTY_STRING, value=EMPTY_STRING)
 
         arg_data = interaction.data["options"]
         if "options" in arg_data[0]:
@@ -324,7 +324,7 @@ async def command_embed(interaction):  # noqa: C901, PLR0912, PLR0915
 
 
 async def component_embed(interaction):
-    embed = Embed(color=VIE_PURPLE)
+    embed = Embed(color=Color.VIE_PURPLE)
     avatar_url = interaction.user.display_avatar.url
     if avatar_url:
         embed.set_thumbnail(url=avatar_url)

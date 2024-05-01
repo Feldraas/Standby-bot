@@ -4,7 +4,7 @@ import requests
 from nextcord import SlashOption, slash_command
 from nextcord.ext.commands import Cog
 
-from config.constants import OPENAI_API_KEY
+from config.constants import Token
 from db_integration import db_functions as db
 
 
@@ -17,7 +17,7 @@ class GPT(Cog):
         self, interaction, prompt=SlashOption(description="Your question")
     ):
         await interaction.response.defer()
-        auth = f"Bearer {OPENAI_API_KEY}"
+        auth = f"Bearer {Token.OPENAI_API_KEY}"
         resp = requests.request(
             "POST",
             url="https://api.openai.com/v1/chat/completions",

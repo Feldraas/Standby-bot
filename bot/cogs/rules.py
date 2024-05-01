@@ -5,9 +5,50 @@ from math import ceil
 from nextcord import ButtonStyle, Embed, SelectOption, SlashOption, slash_command, ui
 from nextcord.ext.commands import Cog
 
-from config.constants import *
+from config.constants import (
+    EMPTY_STRING,
+    ID,
+    URL,
+    ChannelName,
+    Color,
+    Permissions,
+    RoleName,
+)
 from db_integration import db_functions as db
 from utils import util_functions as uf
+
+RULES_LIST = [
+    "1. Respect all other members.",
+    "2. Keep conversations friendly and calm.",
+    "3. No impersonating a moderator, or any others.",
+    "4. No inappropriate names or avatars.",
+    "5. No hate speech or slurs of any kind.",
+    "6. No advertising or spam.",
+    "7. No links to or posting NSFW content, including pornography, "
+    "gore and sexualised lolis.",
+    "8. Listen to moderators.",
+    "9. Do not appeal mod decisions in public channels - "
+    f"open a ticket in <#{ID.TICKETS}>.",
+    "10. No attacking race, religion, sexual orientation, gender identity or "
+    "nationality.",
+    f"11. Keep bot commands in <#{ID.BOT_SPAM}> unless it's relevant to the "
+    "current conversation.",
+    "12. Don't ping clan roles, @here or @everyone",
+]
+
+GENERAL_INFO = (
+    f"Talking in the server awards XP - you need Level 3 to access <#{ID.GIVEAWAYS}>. "
+    "Enforcement of the rules is always at the moderators' discretion. Repeated "
+    "infractions within a 30 day period lead to automatic action:\n"
+    "2 Warns = Muted for a day\n"
+    "3 Warns = Muted for 3 days\n"
+    "4 Warns = Banned for 7 days\n"
+    "5 Warns = Permanent ban"
+)
+
+DELIMITERS = {"clan": "Clans", "opt-in": "Opt-in", "color": "Colors"}
+
+MAX_SELECT_MENU_SIZE = 24
 
 
 class Rules(Cog):
@@ -20,13 +61,13 @@ class Rules(Cog):
 
     @slash_command(
         description="Commands for setting up and editing "
-        f"the #{RULES_CHANNEL_NAME} channel",
-        default_member_permissions=MODS_ONLY,
+        f"the #{ChannelName.RULES} channel",
+        default_member_permissions=Permissions.MODS_ONLY,
     )
     async def rule(self, interaction):
         pass
 
-    @rule.subcommand(description=f"Add all posts to the #{RULES_CHANNEL_NAME} channel")
+    @rule.subcommand(description=f"Add all posts to the #{ChannelName.RULES} channel")
     async def create(
         self,
         interaction,
@@ -35,25 +76,25 @@ class Rules(Cog):
         ),
     ):
         vie = interaction.guild
-        rules_ch = uf.get_channel(vie, RULES_CHANNEL_NAME)
+        rules_ch = uf.get_channel(vie, ChannelName.RULES)
         await interaction.send(
             f"Creation process starting in {rules_ch.mention}", ephemeral=True
         )
-        await rules_ch.send(GIT_STATIC_URL + "/images/Ginny_Welcome.png")
+        await rules_ch.send(URL.GITHUB_STATIC + "/images/Ginny_Welcome.png")
         await asyncio.sleep(delay)
 
-        rules_embed = Embed(color=VIE_PURPLE)
+        rules_embed = Embed(color=Color.VIE_PURPLE)
         rules_embed.title = r"__RULES__"
-        rules_embed.description = f"\n{EMPTY}\n".join(RULES_LIST)
+        rules_embed.description = f"\n{EMPTY_STRING}\n".join(RULES_LIST)
         await rules_ch.send(embed=rules_embed)
 
-        info_embed = Embed(color=VIE_PURPLE)
+        info_embed = Embed(color=Color.VIE_PURPLE)
         info_embed.title = r"__GENERAL INFO__"
         info_embed.description = GENERAL_INFO
         await rules_ch.send(embed=info_embed)
         await asyncio.sleep(delay)
 
-        alli_embed = Embed(color=VIE_PURPLE)
+        alli_embed = Embed(color=Color.VIE_PURPLE)
         alli_embed.title = "Step 1 - How did you join us?"
         alli_embed.description = (
             "If you're part of a clan in the Warframe alliance, use the 'Warframe' "
@@ -71,7 +112,7 @@ class Rules(Cog):
 
         await asyncio.sleep(delay)
 
-        clan_embed = Embed(color=VIE_PURPLE)
+        clan_embed = Embed(color=Color.VIE_PURPLE)
         clan_embed.title = (
             "Step 2 - If you're part of the Warframe alliance, "
             "use the menu below to select your clan."
@@ -83,7 +124,7 @@ class Rules(Cog):
         )
         await asyncio.sleep(delay)
 
-        opt_embed = Embed(color=VIE_PURPLE)
+        opt_embed = Embed(color=Color.VIE_PURPLE)
         opt_embed.title = (
             "Step 3 - Use the menu below if you want to be notified for things like "
             "updates, events and giveaways, or to access certain opt-in channels."
@@ -92,7 +133,7 @@ class Rules(Cog):
         opt_msg = await rules_ch.send(embed=opt_embed, view=view)
         await db.log_buttons(self.bot, view, rules_ch.id, opt_msg.id)
 
-        color_embed = Embed(color=VIE_PURPLE)
+        color_embed = Embed(color=Color.VIE_PURPLE)
         color_embed.title = (
             "Step 4 - Use the menu below if you want a different display color "
             "than the one provided by your clan"
@@ -115,10 +156,10 @@ class Rules(Cog):
     async def add(
         self, interaction, text: str = SlashOption(description="The text of the rule")
     ):
-        rules_ch = uf.get_channel(interaction.guild, RULES_CHANNEL_NAME)
-        rules_msg = await rules_ch.fetch_message(RULES_MESSAGE_ID)
+        rules_ch = uf.get_channel(interaction.guild, ChannelName.RULES)
+        rules_msg = await rules_ch.fetch_message(ID.RULES_MESSAGE)
         embed = rules_msg.embeds[0]
-        rules = re.split(rf"\n{EMPTY}\n", embed.description)
+        rules = re.split(rf"\n{EMPTY_STRING}\n", embed.description)
         rules = [re.sub(r"^\d+\. ", "", rule) for rule in rules]
 
         if re.match(r"^\d+$", text[-1]):
@@ -130,7 +171,7 @@ class Rules(Cog):
 
         rules.insert(number - 1, text)
         rules = [str(rules.index(rule) + 1) + ". " + rule for rule in rules]
-        embed.description = f"\n{EMPTY}\n".join(rules)
+        embed.description = f"\n{EMPTY_STRING}\n".join(rules)
         await rules_msg.edit(embed=embed)
         await interaction.send("Rule successfully added")
 
@@ -142,10 +183,10 @@ class Rules(Cog):
             description="Number of the rule to remove", min_value=1
         ),
     ):
-        rules_ch = uf.get_channel(interaction.guild, RULES_CHANNEL_NAME)
-        rules_msg = await rules_ch.fetch_message(RULES_MESSAGE_ID)
+        rules_ch = uf.get_channel(interaction.guild, ChannelName.RULES)
+        rules_msg = await rules_ch.fetch_message(ID.RULES_MESSAGE)
         embed = rules_msg.embeds[0]
-        rules = re.split(rf"\n{EMPTY}\n", embed.description)
+        rules = re.split(rf"\n{EMPTY_STRING}\n", embed.description)
         if number > len(rules):
             await interaction.send("No rule with that number.", ephemeral=True)
             return
@@ -153,7 +194,7 @@ class Rules(Cog):
         rules = [re.sub(r"^\d+\. ", "", rule) for rule in rules]
         rules.pop(number - 1)
         rules = [str(rules.index(rule) + 1) + ". " + rule for rule in rules]
-        embed.description = f"\n{EMPTY}\n".join(rules)
+        embed.description = f"\n{EMPTY_STRING}\n".join(rules)
         await rules_msg.edit(embed=embed)
         await interaction.send("Rule successfully removed", ephemeral=True)
 
@@ -166,16 +207,16 @@ class Rules(Cog):
         ),
         new_text=SlashOption(description="New text of the rule"),
     ):
-        rules_ch = uf.get_channel(interaction.guild, RULES_CHANNEL_NAME)
-        rules_msg = await rules_ch.fetch_message(RULES_MESSAGE_ID)
+        rules_ch = uf.get_channel(interaction.guild, ChannelName.RULES)
+        rules_msg = await rules_ch.fetch_message(ID.RULES_MESSAGE)
         embed = rules_msg.embeds[0]
-        rules = re.split(rf"\n{EMPTY}\n", embed.description)
+        rules = re.split(rf"\n{EMPTY_STRING}\n", embed.description)
 
         if number > len(rules):
             await interaction.send("No rule with that number", ephemeral=True)
 
         rules[number - 1] = f"{number}. {new_text}"
-        embed.description = f"\n{EMPTY}\n".join(rules)
+        embed.description = f"\n{EMPTY_STRING}\n".join(rules)
 
         await rules_msg.edit(embed=embed)
         await interaction.send("Rule successfully edited", ephemeral=True)
@@ -183,7 +224,7 @@ class Rules(Cog):
     @uf.delayed_loop(hours=8)
     async def kick_inactives(self):
         try:
-            guild = await self.bot.fetch_guild(GUILD_ID)
+            guild = await self.bot.fetch_guild(ID.GUILD)
         except Exception:
             await db.log(self.bot, "Could not fetch guild")
             return
@@ -207,7 +248,7 @@ class Rules(Cog):
                             "the Void Discord as you have failed to read our rules and "
                             "unlock the full server within 30 days. If this was "
                             "an accident, please feel free to join us again!"
-                            f"\n{EMPTY}\n{INVITE_LINK}"
+                            f"\n{EMPTY_STRING}\n{URL.INVITE}"
                         )
                     except Exception:
                         await db.log(
@@ -216,7 +257,7 @@ class Rules(Cog):
                         )
 
                     try:
-                        maint = await self.bot.fetch_channel(ERROR_CHANNEL_ID)
+                        maint = await self.bot.fetch_channel(ID.ERROR_CHANNEL)
                         await maint.send(
                             f"{member.name}{discriminator} has been kicked "
                             "due to inactivity."
@@ -284,7 +325,7 @@ class RoleChoiceView(ui.View):
         type_delimiter = DELIMITERS[role_type]
         all_roles = uf.get_roles_by_type(guild, type_delimiter)
         all_roles.sort(key=uf.role_prio)
-        num_groups = ceil(len(all_roles) / MAX_MENU_SIZE)
+        num_groups = ceil(len(all_roles) / MAX_SELECT_MENU_SIZE)
         group_size = ceil(len(all_roles) / num_groups)
         groups = [
             all_roles[(group_size * i) : (group_size * (i + 1))]
@@ -302,7 +343,8 @@ class RoleChoiceView(ui.View):
             super().__init__(placeholder=text, min_values=0)
             self.options = [
                 SelectOption(
-                    description=ROLE_DESCRIPTIONS.get(role.name, None), label=role.name
+                    description=RoleName.descriptions().get(role.name, None),
+                    label=role.name,
                 )
                 for role in roles
             ]
@@ -343,8 +385,8 @@ class OptInView(ui.View):
         super().__init__(timeout=None)
         opt_in_roles = uf.get_roles_by_type(guild, DELIMITERS["opt-in"])
         groups = [
-            opt_in_roles[i : i + MAX_MENU_SIZE]
-            for i in range(0, len(opt_in_roles), MAX_MENU_SIZE)
+            opt_in_roles[i : i + MAX_SELECT_MENU_SIZE]
+            for i in range(0, len(opt_in_roles), MAX_SELECT_MENU_SIZE)
         ]
         self.selected_roles = [[]] * len(groups)
         for index, group in enumerate(groups):
@@ -358,7 +400,7 @@ class OptInView(ui.View):
                 options=[
                     SelectOption(
                         label=role.name,
-                        description=ROLE_DESCRIPTIONS.get(role.name, None),
+                        description=RoleName.descriptions().get(role.name, None),
                     )
                     for role in roles
                 ],

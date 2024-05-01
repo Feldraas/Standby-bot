@@ -14,7 +14,7 @@ from nextcord import (
 from nextcord.ext.commands import Cog, command
 
 import utils.util_functions as uf
-from config.constants import *
+from config.constants import ID, Color
 from db_integration import db_functions as db
 
 
@@ -24,7 +24,7 @@ class LeaderboardSettings:
     stat_name: str
     stat_col_name: str
     user_name: str = "User"
-    color: str = VIE_PURPLE
+    color: str = Color.VIE_PURPLE
     table: str = "usr"
     stat_embed_header: str = None
 
@@ -35,7 +35,7 @@ all_settings = {
         stat_name="Stars",
         stat_embed_header="⭐",
         stat_col_name="stars",
-        color=STARBOARD_COLOUR,
+        color=Color.STARBOARD,
         table="starboard",
     ),
     "Voids": LeaderboardSettings(
@@ -162,7 +162,7 @@ class Services(Cog):
         interaction,
         recipient: Member = SlashOption(description="The user to award a skull to"),
     ):
-        if interaction.user.id != JORM_ID:
+        if interaction.user.id != ID.JORM:
             await interaction.send(
                 file=uf.simpsons_error_image(
                     dad=interaction.guild.me,
@@ -180,7 +180,7 @@ class Services(Cog):
         )
         await interaction.send(f"Gave a 💀 to {recipient.mention}")
 
-    @user_command(name="Give skull", guild_ids=[GUILD_ID])
+    @user_command(name="Give skull", guild_ids=[ID.GUILD])
     async def skull_context(self, interaction, user):
         await uf.invoke_slash_command("skull", self, interaction, user)
 
@@ -227,7 +227,7 @@ class Services(Cog):
             await interaction.send(message)
 
 
-async def create_leaderboard(bot, settings, guild_id=GUILD_ID, filter_by_user=None):
+async def create_leaderboard(bot, settings, guild_id=ID.GUILD, filter_by_user=None):
     filter_condition = (
         "AND usr_id = " + str(filter_by_user.id) if filter_by_user else ""
     )
@@ -283,7 +283,7 @@ async def urban_handler(bot, payload):
     try:
         message = await channel.fetch_message(payload.message_id)
         if (
-            payload.user_id != BOT_ID
+            payload.user_id != ID.BOT
             and not payload.member.bot
             and message.embeds
             and message.embeds[0]
@@ -312,7 +312,7 @@ async def urban_handler(bot, payload):
 
 
 def avatar_embed(user: Member) -> Embed:
-    embed = Embed(color=PALE_GREEN)
+    embed = Embed(color=Color.PALE_GREEN)
     link = user.display_avatar.url
     embed.set_image(url=link)
     embed.title = user.display_name + " (" + str(user) + ")"
@@ -332,7 +332,7 @@ async def urban_embed(query, page):
                 entries = data["list"]
                 pages = len(entries)
                 entry = entries[page - 1]
-                embed = Embed(color=DARK_ORANGE)
+                embed = Embed(color=Color.DARK_ORANGE)
                 embed.title = f"Page {page}/{pages}"
                 word = entry["word"]
                 web_link = f"https://www.urbandictionary.com/define.php?term={word}"

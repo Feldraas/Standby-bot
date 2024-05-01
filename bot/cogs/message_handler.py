@@ -4,7 +4,7 @@ from datetime import datetime as dt
 from nextcord.ext.commands import Cog
 
 from cogs.error_handler import unhandled_error_embed
-from config.constants import *
+from config.constants import ID, VALID_TEXT_CHANNEL, ChannelName
 from db_integration import db_functions as db
 from utils import util_functions as uf
 from utils.regex import (
@@ -19,7 +19,10 @@ last_messages = {}
 
 def get_response_command(message):  # noqa: C901
     for resp in regex_responses + wednesday_responses:
-        if message.channel.name in NO_RESPONSE_CHANNELS and not resp.prio:
+        if (
+            message.channel.name in ChannelName.no_response_channel_names()
+            and not resp.prio
+        ):
             continue
         if not re.search(resp.trigger, message.content, resp.flags):
             continue
@@ -76,8 +79,8 @@ class MessageHandler(Cog):
                     "Error when executing regex command "
                     f"{response_command.__name__}(): {e}",
                 )
-                if message.guild.id == GUILD_ID:
-                    channel = uf.get_channel(message.guild, ERROR_CHANNEL_NAME)
+                if message.guild.id == ID.GUILD:
+                    channel = uf.get_channel(message.guild, ChannelName.ERRORS)
                     if channel is not None:
                         await channel.send(
                             embed=unhandled_error_embed(

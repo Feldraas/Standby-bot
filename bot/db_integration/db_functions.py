@@ -6,7 +6,7 @@ from pathlib import Path
 
 import asyncpg
 
-from config.constants import DATABASE_URL, NO_SSL, YYYYMMDD_HHMMSS
+from config.constants import URL, Format
 from db_integration.create_scripts import create_tables
 from utils import util_functions as uf
 
@@ -14,10 +14,7 @@ bot_start_time = dt.now()
 
 
 async def init_connection(bot):
-    if NO_SSL:
-        bot.pg_pool = await asyncpg.create_pool(DATABASE_URL)
-    else:
-        bot.pg_pool = await asyncpg.create_pool(DATABASE_URL, ssl="require")
+    bot.pg_pool = await asyncpg.create_pool(URL.DATABASE, ssl="prefer")
     async with bot.pg_pool.acquire() as con:
         await create_tables(con)
 
@@ -98,7 +95,7 @@ async def log(bot, message=None, cached_line=None):
     if message:
         module = ".".join(re.split(r"[/\\]", inspect.stack()[1][1])[-2:])[:-3]
         func = inspect.stack()[1][3] + "()"
-        time = uf.now().strftime(YYYYMMDD_HHMMSS)
+        time = uf.now().strftime(Format.YYYYMMDD_HHMMSS)
     else:
         time, module, func, message = cached_line
         message += " [Added from cache]"

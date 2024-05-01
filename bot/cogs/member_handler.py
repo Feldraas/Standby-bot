@@ -4,7 +4,7 @@ import random
 from nextcord import Embed
 from nextcord.ext.commands import Cog
 
-from config.constants import *
+from config.constants import ID, URL, ChannelName, Color
 from utils import util_functions as uf
 
 
@@ -26,10 +26,10 @@ class MemberHandler(Cog):
 
 
 async def welcome_message(member):
-    if member.guild.id == GUILD_ID:
-        general = uf.get_channel(member.guild, "general")
-        rules_ch = uf.get_channel(member.guild, RULES_CHANNEL_NAME)
-        rules_text = rules_ch.mention if rules_ch else f"#{RULES_CHANNEL_NAME}"
+    if member.guild.id == ID.GUILD:
+        general = uf.get_channel(member.guild, ChannelName.GENERAL)
+        rules_ch = uf.get_channel(member.guild, ChannelName.RULES)
+        rules_text = rules_ch.mention if rules_ch else f"#{ChannelName.Rules}"
         if not general:
             return
         message = (
@@ -55,16 +55,16 @@ async def welcome_message(member):
 
 
 async def leave_message(member):
-    if member.guild.id == GUILD_ID:
-        channel = uf.get_channel(member.guild, ERROR_CHANNEL_NAME)
+    if member.guild.id == ID.GUILD:
+        channel = uf.get_channel(member.guild, ChannelName.ERRORS)
         if not channel:
             return
         name = member.name
         time = uf.utcnow()
         time = time.strftime("%b %d, %H:%M")
-        embed = Embed(color=GREY)
+        embed = Embed(color=Color.GREY)
         embed.title = "The void grows smaller..."
-        embed.set_thumbnail(url=GIT_STATIC_URL + "/images/grave.png")
+        embed.set_thumbnail(url=URL.GITHUB_STATIC + "/images/grave.png")
         embed.description = f":rocket: {name} has left the void :rocket:"
         causes = [
             "ded",

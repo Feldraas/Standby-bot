@@ -7,7 +7,7 @@ from nextcord import (
     RawReactionClearEvent,
 )
 
-from config.constants import STAR_THRESHOLD, STARBOARD_COLOUR, STARBOARD_ID
+from config.constants import ID, Color, Threshold
 from db_integration import db_functions as db
 
 starboard_lock = asyncio.Lock()
@@ -26,7 +26,7 @@ async def get_starboard_sbid(bot, msg_id):
 
 
 def starboard_embed(message, stars) -> Embed:
-    embed = Embed(colour=STARBOARD_COLOUR)
+    embed = Embed(color=Color.STARBOARD)
     if message.attachments:
         embed.set_image(url=message.attachments[0].url)
     content_msg = "[Link to message]"
@@ -57,7 +57,7 @@ async def starboard_handler(bot, payload):  # noqa: C901, PLR0912, PLR0915
         msg = await chnl.fetch_message(payload.message_id)
         await db.get_or_insert_usr(bot, msg.author.id, payload.guild_id)
         stars = 0
-        sb_channel = bot.get_channel(STARBOARD_ID)
+        sb_channel = bot.get_channel(ID.STARBOARD)
         for emoji in msg.reactions:
             if emoji.emoji == "⭐":
                 stars = emoji.count
@@ -68,7 +68,7 @@ async def starboard_handler(bot, payload):  # noqa: C901, PLR0912, PLR0915
                 f"SELECT sb_id FROM starboard WHERE msg_id = {payload.message_id};"
             )
 
-            if stars >= STAR_THRESHOLD:  # add to SB
+            if stars >= Threshold.STARBOARD:  # add to SB
                 if existcheck is None:
                     sb_msg = await sb_channel.send(embed=starboard_embed(msg, stars))
                     await bot.pg_pool.execute(
