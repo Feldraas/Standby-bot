@@ -164,6 +164,8 @@ CREATE TABLE IF NOT EXISTS "movies" (
 );
 """
 
+ALTER_USER_ADD_YOINK = 'ALTER TABLE "usr" ADD IF NOT EXISTS "last_yoink" timestamp'
+
 
 async def create_tables(con):
     no_errors = True
@@ -178,6 +180,7 @@ async def create_tables(con):
         await con.execute(ALTER_USER)
         await con.execute(ALTER_STARBOARD)
         await con.execute(ALTER_USER_ADD_PREDICTIONS)
+        await con.execute(ALTER_USER_ADD_YOINK)
     except Exception as e:
         print(f"Error when executing db script batch 1: {e}")
         no_errors = False

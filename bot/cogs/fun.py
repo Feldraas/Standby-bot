@@ -3,7 +3,7 @@ import json
 import os
 import random
 import re
-from datetime import datetime as dt
+from datetime import datetime as dt, timedelta
 from itertools import permutations
 
 import aiohttp
@@ -19,7 +19,6 @@ from transliterate.base import TranslitLanguagePack, registry
 from config.constants import *
 from db_integration import db_functions as db
 from utils import util_functions as uf
-
 
 TOUCAN_PRAISE = """
 ░░░░░░░░▄▄▄▀▀▀▄▄███▄░░░░░░░░░░░░░░
@@ -286,6 +285,41 @@ class Fun(Cog):
     @user_command(name="Burger")
     async def burger_context(self, interaction, user):
         await uf.invoke_slash_command("burger", self, interaction, user)
+
+
+    @slash_command(description="Yoink the burger")
+    async def yoink(self, interaction):
+        await db.get_or_insert_usr(self.bot, interaction.user.id, interaction.guild.id)
+        recs = await self.bot.pg_pool.fetch(f"SELECT last_yoink FROM usr WHERE usr_id = {interaction.user.id}")
+        last_yoink = recs[0]["last_yoink"]
+        if last_yoink and dt.now() - last_yoink < timedelta(days=30):
+            await interaction.send("You have yoinked the burger too recently and cannot do so again until "
+                                   f"{uf.dynamic_timestamp(last_yoink + timedelta(days=30))}",
+                                   ephemeral=True)
+            return
+
+        burgered_role = uf.get_role(interaction.guild, "Burgered")
+        holders = [member for member in interaction.guild.members if burgered_role in member.roles]
+        current_holder = holders[0]
+        await current_holder.remove_roles(burgered_role)
+        await self.bot.pg_pool.execute(
+            f"DELETE FROM tmers WHERE ttype = {DB_TMER_BURGER}")
+        await interaction.user.add_roles(burgered_role)
+        expires = dt.now() + BURGER_TIMEOUT
+        await self.bot.pg_pool.execute("INSERT INTO tmers (usr_id, expires, ttype) VALUES ($1, $2, $3);",
+                                       interaction.user.id, expires, DB_TMER_BURGER)
+        await self.bot.pg_pool.execute(
+            f"UPDATE usr SET last_yoink = '{dt.now()}', burgers = burgers + 1 "
+            f"WHERE usr_id = {interaction.user.id}")
+
+        history = await db.get_note(self.bot, "burger history")
+        if history:
+            history = json.loads(history)
+            history = [interaction.user.id, *history[:4]]
+        else:
+            history = [interaction.user.id]
+        await db.log_or_update_note(self.bot, "burger history", history)
+        await interaction.send(f"{interaction.user.mention} has yoinked the burger from {current_holder.mention}!")
 
 
     @uf.delayed_loop(minutes=1)
