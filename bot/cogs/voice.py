@@ -5,10 +5,8 @@ from utils import util_functions as uf
 
 
 class Voice(Cog):
-
     def __init__(self, bot):
         self.bot = bot
-
 
     @Cog.listener()
     async def on_voice_state_update(self, member, before, after):
@@ -23,9 +21,10 @@ class Voice(Cog):
         if after.channel:
             role = uf.get_role(member.guild, after.channel.name)
             if not role:
-                role = await member.guild.create_role(name=after.channel.name, mentionable=True)
+                role = await member.guild.create_role(
+                    name=after.channel.name, mentionable=True
+                )
             await member.add_roles(role)
-
 
     @Cog.listener()
     async def on_guild_channel_update(self, before, after):
@@ -33,7 +32,6 @@ class Voice(Cog):
             role = uf.get_role(after.guild, before.name)
             if role:
                 await role.edit(name=after.name)
-
 
     @Cog.listener()
     async def on_guild_channel_delete(self, channel):

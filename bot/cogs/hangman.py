@@ -7,11 +7,12 @@ from nextcord.ext.commands import Cog
 from config.constants import *
 from utils import util_functions as uf
 
-image_links = [GIT_STATIC_URL + f"/images/Hangman-{num}.png" for num in range(7)]
+IMAGE_LINKS = [GIT_STATIC_URL + f"/images/Hangman-{num}.png" for num in range(7)]
+MAX_PHRASE_LENGTH = 85
+MAX_WRONG_GUESSES = 6
 
 
 class HangmanGame:
-
     def __init__(self):
         self.status = "Inactive"
         self.lock = asyncio.Lock()
@@ -22,29 +23,35 @@ class HangmanGame:
         self.channel = None
         self.embed = None
 
-
     def create_embed(self):
-
         embed = Embed(color=PALE_GREEN)
         title = re.sub(" ", "   ", self.progress)
         title = re.sub("_", r"\_ ", title)
         title = re.sub(r"(\w)", r"\1 ", title)
-        embed.title = title if len(self.wrong_guesses) < 6 else self.word
-        if len(self.wrong_guesses) >= 6:
+        embed.title = (
+            title if len(self.wrong_guesses) < MAX_WRONG_GUESSES else self.word
+        )
+        if len(self.wrong_guesses) >= MAX_WRONG_GUESSES:
             desc = "Game over! Use `/hangman` to start another round."
         elif self.word == self.progress:
             desc = "Game won! Use `/hangman` to start another round."
         else:
-            desc = "Welcome to Void Hangman! Use `/hangman` to guess a letter or the whole word/phrase."
+            desc = (
+                "Welcome to Void Hangman! "
+                "Use `/hangman` to guess a letter or the whole word/phrase."
+            )
         embed.description = desc
-        embed.set_image(url=image_links[len(self.wrong_guesses)])
-        embed.add_field(name="Wrong guesses",
-                        value="None" if len(self.wrong_guesses) == 0 else ", ".join(self.wrong_guesses), inline=False)
+        embed.set_image(url=IMAGE_LINKS[len(self.wrong_guesses)])
+        embed.add_field(
+            name="Wrong guesses",
+            value="None"
+            if len(self.wrong_guesses) == 0
+            else ", ".join(self.wrong_guesses),
+            inline=False,
+        )
         return embed
 
-
     def setup(self, word, host, channel):
-
         self.status = "Active"
         self.word = word.upper()
         self.progress = re.sub(r"\w", "_", self.word)
@@ -53,19 +60,20 @@ class HangmanGame:
         self.channel = channel
         self.embed = self.create_embed()
 
-
     def check_letter(self, letter):
         letter = letter.upper()
         if letter in self.word:
             for match in re.finditer(letter, self.word):
-                self.progress = (self.progress[: match.start()] + letter + self.progress[match.start() + 1:])
+                self.progress = (
+                    self.progress[: match.start()]
+                    + letter
+                    + self.progress[match.start() + 1 :]
+                )
             self.embed = self.create_embed()
             return True
-        else:
-            self.wrong_guesses.append(letter)
-            self.embed = self.create_embed()
-            return False
-
+        self.wrong_guesses.append(letter)
+        self.embed = self.create_embed()
+        return False
 
     def check_word(self, word):
         word = word.upper()
@@ -73,19 +81,16 @@ class HangmanGame:
             self.progress = word
             self.embed = self.create_embed()
             return True
-        else:
-            self.wrong_guesses.append(word)
-            self.embed = self.create_embed()
-            return False
-
+        self.wrong_guesses.append(word)
+        self.embed = self.create_embed()
+        return False
 
     def state(self):
-        if len(self.wrong_guesses) == 6:
+        if len(self.wrong_guesses) == MAX_WRONG_GUESSES:
             return "Game Over"
-        elif self.progress == self.word:
+        if self.progress == self.word:
             return "Game Won"
-        else:
-            return "Still guessing"
+        return "Still guessing"
 
 
 game = HangmanGame()
@@ -95,44 +100,56 @@ class Hangman(Cog, name="Void Hangman"):
     def __init__(self, bot):
         self.bot = bot
 
-
     @slash_command(description="Commands for running games of hangman")
     async def hangman(self, interaction):
         pass
 
-
     @hangman.subcommand(description="Start a game of Void Hangman")
-    async def start(self, interaction,
-                    phrase: str = SlashOption(description="The word or phrase to be guessed (max 85 characters)")):
-
+    async def start(
+        self,
+        interaction,
+        phrase: str = SlashOption(
+            description="The word or phrase to be guessed (max 85 characters)"
+        ),
+    ):
         await game.lock.acquire()
 
         if game.status != "Inactive":
             await interaction.send("A game is already running.", ephemeral=True)
 
         else:
-            if len(phrase) > 85:
-                await interaction.send("Phrase is too long, please try again", ephemeral=True)
+            if len(phrase) > MAX_PHRASE_LENGTH:
+                await interaction.send(
+                    "Phrase is too long, please try again", ephemeral=True
+                )
                 return
 
-            await interaction.send("Phrase accepted - game is starting!", ephemeral=True)
+            await interaction.send(
+                "Phrase accepted - game is starting!", ephemeral=True
+            )
             await interaction.channel.send("Void Hangman has begun!")
             game.setup(phrase, interaction.user, interaction.channel)
             await interaction.channel.send(embed=game.embed)
             game.lock.release()
 
-
     @hangman.subcommand(description="Attempt a guess")
-    async def guess(self, interaction: Interaction,
-                    guess: str = SlashOption(description="Your guess - either a letter or the whole word/phrase")):
-
-        global game
+    async def guess(  # noqa: C901, PLR0912
+        self,
+        interaction: Interaction,
+        guess: str = SlashOption(
+            description="Your guess - either a letter or the whole word/phrase"
+        ),
+    ):
+        global game  # noqa: PLW0603
 
         if game.status == "Inactive":
             await interaction.send("No active game found.", ephemeral=True)
         elif game.channel != interaction.channel:
-            await interaction.send("You can only make guesses in the current game's channel, "
-                                   f"please head over to {game.channel.mention}.", ephemeral=True)
+            await interaction.send(
+                "You can only make guesses in the current game's channel, "
+                f"please head over to {game.channel.mention}.",
+                ephemeral=True,
+            )
         elif game.host == interaction.user:
             await interaction.send("Hey, no cheating!", ephemeral=True)
         else:
@@ -152,27 +169,38 @@ class Hangman(Cog, name="Void Hangman"):
                 if not game.check_word(guess):
                     await interaction.send(f"{guess} isn't correct, sorry.")
             else:
-                await interaction.send("You can only guess single letters or the entire word/phrase.", ephemeral=True)
+                await interaction.send(
+                    "You can only guess single letters or the entire word/phrase.",
+                    ephemeral=True,
+                )
                 return
 
             if game.state() == "Game Over":
-                await interaction.send("Game Over - better luck next time!", embed=game.embed)
+                await interaction.send(
+                    "Game Over - better luck next time!", embed=game.embed
+                )
                 game = HangmanGame()
             elif game.state() == "Game Won":
-                await interaction.send("Winner winner chicken dinner!", embed=game.embed)
+                await interaction.send(
+                    "Winner winner chicken dinner!", embed=game.embed
+                )
                 game = HangmanGame()
             else:
                 await interaction.channel.send(embed=game.embed)
 
-
     @hangman.subcommand(description="Abort the current game of Void Hangman")
     async def abort(self, interaction):
-        global game
+        global game  # noqa: PLW0603
 
         if game.status != "Active":
             await interaction.send("No active game found.", ephemeral=True)
-        elif interaction.user != game.host or uf.get_role(interaction.guild, "Moderator") not in interaction.user.roles:
-            await interaction.send("Only the person who started the game can stop it.", ephemeral=True)
+        elif (
+            interaction.user != game.host
+            or uf.get_role(interaction.guild, "Moderator") not in interaction.user.roles
+        ):
+            await interaction.send(
+                "Only the person who started the game can stop it.", ephemeral=True
+            )
         else:
             await interaction.send("Game aborted. Use `/hangman` to start a new one.")
             game = HangmanGame()

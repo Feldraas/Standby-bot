@@ -7,12 +7,17 @@ from cogs.error_handler import unhandled_error_embed
 from config.constants import *
 from db_integration import db_functions as db
 from utils import util_functions as uf
-from utils.regex import RegexResponse, regex_responses, wednesday_responses, WednesdayResponse
+from utils.regex import (
+    RegexResponse,
+    WednesdayResponse,
+    regex_responses,
+    wednesday_responses,
+)
 
 last_messages = {}
 
 
-def get_response_command(message):
+def get_response_command(message):  # noqa: C901
     for resp in regex_responses + wednesday_responses:
         if message.channel.name in NO_RESPONSE_CHANNELS and not resp.prio:
             continue
@@ -25,7 +30,8 @@ def get_response_command(message):
             return resp.response
 
         if type(resp) is WednesdayResponse:
-            async def resp_command(bot, msg):
+
+            async def resp_command(bot, msg, resp=resp):  # noqa: ARG001
                 if dt.now().weekday() == resp.trigger_day:
                     await msg.channel.send(resp.response)
                     scream = 10 * resp.a
@@ -38,22 +44,24 @@ def get_response_command(message):
                 else:
                     await msg.channel.send(resp.wrong_day_response)
 
-
             return resp_command
+    return None
 
 
 class MessageHandler(Cog):
-
     def __init__(self, bot):
         self.bot = bot
-
 
     @Cog.listener()
     async def on_message(self, message):
         if message.author.bot:
             return
         if not isinstance(message.channel, VALID_TEXT_CHANNEL):
-            await db.log(self.bot, f"Unexpected message in channel {message.channel} of type {message.channel.type}")
+            await db.log(
+                self.bot,
+                f"Unexpected message in channel {message.channel} "
+                f"of type {message.channel.type}",
+            )
             return
         if message.content == "":
             return
@@ -63,17 +71,31 @@ class MessageHandler(Cog):
             try:
                 await response_command(self.bot, message)
             except Exception as e:
-                await db.log(self.bot, f"Error when executing regex command {response_command.__name__}(): {e}")
+                await db.log(
+                    self.bot,
+                    "Error when executing regex command "
+                    f"{response_command.__name__}(): {e}",
+                )
                 if message.guild.id == GUILD_ID:
                     channel = uf.get_channel(message.guild, ERROR_CHANNEL_NAME)
                     if channel is not None:
-                        await channel.send(embed=unhandled_error_embed(message.content, message.channel, e))
+                        await channel.send(
+                            embed=unhandled_error_embed(
+                                message.content, message.channel, e
+                            )
+                        )
                     else:
                         await db.log(self.bot, "Could not find error channel")
             return
 
-        if last_messages.get(message.channel, (None, None))[0] == message.content.lower():
-            if "<:BlobWave:" not in message.content and message.author != last_messages[message.channel][1]:
+        if (
+            last_messages.get(message.channel, (None, None))[0]
+            == message.content.lower()
+        ):
+            if (
+                "<:BlobWave:" not in message.content
+                and message.author != last_messages[message.channel][1]
+            ):
                 await message.channel.send(message.content)
                 last_messages.pop(message.channel)
         else:

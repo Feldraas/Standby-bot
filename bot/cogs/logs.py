@@ -1,12 +1,21 @@
 import json
 from datetime import timedelta
+from pathlib import Path
 
-from nextcord import Embed, ApplicationCommandType, ApplicationCommandOptionType, InteractionType, MessageType
+from nextcord import (
+    ApplicationCommandOptionType,
+    ApplicationCommandType,
+    Embed,
+    InteractionType,
+    MessageType,
+)
 from nextcord.ext.commands import Cog
 
 from config.constants import *
 from db_integration import db_functions as db
 from utils import util_functions as uf
+
+EMBED_DESCRIPTION_LIMIT = 950
 
 
 class Logs(Cog):
@@ -14,10 +23,8 @@ class Logs(Cog):
         self.bot = bot
         self.check_logs.start()
 
-
     def cog_unload(self):
         self.check_logs.cancel()
-
 
     @Cog.listener()
     async def on_raw_message_delete(self, payload):
@@ -32,7 +39,6 @@ class Logs(Cog):
                 for file in files:
                     await logs.send(file=file, reference=main)
 
-
     @Cog.listener()
     async def on_raw_message_edit(self, payload):
         embed = await edited_embed(self.bot, payload)
@@ -41,7 +47,6 @@ class Logs(Cog):
             logs = uf.get_channel(channel.guild, LOGS_CHANNEL_NAME)
             if logs:
                 await logs.send(embed=embed)
-
 
     @Cog.listener()
     async def on_voice_state_update(self, member, before, after):
@@ -53,7 +58,6 @@ class Logs(Cog):
         logs = uf.get_channel(member.guild, LOGS_CHANNEL_NAME)
         if logs:
             await logs.send(embed=embed)
-
 
     @Cog.listener()
     async def on_interaction(self, interaction):
@@ -67,23 +71,28 @@ class Logs(Cog):
                 embed = await component_embed(interaction)
                 await logs.send(embed=embed)
             else:
-                await db.log(self.bot, f"Unknown interaction in {interaction.channel.name} with {interaction.type=}")
-                await logs.send(f"Unknown interaction in {interaction.channel.mention}.")
+                await db.log(
+                    self.bot,
+                    f"Unknown interaction in {interaction.channel.name} "
+                    f"with {interaction.type=}",
+                )
+                await logs.send(
+                    f"Unknown interaction in {interaction.channel.mention}."
+                )
         else:
             await db.log(self.bot, "Log channel not found")
-
 
     @uf.delayed_loop(hours=1)
     async def check_logs(self):
         try:
-            with open("db_cache.txt", "r") as cache:
+            with Path("db_cache.txt").open() as cache:
                 lines = [json.loads(line) for line in cache]
-            with open("db_cache.txt", "w"):  # Wipe cache
+            with Path("db_cache.txt").open("w"):  # Wipe cache
                 pass
         except FileNotFoundError:
             lines = []
 
-        for i, line in enumerate(lines):
+        for _, line in enumerate(lines):
             await db.log(self.bot, cached_line=line)
 
         now = uf.now()
@@ -96,7 +105,7 @@ class Logs(Cog):
             log_table = await self.bot.pg_pool.fetch(query)
         except AttributeError:
             return
-        except Exception as e:
+        except:
             await db.log(self.bot, "Could not fetch yesterday's logs")
             return
 
@@ -109,7 +118,10 @@ class Logs(Cog):
             return
         await maint.send(f"Error log for yesterday ({yesterday}):")
         for line in log_table:
-            await maint.send(f"{line['timestamp']}: [{line['module']}.{line['function']}] {line['message']}")
+            await maint.send(
+                f"{line['timestamp']}: "
+                f"[{line['module']}.{line['function']}] {line['message']}"
+            )
 
 
 async def deleted_embed(payload, channel):
@@ -121,8 +133,8 @@ async def deleted_embed(payload, channel):
         if message.author.bot or message.type == MessageType.pins_add:
             return None, None
         embed.description = message.content
-        if len(embed.description) > 950:
-            embed.description = embed.description[0:950]
+        if len(embed.description) > EMBED_DESCRIPTION_LIMIT:
+            embed.description = embed.description[0:EMBED_DESCRIPTION_LIMIT]
             embed.description += "[Message had to be shortened]"
 
         if message.author.display_avatar:
@@ -141,7 +153,7 @@ async def deleted_embed(payload, channel):
     return embed, files
 
 
-async def edited_embed(bot, payload):
+async def edited_embed(bot, payload):  # noqa: C901, PLR0912
     before = payload.cached_message
     after = payload.data
     if "content" in after:
@@ -184,11 +196,11 @@ async def edited_embed(bot, payload):
 
     embed = Embed(color=LIGHT_BLUE)
     embed.title = "Message edited"
-    if len(before_message) > 950:
-        before_message = before_message[0:950]
+    if len(before_message) > EMBED_DESCRIPTION_LIMIT:
+        before_message = before_message[0:EMBED_DESCRIPTION_LIMIT]
         before_message += " [Message had to be shortened]"
-    if len(after_message) > 600:
-        after_message = after_message[0:950]
+    if len(after_message) > EMBED_DESCRIPTION_LIMIT - 350:
+        after_message = after_message[0:EMBED_DESCRIPTION_LIMIT]
         after_message += " [Message had to be shortened]"
     if len(before_message) <= 0:
         before_message = "[empty]"
@@ -215,23 +227,31 @@ async def voice_embed(member, before, after):
     discriminator = f"#{member.discriminator}" if member.discriminator != "0" else ""
 
     if before and after:
-        embed.description = (f"{member.mention} ({member.name}{discriminator}) switched"
-                             f" voice channels from {before.mention} to {after.mention}")
+        embed.description = (
+            f"{member.mention} ({member.name}{discriminator}) switched"
+            f" voice channels from {before.mention} to {after.mention}"
+        )
     elif before:
-        embed.description = (f"{member.mention} ({member.name}{discriminator}) left"
-                             f" voice channel {before.mention}")
+        embed.description = (
+            f"{member.mention} ({member.name}{discriminator}) left"
+            f" voice channel {before.mention}"
+        )
     else:
-        embed.description = (f"{member.mention} ({member.name}{discriminator}) joined"
-                             f" voice channel {after.mention}")
+        embed.description = (
+            f"{member.mention} ({member.name}{discriminator}) joined"
+            f" voice channel {after.mention}"
+        )
     embed.timestamp = uf.utcnow()
     return embed
 
 
-async def command_embed(interaction):
+async def command_embed(interaction):  # noqa: C901, PLR0912, PLR0915
     if interaction.application_command.type == ApplicationCommandType.chat_input:
         cmd_type = "Slash command"
         cmd_prefix = "/"
-    elif interaction.application_command.type == ApplicationCommandOptionType.sub_command:
+    elif (
+        interaction.application_command.type == ApplicationCommandOptionType.sub_command
+    ):
         cmd_type = "Slash subcommand"
         cmd_prefix = "/"
     elif interaction.application_command.type == ApplicationCommandType.user:
@@ -258,13 +278,17 @@ async def command_embed(interaction):
     embed.add_field(name="In channel", value=interaction.channel.mention)
 
     if cmd_type == "User command":
-        embed.add_field(name="Target user", value=uf.id_to_mention(interaction.data["target_id"]))
+        embed.add_field(
+            name="Target user", value=uf.id_to_mention(interaction.data["target_id"])
+        )
 
     elif cmd_type == "Message command":
         message_id = interaction.data["target_id"]
         message = await interaction.channel.fetch_message(message_id)
 
-        embed.add_field(name="Target messsage", value=f"[Click here]({message.jump_url})")
+        embed.add_field(
+            name="Target messsage", value=f"[Click here]({message.jump_url})"
+        )
 
     elif "options" in interaction.data:  # Slash
         embed.add_field(name=EMPTY, value=EMPTY)
@@ -272,19 +296,21 @@ async def command_embed(interaction):
         arg_data = interaction.data["options"]
         if "options" in arg_data[0]:
             arg_data = arg_data[0]["options"]
-
+        user_type, channel_type, role_type = 6, 7, 8
         for arg in arg_data:
-            if arg["type"] == 6:
+            if arg["type"] == user_type:
                 formatted_value = uf.id_to_mention(arg["value"], "user")
-            elif arg["type"] == 7:
+            elif arg["type"] == channel_type:
                 formatted_value = uf.id_to_mention(arg["value"], "channel")
-            elif arg["type"] == 8:
+            elif arg["type"] == role_type:
                 formatted_value = uf.id_to_mention(arg["value"], "role")
+            elif full_command_name.startswith("/prediction") and arg["name"] in [
+                "label",
+                "text",
+            ]:
+                formatted_value = "[REDACTED]"
             else:
-                if full_command_name.startswith("/prediction") and arg["name"] in ["label", "text"]:
-                    formatted_value = "[REDACTED]"
-                else:
-                    formatted_value = arg["value"]
+                formatted_value = arg["value"]
 
             embed.add_field(name=arg["name"], value=formatted_value)
 
@@ -303,8 +329,9 @@ async def component_embed(interaction):
     if avatar_url:
         embed.set_thumbnail(url=avatar_url)
     data = interaction.data
-    if data["component_type"] == 2:  # Button
-        embed.title = f"Button pressed"
+    button_type, select_type = 2, 3
+    if data["component_type"] == button_type:
+        embed.title = "Button pressed"
         labels = []
         for row in interaction.message.components:
             for child in row.children:
@@ -314,10 +341,12 @@ async def component_embed(interaction):
                     labels.append(child.label)
                 elif child.emoji:
                     labels.append(child.emoji)
-        embed.add_field(name="Button", value=labels[0] if len(labels) == 1 else "Unknown")
+        embed.add_field(
+            name="Button", value=labels[0] if len(labels) == 1 else "Unknown"
+        )
         embed.add_field(name="Pressed by", value=interaction.user.mention)
         embed.add_field(name="In channel", value=interaction.channel.mention)
-    elif data["component_type"] == 3:  # Select
+    elif data["component_type"] == select_type:
         embed.title = "Dropdown menu used"
         embed.add_field(name="Used by", value=interaction.user.mention)
         embed.add_field(name="In channel", value=interaction.channel.mention)
@@ -330,7 +359,11 @@ async def component_embed(interaction):
         embed.title = f"Unknown component type {data['component_type']}"
         embed.add_field(name="Used by", value=interaction.user.mention)
         embed.add_field(name="In channel", value=interaction.channel.mention)
-    embed.add_field(name="Link to message", value=f"[Click here]({interaction.message.jump_url})", inline=False)
+    embed.add_field(
+        name="Link to message",
+        value=f"[Click here]({interaction.message.jump_url})",
+        inline=False,
+    )
 
     return embed
 

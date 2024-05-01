@@ -12,16 +12,13 @@ class MemberHandler(Cog):
     def __init__(self, bot):
         self.bot = bot
 
-
     @Cog.listener()
     async def on_member_remove(self, payload):
         await leave_message(payload)
 
-
     @Cog.listener()
     async def on_member_join(self, payload):
         await welcome_message(payload)
-
 
     @Cog.listener()
     async def on_member_update(self, before, after):
@@ -35,19 +32,26 @@ async def welcome_message(member):
         rules_text = rules_ch.mention if rules_ch else f"#{RULES_CHANNEL_NAME}"
         if not general:
             return
-        message = (f"Welcome {member.mention}!\n"
-                   "Wondering why the server seems so void of channels?\n"
-                   f"Please read the rules in {rules_text} to unlock the full server!\n"
-                   "https://www.youtube.com/watch?v=67h8GyNgEmA")
+        message = (
+            f"Welcome {member.mention}!\n"
+            "Wondering why the server seems so void of channels?\n"
+            f"Please read the rules in {rules_text} to unlock the full server!\n"
+            "https://www.youtube.com/watch?v=67h8GyNgEmA"
+        )
 
         await general.send(message)
         await asyncio.sleep(30 * 60)
-        if not member.bot and member.guild.get_member(member.id) and (
-                uf.get_role(member.guild, "Alliance") not in member.roles) and (
-                uf.get_role(member.guild, "Community") not in member.roles):
-            await general.send(f"Hey {member.mention} - I see you still haven't unlocked the full server. "
-                               f"Make sure you read {rules_ch.mention} and use the buttons so you can "
-                               "access all of our channels!")
+        if (
+            not member.bot
+            and member.guild.get_member(member.id)
+            and (uf.get_role(member.guild, "Alliance") not in member.roles)
+            and (uf.get_role(member.guild, "Community") not in member.roles)
+        ):
+            await general.send(
+                f"Hey {member.mention} - I see you still haven't unlocked "
+                f"the full server. Make sure you read {rules_ch.mention} "
+                "and use the buttons so you can access all of our channels!"
+            )
 
 
 async def leave_message(member):
@@ -62,15 +66,25 @@ async def leave_message(member):
         embed.title = "The void grows smaller..."
         embed.set_thumbnail(url=GIT_STATIC_URL + "/images/grave.png")
         embed.description = f":rocket: {name} has left the void :rocket:"
-        causes = ["ded", "Couldn't find their socks fast enough", "Yeeted themselves off a very high chair",
-                  "Forgot how to breathe", "Stickbugged one time too many", "Disrespected the pedestal",
-                  "Terminal case of being horny", "Sacrificed at the altar of Tzeentch", "Critical paper cut",
-                  "Executed by the ICC for their numerous war crimes in Albania", ]
+        causes = [
+            "ded",
+            "Couldn't find their socks fast enough",
+            "Yeeted themselves off a very high chair",
+            "Forgot how to breathe",
+            "Stickbugged one time too many",
+            "Disrespected the pedestal",
+            "Terminal case of being horny",
+            "Sacrificed at the altar of Tzeentch",
+            "Critical paper cut",
+            "Executed by the ICC for their numerous war crimes in Albania",
+        ]
         animu = uf.get_channel(member.guild, "animu")
         if animu:
             causes.append(f"Too much time spent in {animu.mention}")
         embed.add_field(name="Time of death", value=time)
-        embed.add_field(name="Cause of death", value=causes[random.randint(1, len(causes)) - 1])
+        embed.add_field(
+            name="Cause of death", value=causes[random.randint(1, len(causes)) - 1]
+        )
         await channel.send(embed=embed)
 
 
