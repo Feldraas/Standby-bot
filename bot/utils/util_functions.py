@@ -75,7 +75,7 @@ def int_to_emoji(num):
     return emojis[num]
 
 
-def dynamic_timestamp(time, frmat):
+def dynamic_timestamp(time, frmat="f"):
     codes = {
         "short time": "t",
         "long time": "T",
