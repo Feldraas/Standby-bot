@@ -1,3 +1,5 @@
+import os
+
 from nextcord import Intents
 from nextcord.ext.commands import Bot
 
@@ -7,6 +9,12 @@ from db_integration import db_functions as db
 
 intents = Intents.all()
 bot = Bot(intents=intents, case_insensitive=True)
+
+DEBUG = os.getenv("DEBUG", default=False)
+if DEBUG:
+    print("Running in debug")  # noqa: T201
+else:
+    print("Running in prod")  # noqa: T201
 
 
 @bot.event

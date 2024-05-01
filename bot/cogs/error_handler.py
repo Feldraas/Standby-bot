@@ -1,6 +1,6 @@
 import asyncio
 
-from nextcord import Embed
+from nextcord import Embed, Message
 from nextcord.ext.commands import Cog, Context, errors
 
 from config.constants import *
@@ -12,13 +12,11 @@ class ErrorHandler(Cog):
     def __init__(self, bot):
         self.bot = bot
 
-
     async def send_help_command(self, ctx: Context):
         if ctx.command:
             await ctx.send_help(ctx.command)
         else:
             await ctx.send_help()
-
 
     @Cog.listener()
     async def on_command_error(self, ctx: Context, e: errors.CommandError) -> None:
@@ -26,14 +24,19 @@ class ErrorHandler(Cog):
         if isinstance(e, errors.UserInputError):
             await self.handle_user_input_error(ctx, e)
         elif isinstance(e, errors.CommandNotFound):
-            await self._sleep_and_delete(await ctx.channel.send(
-                embed=self._get_error_embed(title="Command not found", body=ctx.message.content)))
-        else:
-            if ctx.guild.id == GUILD_ID:
-                channel = uf.get_channel(ctx.guild, ERROR_CHANNEL_NAME)
-                if channel is not None:
-                    await channel.send(embed=unhandled_error_embed(ctx.message.content, ctx.channel, e))
-
+            await self._sleep_and_delete(
+                await ctx.channel.send(
+                    embed=self._get_error_embed(
+                        title="Command not found", body=ctx.message.content
+                    )
+                )
+            )
+        elif ctx.guild.id == GUILD_ID:
+            channel = uf.get_channel(ctx.guild, ERROR_CHANNEL_NAME)
+            if channel is not None:
+                await channel.send(
+                    embed=unhandled_error_embed(ctx.message.content, ctx.channel, e)
+                )
 
     def _get_error_embed(self, title: str, body: str) -> Embed:
         """
@@ -42,22 +45,25 @@ class ErrorHandler(Cog):
         """
         return Embed(title=title, colour=SOFT_RED, description=body)
 
-
-    async def _sleep_and_delete(self, msg):
+    async def _sleep_and_delete(self, msg: Message):
         await asyncio.sleep(20)
         try:
             await msg.delete()
-        except Exception:
+        except:
             await db.log(self.bot, "Can't delete message")
 
-
-    async def handle_user_input_error(self, ctx: Context, e: errors.UserInputError) -> None:
+    async def handle_user_input_error(
+        self, ctx: Context, e: errors.UserInputError
+    ) -> None:
         """
-        Send an error message in `ctx` for UserInputError, sometimes invoking the help command too.
-        * MissingRequiredArgument: send an error message with arg name and the help command
+        Send an error message in `ctx` for UserInputError,
+        sometimes invoking the help command too.
+        * MissingRequiredArgument: send an error message
+            with arg name and the help command
         * TooManyArguments: send an error message and the help command
         * BadArgument: send an error message and the help command
-        * BadUnionArgument: send an error message including the error produced by the last converter
+        * BadUnionArgument: send an error message including
+            the error produced by the last converter
         * ArgumentParsingError: send an error message
         * Other: send an error message and the help command
         credits: https://github.com/python-discord
@@ -82,8 +88,13 @@ class ErrorHandler(Cog):
             embed = self._get_error_embed("Argument parsing error", str(e))
             await ctx.send(embed=embed)
         else:
-            embed = self._get_error_embed("Input error", "Something about your input seems off. Check "
-                                                         "the arguments and try again." if str(e) == "" else str(e))
+            embed = self._get_error_embed(
+                "Input error",
+                "Something about your input seems off. Check "
+                "the arguments and try again."
+                if str(e) == ""
+                else str(e),
+            )
             await ctx.send(embed=embed)
             if str(e) == "":
                 await self.send_help_command(ctx)

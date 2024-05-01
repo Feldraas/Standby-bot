@@ -3,14 +3,15 @@ import datetime
 import io
 import json
 import re
-from datetime import datetime as dt, timedelta
-from typing import Callable, Union, Sequence, Optional
+from collections.abc import Callable, Sequence
+from datetime import datetime as dt
+from datetime import timedelta
 
 import nextcord
 import requests
-from PIL import Image, ImageDraw, ImageFont
-from nextcord.ext.tasks import Loop, LF
+from nextcord.ext.tasks import LF, Loop
 from nextcord.utils import MISSING
+from PIL import Image, ImageDraw, ImageFont
 
 from config.constants import *
 
@@ -27,18 +28,18 @@ def mention_role(guild, name):
     role = get_role(guild, name)
     if role:
         return role.mention
-    else:
-        return "@" + name
+    return "@" + name
 
 
 def get_channel(guild, name):
     match = re.search(r"(\d+)", name)
     if match:
-        return nextcord.utils.get(guild.text_channels + guild.threads, id=int(match.group(1)))
-    else:
-        name = name.replace("#", "")
-        channel = nextcord.utils.get(guild.text_channels, name=name)
-        return channel if channel else nextcord.utils.get(guild.threads, name=name)
+        return nextcord.utils.get(
+            guild.text_channels + guild.threads, id=int(match.group(1))
+        )
+    name = name.replace("#", "")
+    channel = nextcord.utils.get(guild.text_channels, name=name)
+    return channel if channel else nextcord.utils.get(guild.threads, name=name)
 
 
 def get_user(guild, query):
@@ -48,9 +49,17 @@ def get_user(guild, query):
         tag = None
 
     if tag:
-        users = [user for user in guild.members if (user.name.lower() == query.lower() and user.discriminator == tag)]
+        users = [
+            user
+            for user in guild.members
+            if (user.name.lower() == query.lower() and user.discriminator == tag)
+        ]
     else:
-        users = [user for user in guild.members if re.search(query, f"{user.name}|{user.display_name}", re.I)]
+        users = [
+            user
+            for user in guild.members
+            if re.search(query, f"{user.name}|{user.display_name}", re.I)
+        ]
 
     if len(users) == 1:
         return users[0]
@@ -67,8 +76,15 @@ def int_to_emoji(num):
 
 
 def dynamic_timestamp(time, frmat="f"):
-    codes = {"short time": "t", "long time": "T", "short date": "d", "long date": "D", "date and time": "f",
-             "date and time with weekday": "F", "relative": "R"}
+    codes = {
+        "short time": "t",
+        "long time": "T",
+        "short date": "d",
+        "long date": "D",
+        "date and time": "f",
+        "date and time with weekday": "F",
+        "relative": "R",
+    }
     mod = codes[frmat] if frmat in codes else frmat if frmat in codes.values() else "f"
     return f"<t:{int(dt.timestamp(time))}:{mod}>"
 
@@ -85,39 +101,41 @@ def month_to_int(month):
 
 def get_mentioned_ids(text):
     raw_ids = re.findall(r"<\D*\d+>", text)
-    ids = [int(re.sub(r"\D", "", id)) for id in raw_ids]
-    return ids
+    return [int(re.sub(r"\D", "", id_)) for id_ in raw_ids]
 
 
 async def get_mentioned_users(text, guild):
     ids = get_mentioned_ids(text)
-    users = [await guild.fetch_member(id) for id in ids]
-    return users
+    return [await guild.fetch_member(id_) for id_ in ids]
 
 
 def get_roles_by_type(guild, type_):
     try:
-        start, stop = [i for i in range(len(guild.roles)) if guild.roles[i].name.lower() == type_.lower()][0:2]
+        start, stop = [
+            i
+            for i in range(len(guild.roles))
+            if guild.roles[i].name.lower() == type_.lower()
+        ][0:2]
     except ValueError:
         return []
-    roles = guild.roles[start + 1: stop]
+    roles = guild.roles[start + 1 : stop]
     roles.sort(key=lambda role: role.name)
     return roles
 
 
-def id_to_mention(id, id_type="user"):
-    id = str(id)
+def id_to_mention(id_, id_type="user"):
+    id_ = str(id_)
 
     if id_type == "user":
-        return "<@" + id + ">"
+        return "<@" + id_ + ">"
 
     if id_type == "channel":
-        return "<#" + id + ">"
+        return "<#" + id_ + ">"
 
     if id_type == "role":
-        return "<@&" + id + ">"
+        return "<@&" + id_ + ">"
 
-    return
+    return None
 
 
 def simpsons_error_image(dad, son, text=None, filename="error.png"):
@@ -128,8 +146,16 @@ def simpsons_error_image(dad, son, text=None, filename="error.png"):
 
     template = Image.open(requests.get(template_url, stream=True).raw)
 
-    dad = Image.open(requests.get(dad_url, stream=True).raw).convert("RGBA").resize((300, 300))
-    son = Image.open(requests.get(son_url, stream=True).raw).convert("RGBA").resize((225, 225))
+    dad = (
+        Image.open(requests.get(dad_url, stream=True).raw)
+        .convert("RGBA")
+        .resize((300, 300))
+    )
+    son = (
+        Image.open(requests.get(son_url, stream=True).raw)
+        .convert("RGBA")
+        .resize((225, 225))
+    )
     son = son.rotate(-35, expand=True, fillcolor=(255, 255, 255, 0))
 
     template.paste(dad, (310, 30), dad)
@@ -144,7 +170,7 @@ def simpsons_error_image(dad, son, text=None, filename="error.png"):
         font = ImageFont.truetype(font=str(font_path), size=40)
         width, height = get_text_dimensions(text, font)
 
-        if width <= 370:
+        if width <= 370:  # noqa: PLR2004
             x_coord = 565
             y_coord = 280
 
@@ -196,7 +222,11 @@ def get_text_dimensions(text, font):
 
 
 async def invoke_slash_command(name, self, *args):
-    slash_command = [command for command in self.bot.get_all_application_commands() if command.name == name][0]
+    slash_command = next(
+        command
+        for command in self.bot.get_all_application_commands()
+        if command.name == name
+    )
     await slash_command.invoke_callback(*args)
 
 
@@ -217,9 +247,17 @@ def role_prio(role):
 
 
 def message_embed(msg, cmd, trigger_author) -> nextcord.Embed:
-    embed_titles = {"copy": "Copied message", "move": "Moved message", "link": "Message preview"}
+    embed_titles = {
+        "copy": "Copied message",
+        "move": "Moved message",
+        "link": "Message preview",
+    }
 
-    trigger_field_titles = {"move": "Moved by", "copy": "Copied by", "link": "Linked by"}
+    trigger_field_titles = {
+        "move": "Moved by",
+        "copy": "Copied by",
+        "link": "Linked by",
+    }
 
     embed = nextcord.Embed(color=PALE_BLUE)
     embed.title = embed_titles[cmd]
@@ -238,7 +276,7 @@ def message_embed(msg, cmd, trigger_author) -> nextcord.Embed:
 
     embed.add_field(name=trigger_field_titles[cmd], value=trigger_author.mention)
 
-    if cmd == "copy" or cmd == "link":
+    if cmd in ["copy", "link"]:
         embed.add_field(name="Link to message", value=f"[Click here]({msg.jump_url})")
 
     if msg.attachments:
@@ -251,21 +289,33 @@ def message_embed(msg, cmd, trigger_author) -> nextcord.Embed:
     return embed
 
 
-def delayed_loop(*, seconds: float = MISSING, minutes: float = MISSING, hours: float = MISSING,
-                 time: Union[datetime.time, Sequence[datetime.time]] = MISSING, count: Optional[int] = None,
-                 reconnect: bool = True, loop: asyncio.AbstractEventLoop = MISSING, ) -> Callable[[LF], Loop[LF]]:
+def delayed_loop(
+    *,
+    seconds: float = MISSING,
+    minutes: float = MISSING,
+    hours: float = MISSING,
+    time: datetime.time | Sequence[datetime.time] = MISSING,
+    count: int | None = None,
+    reconnect: bool = True,
+    loop: asyncio.AbstractEventLoop = MISSING,
+) -> Callable[[LF], Loop[LF]]:
     def decorator(func: LF) -> Loop[LF]:
-        inner_loop = Loop[LF](func, seconds=seconds, minutes=minutes, hours=hours, time=time, count=count,
-                              reconnect=reconnect, loop=loop)
-
+        inner_loop = Loop[LF](
+            func,
+            seconds=seconds,
+            minutes=minutes,
+            hours=hours,
+            time=time,
+            count=count,
+            reconnect=reconnect,
+            loop=loop,
+        )
 
         @inner_loop.before_loop
         async def impr(self):
             await self.bot.wait_until_ready()
 
-
         return inner_loop
-
 
     return decorator
 
@@ -284,9 +334,9 @@ async def update_user_predictions(bot, user, predictions):
 
 
 def ordinal_suffix(n):
-    if 11 <= (n % 100) <= 13:
-        return 'th'
-    return ['th', 'st', 'nd', 'rd', 'th'][min(n % 10, 4)]
+    if (n % 100) in [11, 12, 13]:
+        return "th"
+    return ["th", "st", "nd", "rd", "th"][min(n % 10, 4)]
 
 
 def titlecase(s):

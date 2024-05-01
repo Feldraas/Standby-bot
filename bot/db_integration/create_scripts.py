@@ -36,7 +36,8 @@ IF NOT EXISTS (
     SELECT * FROM information_schema.constraint_column_usage
     WHERE table_name = 'guild' AND constraint_name = 'usr_fk0'
 ) THEN
-ALTER TABLE "usr" ADD CONSTRAINT "usr_fk0" FOREIGN KEY ("guild_id") REFERENCES "guild"("guild_id");
+ALTER TABLE "usr"
+ADD CONSTRAINT "usr_fk0" FOREIGN KEY ("guild_id") REFERENCES "guild"("guild_id");
 END IF;
 END;
 $$;
@@ -49,8 +50,12 @@ ALTER TABLE "usr" ADD IF NOT EXISTS "current_roulette_streak" integer DEFAULT 0;
 ALTER TABLE "usr" ADD IF NOT EXISTS "max_roulette_streak" integer DEFAULT 0;
 """
 
-ALTER_USER_ADD_BURGERS = 'ALTER TABLE "usr" ADD IF NOT EXISTS "burgers" integer DEFAULT 0'
-ALTER_USER_ADD_MOLDY_BURGERS = 'ALTER TABLE "usr" ADD IF NOT EXISTS "moldy_burgers" integer DEFAULT 0'
+ALTER_USER_ADD_BURGERS = (
+    'ALTER TABLE "usr" ADD IF NOT EXISTS "burgers" integer DEFAULT 0'
+)
+ALTER_USER_ADD_MOLDY_BURGERS = (
+    'ALTER TABLE "usr" ADD IF NOT EXISTS "moldy_burgers" integer DEFAULT 0'
+)
 
 ALTER_USER_ADD_PREDICTIONS = """
 ALTER TABLE "usr" ADD IF NOT EXISTS "predictions" TEXT;
@@ -64,7 +69,8 @@ IF NOT EXISTS (
     SELECT * FROM information_schema.constraint_column_usage
     WHERE table_name = 'usr' AND constraint_name = 'starboard_fk0'
 ) THEN
-ALTER TABLE "starboard" ADD CONSTRAINT "starboard_fk0" FOREIGN KEY ("usr_id") REFERENCES "usr"("usr_id");
+ALTER TABLE "starboard"
+ADD CONSTRAINT "starboard_fk0" FOREIGN KEY ("usr_id") REFERENCES "usr"("usr_id");
 END IF;
 END;
 $$;
@@ -89,7 +95,8 @@ IF NOT EXISTS (
     SELECT * FROM information_schema.constraint_column_usage
     WHERE table_name = 'usr' AND constraint_name = 'tmers_fk0'
 ) THEN
-ALTER TABLE "tmers" ADD CONSTRAINT "tmers_fk0" FOREIGN KEY ("usr_id") REFERENCES "usr"("usr_id");
+ALTER TABLE "tmers"
+ADD CONSTRAINT "tmers_fk0" FOREIGN KEY ("usr_id") REFERENCES "usr"("usr_id");
 END IF;
 END;
 $$;
@@ -117,7 +124,8 @@ IF NOT EXISTS (
     SELECT * FROM information_schema.constraint_column_usage
     WHERE table_name = 'usr' AND constraint_name = 'bdays_fk0'
 ) THEN
-ALTER TABLE "bdays" ADD CONSTRAINT "bdays_fk0" FOREIGN KEY ("usr_id") REFERENCES "usr"("usr_id");
+ALTER TABLE "bdays"
+ADD CONSTRAINT "bdays_fk0" FOREIGN KEY ("usr_id") REFERENCES "usr"("usr_id");
 END IF;
 END;
 $$;
@@ -127,7 +135,7 @@ CREATE_BUTTONS = """
 CREATE TABLE IF NOT EXISTS "buttons" (
     "type" TEXT,
     "channel_id" BIGINT NOT NULL,
-    "message_id" BIGINT NOT NULL    
+    "message_id" BIGINT NOT NULL
 ) WITH (
     OIDS=FALSE
 );
@@ -167,7 +175,7 @@ CREATE TABLE IF NOT EXISTS "movies" (
 ALTER_USER_ADD_YOINK = 'ALTER TABLE "usr" ADD IF NOT EXISTS "last_yoink" timestamp'
 
 
-async def create_tables(con):
+async def create_tables(con):  # noqa: PLR0912
     no_errors = True
     try:
         await con.execute(CREATE_USER)
@@ -182,41 +190,41 @@ async def create_tables(con):
         await con.execute(ALTER_USER_ADD_PREDICTIONS)
         await con.execute(ALTER_USER_ADD_YOINK)
     except Exception as e:
-        print(f"Error when executing db script batch 1: {e}")
+        print(f"Error when executing db script batch 1: {e}")  # noqa: T201
         no_errors = False
 
     try:
         await con.execute(CREATE_TMERS)
         await con.execute(ALTER_TMERS)
     except Exception as e:
-        print(f"Error when executing db script batch 2: {e}")
+        print(f"Error when executing db script batch 2: {e}")  # noqa: T201
         no_errors = False
     try:
         await con.execute(CREATE_BDAYS)
         await con.execute(ALTER_BDAYS)
     except Exception as e:
-        print(f"Error when executing db script batch 3: {e}")
+        print(f"Error when executing db script batch 3: {e}")  # noqa: T201
         no_errors = False
     try:
         await con.execute(CREATE_BUTTONS)
     except Exception as e:
-        print(f"Error when executing db script batch 4: {e}")
+        print(f"Error when executing db script batch 4: {e}")  # noqa: T201
         no_errors = False
     try:
         await con.execute(CREATE_NOTES)
     except Exception as e:
-        print(f"Error when executing db script batch 5: {e}")
+        print(f"Error when executing db script batch 5: {e}")  # noqa: T201
         no_errors = False
     try:
         await con.execute(CREATE_LOGS)
     except Exception as e:
-        print(f"Error when executing db script batch 6: {e}")
+        print(f"Error when executing db script batch 6: {e}")  # noqa: T201
         no_errors = False
     try:
         await con.execute(CREATE_MOVIES)
     except Exception as e:
-        print(f"Error when executing db script batch 7: {e}")
+        print(f"Error when executing db script batch 7: {e}")  # noqa: T201
         no_errors = False
 
     if no_errors:
-        print("All db scripts executed successfully!")
+        print("All db scripts executed successfully!")  # noqa: T201

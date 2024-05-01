@@ -1,0 +1,61 @@
+[tool.poetry]
+authors = [
+  "Derevin <https://github.com/Derevin/>",
+  "Feldraas <https://github.com/Feldraas/>",
+]
+description = "This is a Discord bot made primarly for the Vie for the Void discord server."
+license = "MIT"
+name = "standby-bot"
+readme = "README.md"
+version = "1.0.0"
+
+[tool.poetry.dependencies]
+asyncpg = "^0.29.0"
+fuzzywuzzy = "^0.18.0"
+nextcord = "^2.6.0"
+pillow = "^10.3.0"
+python = "3.11.9"
+python-dotenv = "^1.0.1"
+python-levenshtein = "^0.25.1"
+pytz = "^2024.1"
+requests = "^2.31.0"
+transliterate = "^1.10.2"
+
+[tool.poetry.group.dev.dependencies]
+ipykernel = "^6.29.4"
+ruff = "^0.4.2"
+
+[build-system]
+build-backend = "poetry.core.masonry.api"
+requires = ["poetry-core"]
+
+[tool.ruff]
+src = ["bot"]
+target-version = "py311"
+
+[tool.ruff.lint]
+ignore = [
+  "ANN",
+  "ASYNC",
+  "B008",
+  "BLE001",
+  "C408",
+  "COM812",
+  "D",
+  "DTZ",
+  "E722",
+  "F403",
+  "F405",
+  "G004",
+  "INP001",
+  "PD",
+  "PERF203",
+  "PLR0913",
+  "PLW1508",
+  "RUF012",
+  "S",
+]
+select = ["ALL"]
+
+[tool.ruff.lint.per-file-ignores]
+"bot/utils/regex.py" = ["ARG001"]

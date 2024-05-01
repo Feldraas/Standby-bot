@@ -12,72 +12,98 @@ class Birthdays(Cog):
         self.bot = bot
         self.check_bdays.start()
 
-
     def cog_unload(self):
-        pass
         self.check_bdays.cancel()
-
 
     @slash_command(description="Commands for accessing birthday functionality")
     async def birthday(self, interaction):
         pass
 
-
     @birthday.subcommand(description="Set your birthday")
-    async def set(self, interaction, month_name: str = SlashOption(name="month", description="Your birth month",
-                                                                   choices=["January", "February", "March", "April",
-                                                                            "May", "June", "July", "August",
-                                                                            "September", "October", "November",
-                                                                            "December"]),
-                  day: int = SlashOption(min_value=1, max_value=31, description="Your birth date")):
+    async def set(
+        self,
+        interaction,
+        month_name: str = SlashOption(
+            name="month",
+            description="Your birth month",
+            choices=[
+                "January",
+                "February",
+                "March",
+                "April",
+                "May",
+                "June",
+                "July",
+                "August",
+                "September",
+                "October",
+                "November",
+                "December",
+            ],
+        ),
+        day: int = SlashOption(
+            min_value=1, max_value=31, description="Your birth date"
+        ),
+    ):
         month = uf.month_to_int(month_name)
-        if (month in [2, 4, 6, 9, 11] and day == 31) or (month == 2 and day > 29):
+        if (month in [2, 4, 6, 9, 11] and day == 31) or (month == 2 and day > 29):  # noqa: PLR2004
             await interaction.send("Invalid date - please try again.", ephemeral=True)
             return
 
         await db.ensure_guild_existence(self.bot, interaction.guild.id)
         await db.get_or_insert_usr(self.bot, interaction.user.id, interaction.guild.id)
 
-        exists = await self.bot.pg_pool.fetch(f"SELECT * FROM bdays WHERE usr_id = {interaction.user.id}")
+        exists = await self.bot.pg_pool.fetch(
+            f"SELECT * FROM bdays WHERE usr_id = {interaction.user.id}"
+        )
 
         if exists:
             await self.bot.pg_pool.execute(
-                f"UPDATE bdays SET month = {month}, day = {day} WHERE usr_id = {interaction.user.id}")
+                f"UPDATE bdays SET month = {month}, day = {day} "
+                f"WHERE usr_id = {interaction.user.id}"
+            )
         else:
-            await self.bot.pg_pool.execute("INSERT INTO bdays (usr_id, month, day) VALUES ($1, $2, $3);",
-                                           interaction.user.id, month, day)
+            await self.bot.pg_pool.execute(
+                "INSERT INTO bdays (usr_id, month, day) VALUES ($1, $2, $3);",
+                interaction.user.id,
+                month,
+                day,
+            )
 
         await interaction.send("Your birthday has been set.", ephemeral=True)
 
-
     @birthday.subcommand(description="Remove your birthday")
     async def remove(self, interaction):
-
-        exists = await self.bot.pg_pool.fetch(f"SELECT * FROM bdays WHERE usr_id = {interaction.user.id}")
+        exists = await self.bot.pg_pool.fetch(
+            f"SELECT * FROM bdays WHERE usr_id = {interaction.user.id}"
+        )
         if not exists:
             await interaction.send("You have not set your birthday.", ephemeral=True)
         else:
-            await self.bot.pg_pool.execute(f"DELETE FROM bdays WHERE usr_id = {interaction.user.id};")
+            await self.bot.pg_pool.execute(
+                f"DELETE FROM bdays WHERE usr_id = {interaction.user.id};"
+            )
             await interaction.send("Birthday removed.", ephemeral=True)
-
 
     @birthday.subcommand(description="Check your birthday (only visible to you)")
     async def check(self, interaction):
-
-        exists = await self.bot.pg_pool.fetch(f"SELECT * FROM bdays WHERE usr_id = {interaction.user.id}")
+        exists = await self.bot.pg_pool.fetch(
+            f"SELECT * FROM bdays WHERE usr_id = {interaction.user.id}"
+        )
         if not exists:
             await interaction.send("You have not set your birthday.", ephemeral=True)
         else:
-            await interaction.send(f"Your birthday is set to {uf.int_to_month(exists[0]['month'])} {exists[0]['day']}.",
-                                   ephemeral=True)
-
+            await interaction.send(
+                "Your birthday is set to "
+                f"{uf.int_to_month(exists[0]['month'])} {exists[0]['day']}.",
+                ephemeral=True,
+            )
 
     @uf.delayed_loop(hours=1)
     async def check_bdays(self):
-
         now = uf.utcnow()
 
-        if now.hour != 7:
+        if now.hour != 7:  # noqa: PLR2004
             return
 
         await self.bot.wait_until_ready()
@@ -90,7 +116,9 @@ class Birthdays(Cog):
             if bday_role in member.roles:
                 await member.remove_roles(bday_role)
 
-        gtable = await self.bot.pg_pool.fetch(f"SELECT * FROM bdays WHERE month = {now.month} AND day = {now.day}")
+        gtable = await self.bot.pg_pool.fetch(
+            f"SELECT * FROM bdays WHERE month = {now.month} AND day = {now.day}"
+        )
 
         if not gtable:
             return

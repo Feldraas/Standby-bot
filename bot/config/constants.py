@@ -1,23 +1,27 @@
-from datetime import timedelta as _timedelta
-from os import getenv
+import os
+from datetime import timedelta
 from pathlib import Path
 
+from dotenv import load_dotenv
 from nextcord import Permissions, TextChannel, Thread, VoiceChannel
 from pytz import timezone
 
+load_dotenv(".env.debug")
+
+
 # Environment variables
-NO_SSL = getenv("NO_SSL", False)
-NODB = getenv("NODB", False)
-BOT_TOKEN = str(getenv("BOT_TOKEN", False))
-BOT_ID = int(getenv("BOT_ID", False))
-DATABASE_URL = str(getenv("DATABASE_URL", False))
-GUILD_ID = int(getenv("GUILD_ID", False))
-STARBOARD_ID = int(getenv("STARBOARD_ID", False))
-ERROR_CHANNEL_ID = int(getenv("ERROR_CHANNEL_ID", False))
-GINNY_TRANSPARENT_URL = str(getenv("GINNY_TRANSPARENT_URL", False))
-GINNY_WHITE_URL = str(getenv("GINNY_WHITE_URL", False))
-BOT_TZ = timezone(getenv("TZ", "UTC"))
-OPENAI_API_KEY = getenv("OPENAI_API_KEY", False)
+NO_SSL = os.getenv("NO_SSL", default=False)
+NODB = os.getenv("NODB", default=False)
+BOT_TOKEN = str(os.getenv("BOT_TOKEN", default=False))
+BOT_ID = int(os.getenv("BOT_ID", default=False))
+DATABASE_URL = str(os.getenv("DATABASE_URL", default=False))
+GUILD_ID = int(os.getenv("GUILD_ID", default=False))
+STARBOARD_ID = int(os.getenv("STARBOARD_ID", default=False))
+ERROR_CHANNEL_ID = int(os.getenv("ERROR_CHANNEL_ID", default=False))
+GINNY_TRANSPARENT_URL = str(os.getenv("GINNY_TRANSPARENT_URL", default=False))
+GINNY_WHITE_URL = str(os.getenv("GINNY_WHITE_URL", default=False))
+BOT_TZ = timezone(os.getenv("TZ", default="UTC"))
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", default=False)
 
 # Channels
 OFFERS_CHANNEL_NAME = "offers"
@@ -25,8 +29,15 @@ GIVEAWAY_CHANNEL_NAME = "giveaways"
 LOGS_CHANNEL_NAME = "mod-log"
 RULES_CHANNEL_NAME = "getting-started"
 ERROR_CHANNEL_NAME = "maintenance-channel"
-NO_RESPONSE_CHANNELS = ["mod-chat", RULES_CHANNEL_NAME, GIVEAWAY_CHANNEL_NAME, "alliance-mod-chat", "starboard",
-                        "events", "event-submissions"]
+NO_RESPONSE_CHANNELS = [
+    "mod-chat",
+    RULES_CHANNEL_NAME,
+    GIVEAWAY_CHANNEL_NAME,
+    "alliance-mod-chat",
+    "starboard",
+    "events",
+    "event-submissions",
+]
 GENERAL_ID = 315247766739615745
 GIVEAWAYS_ID = 366906148500275200
 TICKET_CHANNEL_ID = 994974670275223673
@@ -82,34 +93,49 @@ STAR_THRESHOLD = 4
 INVITE_LINK = "https://discord.gg/x7nsqEj"
 GIT_STATIC_URL = "https://raw.githubusercontent.com/Feldraas/Standby-bot/main/static/"
 LOCAL_STATIC_PATH = Path(__file__).parent.parent.parent / "static"
-DISCORD_MESSAGE_LINK_PATTERN = r"https:\/\/(\w+\.)?discord(app)?\.com\/channels\/\d+\/\d+\/\d+"
+DISCORD_MESSAGE_LINK_PATTERN = (
+    r"https:\/\/(\w+\.)?discord(app)?\.com\/channels\/\d+\/\d+\/\d+"
+)
 
 # Rules channel content
 MAX_MENU_SIZE = 24
-RULES_LIST = ["1. Respect all other members.", "2. Keep conversations friendly and calm.",
-              "3. No impersonating a moderator, or any others.", "4. No inappropriate names or avatars.",
-              "5. No hate speech or slurs of any kind.", "6. No advertising or spam.",
-              "7. No links to or posting NSFW content, including pornography, gore and sexualised lolis.",
-              "8. Listen to moderators.",
-              f"9. Do not appeal mod decisions in public channels - open a ticket in <#{TICKET_CHANNEL_ID}>.",
-              "10. No attacking race, religion, sexual orientation, gender identity or "
-              "nationality.", f"11. Keep bot commands in <#{BOT_SPAM_ID}> unless it's relevant to the "
-                              "current conversation.", "12. Don't ping clan roles, @here or @everyone"]
+RULES_LIST = [
+    "1. Respect all other members.",
+    "2. Keep conversations friendly and calm.",
+    "3. No impersonating a moderator, or any others.",
+    "4. No inappropriate names or avatars.",
+    "5. No hate speech or slurs of any kind.",
+    "6. No advertising or spam.",
+    "7. No links to or posting NSFW content, including pornography, "
+    "gore and sexualised lolis.",
+    "8. Listen to moderators.",
+    "9. Do not appeal mod decisions in public channels - "
+    f"open a ticket in <#{TICKET_CHANNEL_ID}>.",
+    "10. No attacking race, religion, sexual orientation, gender identity or "
+    "nationality.",
+    f"11. Keep bot commands in <#{BOT_SPAM_ID}> unless it's relevant to the "
+    "current conversation.",
+    "12. Don't ping clan roles, @here or @everyone",
+]
 
 GENERAL_INFO = (
-    f"Talking in the server awards XP - you need Level 3 to access <#{GIVEAWAYS_ID}>. Enforcement of the rules is "
-    "always at the moderators' discretion. Repeated infractions within a 30 day period lead to automatic action:\n"
+    f"Talking in the server awards XP - you need Level 3 to access <#{GIVEAWAYS_ID}>. "
+    "Enforcement of the rules is always at the moderators' discretion. Repeated "
+    "infractions within a 30 day period lead to automatic action:\n"
     "2 Warns = Muted for a day\n"
     "3 Warns = Muted for 3 days\n"
     "4 Warns = Banned for 7 days\n"
-    "5 Warns = Permanent ban")
+    "5 Warns = Permanent ban"
+)
 
 DELIMITERS = {"clan": "Clans", "opt-in": "Opt-in", "color": "Colors"}
 
 PRIO_ROLES = ["UpdateSquad", "Vie for the Void"]
 
-ROLE_DESCRIPTIONS = {"Offers": f"News about free or discounted games in #{OFFERS_CHANNEL_NAME}",
-                     "UpdateSquad": "Get notified about server changes, giveaways, events, polls etc"}
+ROLE_DESCRIPTIONS = {
+    "Offers": f"News about free or discounted games in #{OFFERS_CHANNEL_NAME}",
+    "UpdateSquad": "Get notified about server changes, giveaways, events, polls etc",
+}
 
 # Tickets
 CLAIMABLE_TICKETS_CAT_NAME = "Talk to mods"
@@ -117,39 +143,67 @@ CLAIMABLE_CHANNEL_NAME = "ticket-channel"
 ACTIVE_TICKETS_CAT_NAME = "Active tickets"
 RESOLVED_TICKETS_CAT_NAME = "Resolved tickets"
 TICKETS_LOG_CHANNEL_NAME = "tickets-log"
-CLAIMABLE_CHANNEL_MESSAGE = ("If you have an issue and want to talk to the mod team, this is the place.\nPress "
-                             "the button to open a ticket in a private channel visible only to you and the mod team.")
-CLAIMED_MESSAGE = ("You have successfully opened a ticket - please let us know what you want to discuss.\n"
-                   "You can make sure you're talking only to the mod team by looking "
-                   "at the channel's current member list (right side of discord).\n"
-                   "Once this issue has been resolved, use the `/resolve` command.")
-RESOLVED_MESSAGE = ("This ticket has been marked as resolved. If this was a mistake or you have additional questions, "
-                    "use the button below to reopen the ticket.\nFor other issues, please create a new ticket in XXX.\n"
-                    "Moderators can use the Scrap button to scrap this ticket. (Scrapping takes a while to complete)")
-REOPENED_MESSAGE = "This ticket has been reopened. Once it is resolved, use the `/resolve` command again."
+CLAIMABLE_CHANNEL_MESSAGE = (
+    "If you have an issue and want to talk to the mod team, this is the place.\n"
+    "Press the button to open a ticket in a private channel "
+    "visible only to you and the mod team."
+)
+CLAIMED_MESSAGE = (
+    "You have successfully opened a ticket - please let us know "
+    "what you want to discuss.\nYou can make sure you're talking only to the mod team"
+    " by looking at the channel's current member list (right side of discord).\n"
+    "Once this issue has been resolved, use the `/resolve` command."
+)
+RESOLVED_MESSAGE = (
+    "This ticket has been marked as resolved. If this was a mistake or you have"
+    " additional questions, use the button below to reopen the ticket.\n"
+    "For other issues, please create a new ticket in XXX.\n Moderators can use "
+    "the Scrap button to scrap this ticket. (Scrapping takes a while to complete)"
+)
+REOPENED_MESSAGE = (
+    "This ticket has been reopened. Once it is resolved, "
+    "use the `/resolve` command again."
+)
 
 # Roulette
-ROULETTE_TIMEOUT = _timedelta(minutes=30)
+ROULETTE_TIMEOUT = timedelta(minutes=30)
 
 # Reputation
 THANK_TYPE = "Void"
 
 # Burger
-BURGER_TIMEOUT = _timedelta(weeks=1)
+BURGER_TIMEOUT = timedelta(weeks=1)
 BURGER_QUESTIONS = [
-    dict(question="How much does the average American ambulance trip cost?", correct=["$1200"], wrong=["$200", "$800"]),
-    dict(question="How many Americans think the sun revolves around the earth?", correct=["1 in 4"],
-         wrong=["1 in 2", "1 in 3", "1 in 5"]),
-    dict(question="How many avocados do Americans eat a year combined?", correct=["4.2 bn"], wrong=["2 bn", "6.5 bn"]),
-    dict(question="How many Americans get injuries related to a TV falling every year?", correct=["11 800"],
-         wrong=["5 200", "13 900"])]
+    dict(
+        question="How much does the average American ambulance trip cost?",
+        correct=["$1200"],
+        wrong=["$200", "$800"],
+    ),
+    dict(
+        question="How many Americans think the sun revolves around the earth?",
+        correct=["1 in 4"],
+        wrong=["1 in 2", "1 in 3", "1 in 5"],
+    ),
+    dict(
+        question="How many avocados do Americans eat a year combined?",
+        correct=["4.2 bn"],
+        wrong=["2 bn", "6.5 bn"],
+    ),
+    dict(
+        question="How many Americans get injuries related to a TV falling every year?",
+        correct=["11 800"],
+        wrong=["5 200", "13 900"],
+    ),
+]
 
 # Reposts
-REPOSTER_DURATION = _timedelta(days=1)
+REPOSTER_DURATION = timedelta(days=1)
 REE_THRESHOLD = 4
 
 # Warframe
-WARFRAME_MODS_URL = "https://raw.githubusercontent.com/WFCD/warframe-items/master/data/json/Mods.json"
+WARFRAME_MODS_URL = (
+    "https://raw.githubusercontent.com/WFCD/warframe-items/master/data/json/Mods.json"
+)
 
 # Predictions
 PREDICTION_VOTE_THRESHOLD = 5

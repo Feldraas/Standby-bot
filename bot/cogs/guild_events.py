@@ -7,14 +7,12 @@ class GuildEvents(Cog):
     def __init__(self, bot):
         self.bot = bot
 
-
     @Cog.listener()
     async def on_guild_join(self, guild):
         await db.ensure_guild_existence(self.bot, guild.id)
 
-
     @Cog.listener()
-    async def on_guild_update(self, before, after):
+    async def on_guild_update(self, before, after):  # noqa: ARG002
         await db.ensure_guild_existence(self.bot, after.id)
 
 

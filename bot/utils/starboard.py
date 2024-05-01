@@ -1,19 +1,28 @@
 import asyncio
 
-from nextcord import Embed, RawReactionActionEvent, RawReactionClearEvent, RawReactionClearEmojiEvent
+from nextcord import (
+    Embed,
+    RawReactionActionEvent,
+    RawReactionClearEmojiEvent,
+    RawReactionClearEvent,
+)
 
-from config.constants import STAR_THRESHOLD, STARBOARD_ID, STARBOARD_COLOUR
+from config.constants import STAR_THRESHOLD, STARBOARD_COLOUR, STARBOARD_ID
 from db_integration import db_functions as db
 
 starboard_lock = asyncio.Lock()
 
 
 async def get_starboard_msg(bot, msg_id):
-    return await bot.pg_pool.fetchrow(f"SELECT * FROM starboard WHERE msg_id = {msg_id};")
+    return await bot.pg_pool.fetchrow(
+        f"SELECT * FROM starboard WHERE msg_id = {msg_id};"
+    )
 
 
 async def get_starboard_sbid(bot, msg_id):
-    return await bot.pg_pool.fetchrow(f"SELECT sb_id FROM starboard WHERE msg_id = {msg_id};")
+    return await bot.pg_pool.fetchrow(
+        f"SELECT sb_id FROM starboard WHERE msg_id = {msg_id};"
+    )
 
 
 def starboard_embed(message, stars) -> Embed:
@@ -23,8 +32,9 @@ def starboard_embed(message, stars) -> Embed:
     content_msg = "[Link to message]"
     if len(message.content) > 0:
         content_msg = message.content
-        if len(content_msg) > 950:
-            content_msg = content_msg[0:950]
+        max_length = 950
+        if len(content_msg) > max_length:
+            content_msg = content_msg[0:max_length]
             content_msg += " [Click the link to see more]"
     if message.author.display_avatar:
         embed.set_thumbnail(url=message.author.display_avatar.url)
@@ -36,10 +46,12 @@ def starboard_embed(message, stars) -> Embed:
 
 
 async def edit_stars(message, stars):
-    return await message.edit(embed=message.embeds[0].set_field_at(1, name="Stars", value=stars))
+    return await message.edit(
+        embed=message.embeds[0].set_field_at(1, name="Stars", value=stars)
+    )
 
 
-async def starboard_handler(bot, payload):
+async def starboard_handler(bot, payload):  # noqa: C901, PLR0912, PLR0915
     if isinstance(payload, RawReactionActionEvent) and payload.emoji.name == "⭐":
         chnl = bot.get_channel(payload.channel_id)
         msg = await chnl.fetch_message(payload.message_id)
@@ -53,23 +65,29 @@ async def starboard_handler(bot, payload):
         await starboard_lock.acquire()
         try:
             existcheck = await bot.pg_pool.fetchrow(
-                f"SELECT sb_id FROM starboard WHERE msg_id = {payload.message_id};")
+                f"SELECT sb_id FROM starboard WHERE msg_id = {payload.message_id};"
+            )
 
             if stars >= STAR_THRESHOLD:  # add to SB
                 if existcheck is None:
                     sb_msg = await sb_channel.send(embed=starboard_embed(msg, stars))
-                    await bot.pg_pool.execute("INSERT INTO starboard (msg_id, sb_id, stars, usr_id) VALUES "
-                                              f"({payload.message_id},{sb_msg.id},{stars},{msg.author.id});")
+                    await bot.pg_pool.execute(
+                        "INSERT INTO starboard (msg_id, sb_id, stars, usr_id) VALUES "
+                        f"({payload.message_id},{sb_msg.id},{stars},{msg.author.id});"
+                    )
                 else:
                     sb_msg = await sb_channel.fetch_message(existcheck["sb_id"])
                     await edit_stars(sb_msg, stars)
                     await bot.pg_pool.execute(
-                        f"UPDATE starboard SET stars = {stars} WHERE msg_id = {payload.message_id};")
-            else:
-                if existcheck is not None:
-                    sb_msg = await sb_channel.fetch_message(existcheck["sb_id"])
-                    await sb_msg.delete()
-                    await bot.pg_pool.execute(f"DELETE FROM starboard WHERE msg_id = {payload.message_id};")
+                        f"UPDATE starboard SET stars = {stars} "
+                        f"WHERE msg_id = {payload.message_id};"
+                    )
+            elif existcheck is not None:
+                sb_msg = await sb_channel.fetch_message(existcheck["sb_id"])
+                await sb_msg.delete()
+                await bot.pg_pool.execute(
+                    f"DELETE FROM starboard WHERE msg_id = {payload.message_id};"
+                )
         except Exception as e:
             await db.log(bot, f"Unexpected error: {e}")
         finally:
@@ -81,7 +99,9 @@ async def starboard_handler(bot, payload):
             await starboard_lock.acquire()
             try:
                 await msg.delete()
-                await bot.pg_pool.execute(f"DELETE FROM starboard WHERE msg_id = {payload.message_id};")
+                await bot.pg_pool.execute(
+                    f"DELETE FROM starboard WHERE msg_id = {payload.message_id};"
+                )
             except Exception as e:
                 await db.log(bot, f"Unexpected error: {e}")
             finally:
@@ -95,7 +115,9 @@ async def starboard_handler(bot, payload):
                 await starboard_lock.acquire()
                 try:
                     await msg.delete()
-                    await bot.pg_pool.execute(f"DELETE FROM starboard WHERE msg_id = {payload.message_id};")
+                    await bot.pg_pool.execute(
+                        f"DELETE FROM starboard WHERE msg_id = {payload.message_id};"
+                    )
                 except Exception as e:
                     await db.log(bot, f"Unexpected error: {e}")
                 finally:
