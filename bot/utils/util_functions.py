@@ -166,7 +166,7 @@ def simpsons_error_image(dad, son, text=None, filename="error.png"):
 
         draw = ImageDraw.Draw(template)
 
-        font_path = URL.LOCAL_STATIC / "fonts" / "impact.ttf"
+        font_path = URL.LOCAL_STATIC + "/fonts/impact.ttf"
         font = ImageFont.truetype(font=str(font_path), size=40)
         width, height = get_text_dimensions(text, font)
 

@@ -681,7 +681,7 @@ class Fun(Cog):
         )
         draw = ImageDraw.Draw(img)
 
-        font_path = URL.LOCAL_STATIC / "fonts" / "impact.ttf"
+        font_path = URL.LOCAL_STATIC + "/fonts/impact.ttf"
 
         font = ImageFont.truetype(font=str(font_path), size=font_size)
         text = caption.upper()

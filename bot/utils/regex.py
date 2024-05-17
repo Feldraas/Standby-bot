@@ -79,7 +79,7 @@ async def uwu_resp(bot, message):
         )
         await message.channel.send(txt)
     elif random.randint(1, 2) == 1:
-        warning_video = nextcord.File(URL.LOCAL_STATIC / "videos" / "warning.mp4")
+        warning_video = nextcord.File(URL.LOCAL_STATIC + "/videos/warning.mp4")
         await message.channel.send(file=warning_video)
     else:
         await message.channel.send(URL.GITHUB_STATIC + "/images/uwu.png")
