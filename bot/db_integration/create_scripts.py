@@ -135,7 +135,8 @@ CREATE_BUTTONS = """
 CREATE TABLE IF NOT EXISTS "buttons" (
     "type" TEXT,
     "channel_id" BIGINT NOT NULL,
-    "message_id" BIGINT NOT NULL
+    "message_id" BIGINT NOT NULL,
+    "params" TEXT
 ) WITH (
     OIDS=FALSE
 );
