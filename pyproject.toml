@@ -6,6 +6,7 @@ authors = [
 description = "This is a Discord bot made primarly for the Vie for the Void discord server."
 license = "MIT"
 name = "standby-bot"
+package-mode = false
 readme = "README.md"
 version = "1.0.0"
 
@@ -14,7 +15,7 @@ asyncpg = "^0.29.0"
 fuzzywuzzy = "^0.18.0"
 nextcord = "^2.6.0"
 pillow = "^10.3.0"
-python = "3.11.9"
+python = "3.12.3"
 python-dotenv = "^1.0.1"
 python-levenshtein = "^0.25.1"
 pytz = "^2024.1"
