@@ -685,7 +685,9 @@ class Fun(Cog):
 
         font = ImageFont.truetype(font=str(font_path), size=font_size)
         text = caption.upper()
-        width, height = draw.textsize(text, font)
+        width = draw.textlength(text, font, direction="rtl")
+        height = draw.textlength(text, font, direction="ttb")
+
         x_coord = img.width / 2 - width / 2
         y_coord = img.height - height - 25 if align == "bottom" else 0
 
