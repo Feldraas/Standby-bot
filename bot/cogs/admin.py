@@ -3,6 +3,7 @@ import io
 import random
 import re
 import urllib.request
+from pathlib import Path
 
 import nextcord
 import requests
@@ -593,6 +594,24 @@ class Admin(Cog):
     @Cog.listener()
     async def on_guild_role_update(self, before, after):  # noqa: ARG002
         await config.startup.reconnect_buttons(self.bot)
+
+    @slash_command(
+        description="List directories",
+        default_member_permissions=Permissions.MANAGE_EMOJIS,
+    )
+    async def glob(self, interaction, pattern="**/*"):
+        await interaction.send(
+            "\n".join(
+                sorted(
+                    str(folder)
+                    for folder in Path().glob(pattern)
+                    if "__" not in str(folder)
+                    and not str(folder).startswith(".")
+                    and not str(folder).startswith("static")
+                )
+            ).replace("_", "\\_"),
+            ephemeral=True,
+        )
 
 
 async def move_or_copy_message(interaction, message_id, from_channel, to_channel):
