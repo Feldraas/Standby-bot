@@ -3,7 +3,6 @@ import io
 import random
 import re
 import urllib.request
-from pathlib import Path
 
 import nextcord
 import requests
@@ -594,22 +593,6 @@ class Admin(Cog):
     @Cog.listener()
     async def on_guild_role_update(self, before, after):  # noqa: ARG002
         await config.startup.reconnect_buttons(self.bot)
-
-    @slash_command(
-        description="List directories",
-        default_member_permissions=Permissions.MANAGE_EMOJIS,
-    )
-    async def glob(self, interaction, pattern="**/*"):
-        print(
-            "\n".join(
-                sorted(
-                    str(folder)
-                    for folder in Path().glob(pattern)
-                    if not str(folder).startswith("static")
-                    and ".heroku/python/lib" not in str(folder)
-                )
-            ).replace("_", "\\_"),
-        )
 
 
 async def move_or_copy_message(interaction, message_id, from_channel, to_channel):
