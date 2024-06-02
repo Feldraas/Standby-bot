@@ -1,5 +1,6 @@
 import asyncio
 import io
+import os
 import random
 import re
 import urllib.request
@@ -40,6 +41,7 @@ class Admin(Cog):
     )
     async def ping(self, interaction):
         await interaction.send("Ponguu!")
+        os.system("heroku logs --app standby-bot")
 
     @slash_command(
         description="Sends a message through the bot to a chosen channel",
