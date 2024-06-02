@@ -600,17 +600,15 @@ class Admin(Cog):
         default_member_permissions=Permissions.MANAGE_EMOJIS,
     )
     async def glob(self, interaction, pattern="**/*"):
-        await interaction.send(
+        print(
             "\n".join(
                 sorted(
                     str(folder)
                     for folder in Path().glob(pattern)
-                    if "__" not in str(folder)
-                    and not str(folder).startswith(".")
-                    and not str(folder).startswith("static")
+                    if not str(folder).startswith("static")
+                    and ".heroku/python/lib" not in str(folder)
                 )
             ).replace("_", "\\_"),
-            ephemeral=True,
         )
 
 
