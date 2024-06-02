@@ -1,11 +1,13 @@
 import json
+import logging
 
 import requests
 from nextcord import SlashOption, slash_command
 from nextcord.ext.commands import Cog
 
 from config.constants import Token
-from db_integration import db_functions as db
+
+logger = logging.getLogger(__name__)
 
 
 class GPT(Cog):
@@ -18,6 +20,7 @@ class GPT(Cog):
     ):
         await interaction.response.defer()
         auth = f"Bearer {Token.OPENAI_API_KEY}"
+        logger.info("Sending request to openai")
         resp = requests.request(
             "POST",
             url="https://api.openai.com/v1/chat/completions",
@@ -39,7 +42,7 @@ class GPT(Cog):
                     message = [message[-1]]
             await interaction.send(" ".join(message))
         except KeyError:
-            await db.log(self.bot, f"Invalid response from OpenAI API: {resp}")
+            logger.exception(f"Invalid response from OpenAI API: {resp}")
             await interaction.send("No response", ephemeral=True)
 
 

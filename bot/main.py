@@ -1,3 +1,4 @@
+import logging
 import os
 
 from nextcord import Intents
@@ -7,23 +8,28 @@ from config import startup
 from config.constants import Token
 from db_integration import db_functions as db
 
-intents = Intents.all()
-bot = Bot(intents=intents, case_insensitive=True)
+bot = Bot(intents=Intents.all(), case_insensitive=True)
+
+startup.setup_logging()
+logger = logging.getLogger("main")
+
 
 DEBUG = os.getenv("DEBUG", default=False)
 if DEBUG:
-    print("Running in debug")  # noqa: T201
+    logger.info("Running in debug")
 else:
-    print("Running in prod")  # noqa: T201
+    logger.info("Running in prod")
 
 
 @bot.event
 async def on_ready():
     await startup.set_status(bot, "Have a nice day!")
 
-    await startup.log_restart_reason(bot)
-
     await startup.reconnect_buttons(bot)
+
+    await startup.announce(bot)
+
+    logger.info("Bot ready!")
 
 
 startup.load_cogs(bot)

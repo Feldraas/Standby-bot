@@ -1,7 +1,11 @@
+import logging
+
 from nextcord.channel import VoiceChannel
 from nextcord.ext.commands import Cog
 
 from utils import util_functions as uf
+
+logger = logging.getLogger(__name__)
 
 
 class Voice(Cog):
@@ -29,14 +33,18 @@ class Voice(Cog):
     @Cog.listener()
     async def on_guild_channel_update(self, before, after):
         if isinstance(after, VoiceChannel):
+            logger.info(f"Voice channel renamed from {before.name} to {after.name}")
             role = uf.get_role(after.guild, before.name)
             if role:
+                logger.info("Renaming voice channel role")
                 await role.edit(name=after.name)
 
     @Cog.listener()
     async def on_guild_channel_delete(self, channel):
+        logger.info(f"Channel {channel.name} deleted")
         role = uf.get_role(channel.guild, channel.name)
         if role:
+            logger.info(f"Deleting voice channel role for {channel.name}")
             await role.delete()
 
 

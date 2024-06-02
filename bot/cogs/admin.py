@@ -1,5 +1,6 @@
 import asyncio
 import io
+import logging
 import random
 import re
 import urllib.request
@@ -27,8 +28,9 @@ from config.constants import (
     Permissions,
     RoleName,
 )
-from db_integration import db_functions as db
 from utils import util_functions as uf
+
+logger = logging.getLogger(__name__)
 
 
 class Admin(Cog):
@@ -39,6 +41,7 @@ class Admin(Cog):
         description="Pong!", default_member_permissions=Permissions.MODS_AND_GUIDES
     )
     async def ping(self, interaction):
+        logger.info("Pinging")
         await interaction.send("Ponguu!")
 
     @slash_command(
@@ -90,6 +93,7 @@ class Admin(Cog):
                 await message.edit(embed=embed)
                 await interaction.send("Embed successfully edited", ephemeral=True)
             except:
+                logger.warning("Could not edit embed description")
                 await interaction.send(
                     "Could not edit embed description", ephemeral=True
                 )
@@ -101,6 +105,7 @@ class Admin(Cog):
                 await message.edit(embed=embed)
                 await interaction.send("Embed successfully edited", ephemeral=True)
             except:
+                logger.warning("Could not edit embed title")
                 await interaction.send("Could not edit embed title", ephemeral=True)
 
         else:
@@ -108,6 +113,7 @@ class Admin(Cog):
                 await message.edit(content=text)
                 await interaction.send("Message successfully edited", ephemeral=True)
             except:
+                logger.warning("Could not edit message")
                 await interaction.send("Could not edit message", ephemeral=True)
 
     @edit.subcommand(description="Replaces a part of a bot message with new text")
@@ -138,6 +144,7 @@ class Admin(Cog):
                 await message.edit(embed=embed)
                 await interaction.send("Embed successfully edited", ephemeral=True)
             except:
+                logger.warning("Could not edit embed description")
                 await interaction.send(
                     "Could not edit embed description", ephemeral=True
                 )
@@ -149,6 +156,7 @@ class Admin(Cog):
                 await message.edit(embed=embed)
                 await interaction.send("Embed successfully edited", ephemeral=True)
             except:
+                logger.warning("Could not edit embed title")
                 await interaction.send("Could not edit embed title", ephemeral=True)
 
         else:
@@ -156,6 +164,7 @@ class Admin(Cog):
                 await message.edit(content=message.content.replace(old, new, 1))
                 await interaction.send("Message successfully edited", ephemeral=True)
             except:
+                logger.warning("Could not edit message")
                 await interaction.send("Could not edit message", ephemeral=True)
 
     @slash_command(
@@ -185,6 +194,7 @@ class Admin(Cog):
     async def punish(
         self, interaction, user: Member = SlashOption(description="The user to punish")
     ):
+        logger.info(f"{interaction.user} is punishing {user}")
         guild = interaction.guild
         ch_list = [
             "general",
@@ -202,7 +212,7 @@ class Admin(Cog):
                 await ping.delete()
                 await asyncio.sleep(2)
             else:
-                await db.log(self.bot, f"Channel {ch} could not be found")
+                logger.warning(self.bot, f"Channel {ch} could not be found")
 
         await asyncio.sleep(45)
 
@@ -213,7 +223,7 @@ class Admin(Cog):
                 await ping.delete()
                 await asyncio.sleep(2)
             else:
-                await db.log(self.bot, f"Channel {ch} could not be found")
+                logger.warning(self.bot, f"Channel {ch} could not be found")
 
     @user_command(
         name="Punish",
@@ -352,7 +362,7 @@ class Admin(Cog):
     ):
         maint = uf.get_channel(interaction.guild, ChannelName.ERRORS)
         if not maint:
-            await db.log(self.bot, "Could not find maintenance channel")
+            logger.error(self.bot, "Could not find maintenance channel")
             await interaction.send("Could not find maintenance channel", ephemeral=True)
             return
 
@@ -408,6 +418,7 @@ class Admin(Cog):
                     f"{offender.mention} has been jailed successfully", ephemeral=True
                 )
         else:
+            logger.error("Error processing roles or channel")
             await interaction.send("Error processing roles or channel", ephemeral=True)
 
     @user_command(name="Jail", default_member_permissions=Permissions.MODS_AND_GUIDES)
@@ -592,6 +603,7 @@ class Admin(Cog):
 
     @Cog.listener()
     async def on_guild_role_update(self, before, after):  # noqa: ARG002
+        logger.info("Roles updated")
         await config.startup.reconnect_buttons(self.bot)
 
 
@@ -603,6 +615,12 @@ async def move_or_copy_message(interaction, message_id, from_channel, to_channel
         return
 
     cmd = interaction.application_command.name
+
+    verb = "moving" if cmd == "move" else "copying"
+    logger.info(
+        f"{interaction.user} is {verb} message {message_id} from channel "
+        f"#{from_channel.name} to channel #{to_channel.name}"
+    )
 
     embed = uf.message_embed(msg, cmd, interaction.user)
 
@@ -633,17 +651,21 @@ async def add_external_emoji(interaction, emoji, name):
         emoji_id = emoji
         link = f"https://cdn.discordapp.com/emojis/{emoji_id}.png"
 
+    logger.info(f"Fetching emoji from {link}")
     try:
         request = urllib.request.Request(link, headers={"User-Agent": "Mozilla/5.0"})
         response = urllib.request.urlopen(request)
+        logger.info("Emoji successfully fetched")
     except:
         return False
     else:
         try:
+            logger.info("Creating emoji")
             return await interaction.guild.create_custom_emoji(
                 name=name, image=response.read()
             )
         except:
+            logger.exception("Could not create emoji")
             return False
 
 
@@ -653,6 +675,8 @@ async def delete_emoji(interaction, emoji):
     else:
         name = emoji
     emoji = uf.get_emoji(interaction.guild, name)
+    logger.info(f"Deleting emoji {name}")
+
     try:
         await interaction.guild.delete_emoji(emoji)
     except:

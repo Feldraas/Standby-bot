@@ -1,3 +1,5 @@
+import logging
+
 import nextcord.utils
 from nextcord import SlashOption, slash_command
 from nextcord.ext.commands import Cog
@@ -5,6 +7,8 @@ from nextcord.ext.commands import Cog
 from config.constants import ID, RoleName
 from db_integration import db_functions as db
 from utils import util_functions as uf
+
+logger = logging.getLogger(__name__)
 
 
 class Birthdays(Cog):
@@ -58,11 +62,13 @@ class Birthdays(Cog):
         )
 
         if exists:
+            logger.info(f"Updating {interaction.user}'s birthday to {day} {month_name}")
             await self.bot.pg_pool.execute(
                 f"UPDATE bdays SET month = {month}, day = {day} "
                 f"WHERE usr_id = {interaction.user.id}"
             )
         else:
+            logger.info(f"Setting {interaction.user}'s birthday to {day} {month_name}")
             await self.bot.pg_pool.execute(
                 "INSERT INTO bdays (usr_id, month, day) VALUES ($1, $2, $3);",
                 interaction.user.id,
@@ -80,6 +86,7 @@ class Birthdays(Cog):
         if not exists:
             await interaction.send("You have not set your birthday.", ephemeral=True)
         else:
+            logger.info(f"Removing {interaction.user}'s birthday")
             await self.bot.pg_pool.execute(
                 f"DELETE FROM bdays WHERE usr_id = {interaction.user.id};"
             )
@@ -106,6 +113,7 @@ class Birthdays(Cog):
         if now.hour != 7:  # noqa: PLR2004
             return
 
+        logger.info("Checking birthdays")
         await self.bot.wait_until_ready()
 
         guild = await self.bot.fetch_guild(ID.GUILD)
@@ -114,6 +122,7 @@ class Birthdays(Cog):
 
         async for member in guild.fetch_members():
             if bday_role in member.roles:
+                logger.info(f"Removing birthday role from {member}")
                 await member.remove_roles(bday_role)
 
         gtable = await self.bot.pg_pool.fetch(
@@ -121,6 +130,7 @@ class Birthdays(Cog):
         )
 
         if not gtable:
+            logger.info("No birthdays today")
             return
 
         bday_havers = []
@@ -128,6 +138,7 @@ class Birthdays(Cog):
         for rec in gtable:
             member = await guild.fetch_member(rec["usr_id"])
 
+            logger.info(f"Adding birthday role to {member}")
             await member.add_roles(bday_role)
 
             bday_havers.append(member.mention)

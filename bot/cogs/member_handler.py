@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import random
 
 from nextcord import Embed
@@ -6,6 +7,8 @@ from nextcord.ext.commands import Cog
 
 from config.constants import ID, URL, ChannelName, Color
 from utils import util_functions as uf
+
+logger = logging.getLogger(__name__)
 
 
 class MemberHandler(Cog):
@@ -26,11 +29,13 @@ class MemberHandler(Cog):
 
 
 async def welcome_message(member):
+    logger.info(f"{member} has joined the guild")
     if member.guild.id == ID.GUILD:
         general = uf.get_channel(member.guild, ChannelName.GENERAL)
         rules_ch = uf.get_channel(member.guild, ChannelName.RULES)
         rules_text = rules_ch.mention if rules_ch else f"#{ChannelName.Rules}"
         if not general:
+            logger.error("Could not find general channel")
             return
         message = (
             f"Welcome {member.mention}!\n"
@@ -47,6 +52,7 @@ async def welcome_message(member):
             and (uf.get_role(member.guild, "Alliance") not in member.roles)
             and (uf.get_role(member.guild, "Community") not in member.roles)
         ):
+            logger.info(f"Sending reminder to {member}")
             await general.send(
                 f"Hey {member.mention} - I see you still haven't unlocked "
                 f"the full server. Make sure you read {rules_ch.mention} "
@@ -55,37 +61,43 @@ async def welcome_message(member):
 
 
 async def leave_message(member):
-    if member.guild.id == ID.GUILD:
-        channel = uf.get_channel(member.guild, ChannelName.ERRORS)
-        if not channel:
-            return
-        name = member.name
-        time = uf.utcnow()
-        time = time.strftime("%b %d, %H:%M")
-        embed = Embed(color=Color.GREY)
-        embed.title = "The void grows smaller..."
-        embed.set_thumbnail(url=URL.GITHUB_STATIC + "/images/grave.png")
-        embed.description = f":rocket: {name} has left the void :rocket:"
-        causes = [
-            "ded",
-            "Couldn't find their socks fast enough",
-            "Yeeted themselves off a very high chair",
-            "Forgot how to breathe",
-            "Stickbugged one time too many",
-            "Disrespected the pedestal",
-            "Terminal case of being horny",
-            "Sacrificed at the altar of Tzeentch",
-            "Critical paper cut",
-            "Executed by the ICC for their numerous war crimes in Albania",
-        ]
-        animu = uf.get_channel(member.guild, "animu")
-        if animu:
-            causes.append(f"Too much time spent in {animu.mention}")
-        embed.add_field(name="Time of death", value=time)
-        embed.add_field(
-            name="Cause of death", value=causes[random.randint(1, len(causes)) - 1]
-        )
-        await channel.send(embed=embed)
+    if member.guild.id != ID.GUILD:
+        logger.warning("Wrong guild?")
+        return
+
+    channel = uf.get_channel(member.guild, ChannelName.ERRORS)
+    if not channel:
+        logger.error("Could not find error channel")
+        return
+
+    logger.info(f"Sending obit message for {member}")
+    name = member.name
+    time = uf.utcnow()
+    time = time.strftime("%b %d, %H:%M")
+    embed = Embed(color=Color.GREY)
+    embed.title = "The void grows smaller..."
+    embed.set_thumbnail(url=URL.GITHUB_STATIC + "/images/grave.png")
+    embed.description = f":rocket: {name} has left the void :rocket:"
+    causes = [
+        "ded",
+        "Couldn't find their socks fast enough",
+        "Yeeted themselves off a very high chair",
+        "Forgot how to breathe",
+        "Stickbugged one time too many",
+        "Disrespected the pedestal",
+        "Terminal case of being horny",
+        "Sacrificed at the altar of Tzeentch",
+        "Critical paper cut",
+        "Executed by the ICC for their numerous war crimes in Albania",
+    ]
+    animu = uf.get_channel(member.guild, "animu")
+    if animu:
+        causes.append(f"Too much time spent in {animu.mention}")
+    embed.add_field(name="Time of death", value=time)
+    embed.add_field(
+        name="Cause of death", value=causes[random.randint(1, len(causes)) - 1]
+    )
+    await channel.send(embed=embed)
 
 
 async def level3_handler(before, after):

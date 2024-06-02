@@ -1,9 +1,13 @@
+import logging
+
 from nextcord import ButtonStyle, Embed, PermissionOverwrite, slash_command, ui
 from nextcord.ext.commands import Cog
 
 from config.constants import CategoryName, ChannelName, Color, Permissions, RoleName
 from db_integration import db_functions as db
 from utils import util_functions as uf
+
+logger = logging.getLogger(__name__)
 
 CLAIMABLE_CHANNEL_MESSAGE = (
     "If you have an issue and want to talk to the mod team, this is the place.\n"
@@ -41,6 +45,7 @@ class Tickets(Cog):
             )
             return
 
+        logger.info(f"Resolving ticket {interaction.channel.name}")
         resolved_ticket_cat = await get_or_create_resolved_cat(interaction)
         await interaction.channel.edit(category=resolved_ticket_cat)
 
@@ -60,6 +65,7 @@ class Tickets(Cog):
         default_member_permissions=Permissions.MODS_AND_GUIDES,
     )
     async def initiate_ticket_system(self, interaction):
+        logger.info("Initiaing ticket system")
         claimable_ticket_cat = await get_or_create_claimable_cat(interaction)
         if not claimable_ticket_cat.channels:
             await create_claimable_channel(self.bot, claimable_ticket_cat)
@@ -93,6 +99,7 @@ async def create_claimable_channel(bot, cat):
     chnl = await cat.create_text_channel(
         name=ChannelName.CLAIMABLE, reason="Making a claimable channel."
     )
+    logger.info("Creating claimable channel")
     muted_role = uf.get_role(cat.guild, "Muted")
     if muted_role:
         await chnl.set_permissions(muted_role, send_messages=True)
@@ -109,6 +116,7 @@ async def get_or_create_tickets_log(interaction):
             interaction.guild.default_role: PermissionOverwrite(read_messages=False)
         }
 
+        logger.info("Creating ticket log")
         tickets_log = await resolved_cat.create_text_channel(
             name=ChannelName.TICKETS_LOG,
             reason="Making a channel for ticket logs.",
@@ -125,6 +133,7 @@ async def get_or_create_claimable_cat(interaction):
     guild = interaction.guild
     claimable_ticket_cat = uf.get_category(guild, CategoryName.CLAIMABLE_TICKETS)
     if claimable_ticket_cat is None:
+        logger.info("Creating claimable category")
         claimable_ticket_cat = await guild.create_category(
             name=CategoryName.CLAIMABLE_TICKETS,
             reason="Making a category for claimable tickets.",
@@ -135,6 +144,7 @@ async def get_or_create_claimable_cat(interaction):
 async def get_or_create_active_cat(interaction):
     active_ticket_cat = uf.get_category(interaction.guild, CategoryName.ACTIVE_TICKETS)
     if active_ticket_cat is None:
+        logger.info("Creating active ticket category")
         active_ticket_cat = await interaction.guild.create_category(
             name=CategoryName.ACTIVE_TICKETS,
             reason="Making a category for claimable tickets.",
@@ -147,6 +157,7 @@ async def get_or_create_resolved_cat(interaction):
         interaction.guild, CategoryName.RESOLVED_TICKETS
     )
     if resolved_ticket_cat is None:
+        logger.info("Creating resolved ticket category")
         resolved_ticket_cat = await interaction.guild.create_category(
             name=CategoryName.RESOLVED_TICKETS,
             reason="Making a category for claimable tickets.",

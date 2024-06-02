@@ -1,4 +1,5 @@
 import json
+import logging
 import re
 from dataclasses import dataclass
 
@@ -11,11 +12,13 @@ from nextcord import (
     slash_command,
     user_command,
 )
-from nextcord.ext.commands import Cog, command
+from nextcord.ext.commands import Cog
 
 import utils.util_functions as uf
 from config.constants import ID, Color
 from db_integration import db_functions as db
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -29,7 +32,7 @@ class LeaderboardSettings:
     stat_embed_header: str = None
 
 
-all_settings = {
+ALL_LEADERBOARDS = {
     "Stars": LeaderboardSettings(
         title="Stars leaderboard",
         stat_name="Stars",
@@ -89,12 +92,6 @@ class Services(Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @command(brief="Makes the bot repeat a message", hidden=True)
-    async def sayd(self, ctx, *, message):
-        await ctx.message.delete()
-        sent_message = await ctx.channel.send(message + " ")
-        await sent_message.edit(content=message)
-
     @slash_command(description="Displays a user's profile picture.")
     async def avatar(
         self, interaction, user: Member = SlashOption(description="The target user")
@@ -128,7 +125,7 @@ class Services(Cog):
         stat=SlashOption(
             name="leaderboard",
             description="The leaderboard to display",
-            choices=sorted(["Burger history", *all_settings]),
+            choices=sorted(["Burger history", *ALL_LEADERBOARDS]),
         ),
     ):
         if stat == "Burger history":
@@ -148,7 +145,7 @@ class Services(Cog):
             await interaction.send(msg, ephemeral=True)
             return
 
-        settings = all_settings[stat]
+        settings = ALL_LEADERBOARDS[stat]
 
         leaderboard = await create_leaderboard(self.bot, settings, interaction.guild.id)
 
@@ -190,7 +187,7 @@ class Services(Cog):
         interaction,
         user: Member = SlashOption(description="User to look up"),
         stat=SlashOption(
-            description="Stat to look up", choices=["Everything", *all_settings]
+            description="Stat to look up", choices=["Everything", *ALL_LEADERBOARDS]
         ),
     ):
         if user == interaction.user:
@@ -199,7 +196,7 @@ class Services(Cog):
             subject, possessive, has = user.mention, user.mention + "'s", "has"
 
         if stat != "Everything":
-            settings = all_settings[stat]
+            settings = ALL_LEADERBOARDS[stat]
             stats = await create_leaderboard(self.bot, settings, filter_by_user=user)
             if not stats:
                 await interaction.send(
@@ -217,7 +214,7 @@ class Services(Cog):
                 )
         else:
             message = f"{possessive} current stats are:\n"
-            for settings in all_settings.values():
+            for settings in ALL_LEADERBOARDS.values():
                 stats = await create_leaderboard(
                     self.bot, settings, filter_by_user=user
                 )
@@ -279,6 +276,7 @@ def build_leaderboard_embed(
 async def urban_handler(bot, payload):
     if not isinstance(payload, RawReactionActionEvent):
         return
+
     channel = bot.get_channel(payload.channel_id)
     try:
         message = await channel.fetch_message(payload.message_id)
@@ -307,8 +305,8 @@ async def urban_handler(bot, payload):
                     embed = await urban_embed(query, page + 1)
                 await message.remove_reaction(payload.emoji, user)
                 await message.edit(embed=embed)
-    except Exception as e:
-        await db.log(bot, f"Unexpected error: {e}")
+    except Exception:
+        logger.exception("Unexpected error")
 
 
 def avatar_embed(user: Member) -> Embed:

@@ -1,3 +1,7 @@
+import logging
+
+logger = logging.getLogger(__name__)
+
 CREATE_USER = """
 CREATE TABLE IF NOT EXISTS "usr" (
     "usr_id" BIGINT NOT NULL,
@@ -153,7 +157,7 @@ CREATE TABLE IF NOT EXISTS "notes" (
 
 CREATE_LOGS = """
 CREATE TABLE IF NOT EXISTS "logs" (
-    "timestamp" TEXT NOT NULL,
+    "timestamp" TIMESTAMP,
     "module" TEXT,
     "function" TEXT,
     "message" TEXT
@@ -176,7 +180,7 @@ CREATE TABLE IF NOT EXISTS "movies" (
 ALTER_USER_ADD_YOINK = 'ALTER TABLE "usr" ADD IF NOT EXISTS "last_yoink" timestamp'
 
 
-async def create_tables(con):  # noqa: PLR0912
+async def create_tables(con):
     no_errors = True
     try:
         await con.execute(CREATE_USER)
@@ -190,42 +194,42 @@ async def create_tables(con):  # noqa: PLR0912
         await con.execute(ALTER_STARBOARD)
         await con.execute(ALTER_USER_ADD_PREDICTIONS)
         await con.execute(ALTER_USER_ADD_YOINK)
-    except Exception as e:
-        print(f"Error when executing db script batch 1: {e}")  # noqa: T201
+    except Exception:
+        logger.exception("Error when executing db script batch 1")
         no_errors = False
 
     try:
         await con.execute(CREATE_TMERS)
         await con.execute(ALTER_TMERS)
-    except Exception as e:
-        print(f"Error when executing db script batch 2: {e}")  # noqa: T201
+    except Exception:
+        logger.exception("Error when executing db script batch 2")
         no_errors = False
     try:
         await con.execute(CREATE_BDAYS)
         await con.execute(ALTER_BDAYS)
-    except Exception as e:
-        print(f"Error when executing db script batch 3: {e}")  # noqa: T201
+    except Exception:
+        logger.exception("Error when executing db script batch 3")
         no_errors = False
     try:
         await con.execute(CREATE_BUTTONS)
-    except Exception as e:
-        print(f"Error when executing db script batch 4: {e}")  # noqa: T201
+    except Exception:
+        logger.exception("Error when executing db script batch 4")
         no_errors = False
     try:
         await con.execute(CREATE_NOTES)
-    except Exception as e:
-        print(f"Error when executing db script batch 5: {e}")  # noqa: T201
+    except Exception:
+        logger.exception("Error when executing db script batch 5")
         no_errors = False
     try:
         await con.execute(CREATE_LOGS)
-    except Exception as e:
-        print(f"Error when executing db script batch 6: {e}")  # noqa: T201
+    except Exception:
+        logger.exception("Error when executing db script batch 6")
         no_errors = False
     try:
         await con.execute(CREATE_MOVIES)
-    except Exception as e:
-        print(f"Error when executing db script batch 7: {e}")  # noqa: T201
+    except Exception:
+        logger.exception("Error when executing db script batch 7")
         no_errors = False
 
     if no_errors:
-        print("All db scripts executed successfully!")  # noqa: T201
+        logger.info("All db scripts executed successfully!")

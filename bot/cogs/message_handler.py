@@ -1,3 +1,4 @@
+import logging
 import re
 from datetime import datetime as dt
 
@@ -5,7 +6,6 @@ from nextcord.ext.commands import Cog
 
 from cogs.error_handler import unhandled_error_embed
 from config.constants import ID, VALID_TEXT_CHANNEL, ChannelName
-from db_integration import db_functions as db
 from utils import util_functions as uf
 from utils.regex import (
     RegexResponse,
@@ -14,6 +14,7 @@ from utils.regex import (
     wednesday_responses,
 )
 
+logger = logging.getLogger(__name__)
 last_messages = {}
 
 
@@ -60,24 +61,22 @@ class MessageHandler(Cog):
         if message.author.bot:
             return
         if not isinstance(message.channel, VALID_TEXT_CHANNEL):
-            await db.log(
-                self.bot,
+            await logger.warning(
                 f"Unexpected message in channel {message.channel} "
                 f"of type {message.channel.type}",
             )
             return
+
         if message.content == "":
             return
-        response_command = get_response_command(message)
 
+        response_command = get_response_command(message)
         if response_command:
             try:
                 await response_command(self.bot, message)
             except Exception as e:
-                await db.log(
-                    self.bot,
-                    "Error when executing regex command "
-                    f"{response_command.__name__}(): {e}",
+                logger.exception(
+                    f"Error when executing regex command {response_command.__name__}()"
                 )
                 if message.guild.id == ID.GUILD:
                     channel = uf.get_channel(message.guild, ChannelName.ERRORS)
@@ -88,7 +87,7 @@ class MessageHandler(Cog):
                             )
                         )
                     else:
-                        await db.log(self.bot, "Could not find error channel")
+                        logger.warning("Could not find error channel")
             return
 
         if (

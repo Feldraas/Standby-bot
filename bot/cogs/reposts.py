@@ -1,9 +1,13 @@
+import logging
+
 from nextcord import RawReactionActionEvent
 from nextcord.ext.commands import Cog
 
 from config.constants import ID, Duration, Emoji, RoleName, Threshold, TimerType
 from db_integration import db_functions as db
 from utils import util_functions as uf
+
+logger = logging.getLogger(__name__)
 
 
 class Reposts(Cog):
@@ -24,11 +28,13 @@ class Reposts(Cog):
             isinstance(payload, RawReactionActionEvent) and payload.emoji == reemoji
         ):
             return
+        logger.info(f"Reeposter emoji added to {reeposter}'s post")
         channel = self.bot.get_channel(payload.channel_id)
         message = await channel.fetch_message(payload.message_id)
         message_age = uf.utcnow() - message.created_at
 
         if message_age > Duration.REPOSTER / 3:
+            logger.info("Message is too old - ignoring")
             return
 
         rees = 0
@@ -46,6 +52,7 @@ class Reposts(Cog):
             )
 
             if not exists:
+                logger.info(f"Adding reeposter role to {reeposter}")
                 expires = message.created_at + Duration.REPOSTER
                 expires = expires.replace(microsecond=0, tzinfo=None)
                 await self.bot.pg_pool.execute(
@@ -66,6 +73,7 @@ class Reposts(Cog):
                 if timenow.replace(tzinfo=None) <= rec["expires"]:
                     continue
 
+                logger.info("Reepost timer expired")
                 guild_id = await self.bot.pg_pool.fetchval(
                     f"SELECT guild_id FROM usr WHERE usr_id = {rec['usr_id']}"
                 )
@@ -76,11 +84,10 @@ class Reposts(Cog):
                 await self.bot.pg_pool.execute(
                     f"DELETE FROM tmers WHERE tmer_id = {rec['tmer_id']};"
                 )
-        except AttributeError:  # bot hasn't loaded yet and pg_pool doesn't exist
-            return
-        except Exception as e:
-            await db.log(self.bot, f"Unexpected exception: {e}")
-            return
+        except AttributeError:
+            logger.exception("Bot hasn't loaded yet - pg_pool doesn't exist")
+        except Exception:
+            logger.exception("Unknown exception")
 
 
 def setup(bot):

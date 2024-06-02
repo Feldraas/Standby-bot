@@ -1,4 +1,5 @@
 import asyncio
+import logging
 
 from nextcord import Embed, Message
 from nextcord.ext.commands import Cog, Context, errors
@@ -6,6 +7,8 @@ from nextcord.ext.commands import Cog, Context, errors
 from config.constants import ID, ChannelName, Color
 from db_integration import db_functions as db
 from utils import util_functions as uf
+
+logger = logging.getLogger(__name__)
 
 
 class ErrorHandler(Cog):
@@ -20,10 +23,13 @@ class ErrorHandler(Cog):
 
     @Cog.listener()
     async def on_command_error(self, ctx: Context, e: errors.CommandError) -> None:
+        logger.error(f"Command error: {e}")
         await db.log(self.bot, f"CommandError: {e}")
         if isinstance(e, errors.UserInputError):
+            logger.error("UserInputError")
             await self.handle_user_input_error(ctx, e)
         elif isinstance(e, errors.CommandNotFound):
+            logger.error("CommandNotFound")
             await self._sleep_and_delete(
                 await ctx.channel.send(
                     embed=self._get_error_embed(

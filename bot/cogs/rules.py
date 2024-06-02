@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import re
 from math import ceil
 
@@ -16,6 +17,8 @@ from config.constants import (
 )
 from db_integration import db_functions as db
 from utils import util_functions as uf
+
+logger = logging.getLogger(__name__)
 
 RULES_LIST = [
     "1. Respect all other members.",
@@ -75,6 +78,7 @@ class Rules(Cog):
             description="Delay in seconds between each post", default=0.1
         ),
     ):
+        logger.info("Creating rules channel")
         vie = interaction.guild
         rules_ch = uf.get_channel(vie, ChannelName.RULES)
         await interaction.send(
@@ -156,6 +160,7 @@ class Rules(Cog):
     async def add(
         self, interaction, text: str = SlashOption(description="The text of the rule")
     ):
+        logger.info("Adding rule")
         rules_ch = uf.get_channel(interaction.guild, ChannelName.RULES)
         rules_msg = await rules_ch.fetch_message(ID.RULES_MESSAGE)
         embed = rules_msg.embeds[0]
@@ -183,11 +188,13 @@ class Rules(Cog):
             description="Number of the rule to remove", min_value=1
         ),
     ):
+        logger.info("Removing rule")
         rules_ch = uf.get_channel(interaction.guild, ChannelName.RULES)
         rules_msg = await rules_ch.fetch_message(ID.RULES_MESSAGE)
         embed = rules_msg.embeds[0]
         rules = re.split(rf"\n{EMPTY_STRING}\n", embed.description)
         if number > len(rules):
+            logger.warning(f"No rule with number {number}")
             await interaction.send("No rule with that number.", ephemeral=True)
             return
 
@@ -214,6 +221,7 @@ class Rules(Cog):
 
         if number > len(rules):
             await interaction.send("No rule with that number", ephemeral=True)
+            return
 
         rules[number - 1] = f"{number}. {new_text}"
         embed.description = f"\n{EMPTY_STRING}\n".join(rules)
@@ -223,10 +231,11 @@ class Rules(Cog):
 
     @uf.delayed_loop(hours=8)
     async def kick_inactives(self):
+        logger.info("Checking for inactive members")
         try:
             guild = await self.bot.fetch_guild(ID.GUILD)
         except Exception:
-            await db.log(self.bot, "Could not fetch guild")
+            logger.exception("Could not fetch guild")
             return
 
         async for member in guild.fetch_members():
@@ -251,8 +260,7 @@ class Rules(Cog):
                             f"\n{EMPTY_STRING}\n{URL.INVITE}"
                         )
                     except Exception:
-                        await db.log(
-                            self.bot,
+                        logger.exception(
                             f"Failed to send kick DM to {member.name}{discriminator}",
                         )
 
@@ -263,14 +271,13 @@ class Rules(Cog):
                             "due to inactivity."
                         )
                     except Exception:
-                        await db.log(self.bot, "Error channel not found")
+                        logger.exception("Error channel not found")
 
                     try:
                         await member.kick()
-                    except Exception as e:
-                        await db.log(
-                            self.bot,
-                            f"{member.name}{discriminator} couldn't be kicked: {e}",
+                    except Exception:
+                        logger.exception(
+                            f"{member.name}{discriminator} couldn't be kicked",
                         )
 
 

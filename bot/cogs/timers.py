@@ -1,4 +1,5 @@
 import json
+import logging
 from datetime import datetime as dt
 from datetime import timedelta
 
@@ -8,6 +9,8 @@ from nextcord.ext.commands import Cog
 from config.constants import TimerType
 from db_integration import db_functions as db
 from utils import util_functions as uf
+
+logger = logging.getLogger(__name__)
 
 
 class Timers(Cog):
@@ -24,48 +27,50 @@ class Timers(Cog):
             gtable = await self.bot.pg_pool.fetch(
                 f"SELECT * FROM tmers WHERE ttype={TimerType.REMINDER}"
             )
-            for rec in gtable:
-                if rec["ttype"] != TimerType.REMINDER:
-                    continue
-                timenow = dt.now()
-                if timenow <= rec["expires"]:
-                    continue
+        except AttributeError:
+            logger.exception("Bot hasn't loaded yet - pg_pool doesn't exist")
+            return
+        except Exception:
+            logger.exception("Unexpected error")
+            return
 
-                params_dict = json.loads(rec["params"])
-                if "msg" not in params_dict or "channel" not in params_dict:
-                    await db.log(self.bot, f"Deleting invalid json: {params_dict}")
-                    await self.bot.pg_pool.execute(
-                        "DELETE FROM tmers WHERE tmer_id = $1;", rec["tmer_id"]
-                    )
-                    continue
+        for rec in gtable:
+            timenow = dt.now()
+            if timenow <= rec["expires"]:
+                continue
 
-                channel = self.bot.get_channel(params_dict["channel"])
-                if not channel:
-                    continue
+            logger.info("Reminder timer expired")
 
-                message = (
-                    f"<@{rec['usr_id']}> "
-                    f"{uf.dynamic_timestamp(rec['expires'], 'date and time')}: "
-                    f"{params_dict['msg']}"
-                )
-
-                try:
-                    confirmation_id = params_dict["confirmation_id"]
-                    confirmation = await channel.fetch_message(confirmation_id)
-                    message += " " + confirmation.jump_url
-                except Exception:
-                    pass
-
-                await channel.send(message)
-
+            params_dict = json.loads(rec["params"])
+            if "msg" not in params_dict or "channel" not in params_dict:
+                logger.warning(f"Deleting invalid json: {params_dict}")
                 await self.bot.pg_pool.execute(
                     "DELETE FROM tmers WHERE tmer_id = $1;", rec["tmer_id"]
                 )
-        except AttributeError:  # bot hasn't loaded yet and pg_pool doesn't exist
-            return
-        except Exception as e:
-            await db.log(self.bot, f"Unexpected error: {e}")
-            return
+                continue
+
+            channel = self.bot.get_channel(params_dict["channel"])
+            if not channel:
+                logger.warning(f"Could not find {channel=}")
+                continue
+
+            message = (
+                f"<@{rec['usr_id']}> "
+                f"{uf.dynamic_timestamp(rec['expires'], 'date and time')}: "
+                f"{params_dict['msg']}"
+            )
+
+            try:
+                confirmation_id = params_dict["confirmation_id"]
+                confirmation = await channel.fetch_message(confirmation_id)
+                message += " " + confirmation.jump_url
+            except Exception:
+                logger.exception("Unknown error")
+
+            await channel.send(message)
+            await self.bot.pg_pool.execute(
+                "DELETE FROM tmers WHERE tmer_id = $1;", rec["tmer_id"]
+            )
 
     @slash_command(description="Commands for setting reminders")
     async def remindme(self, interaction):
@@ -93,6 +98,7 @@ class Timers(Cog):
             )
             return
 
+        logger.info(f"Creating reminder for {interaction.user}")
         now = dt.now()
         delta = timedelta(days=days, hours=hours, minutes=minutes)
         expires = now + delta
@@ -145,6 +151,7 @@ class Timers(Cog):
             )
             return
 
+        logger.info(f"Creating reminder for {interaction.user}")
         confirmation = await interaction.send(
             f"{uf.dynamic_timestamp(now, 'short time')}: Your reminder has been "
             "registered and you will be reminded "

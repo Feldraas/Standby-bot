@@ -1,4 +1,5 @@
 import asyncio
+import logging
 
 from nextcord import (
     Embed,
@@ -10,6 +11,7 @@ from nextcord import (
 from config.constants import ID, Color, Threshold
 from db_integration import db_functions as db
 
+logger = logging.getLogger(__name__)
 starboard_lock = asyncio.Lock()
 
 
@@ -53,6 +55,7 @@ async def edit_stars(message, stars):
 
 async def starboard_handler(bot, payload):  # noqa: C901, PLR0912, PLR0915
     if isinstance(payload, RawReactionActionEvent) and payload.emoji.name == "⭐":
+        logger.info("Star react added")
         chnl = bot.get_channel(payload.channel_id)
         msg = await chnl.fetch_message(payload.message_id)
         await db.get_or_insert_usr(bot, msg.author.id, payload.guild_id)
@@ -89,9 +92,10 @@ async def starboard_handler(bot, payload):  # noqa: C901, PLR0912, PLR0915
                     f"DELETE FROM starboard WHERE msg_id = {payload.message_id};"
                 )
         except Exception as e:
-            await db.log(bot, f"Unexpected error: {e}")
+            logger.exception("Unexpected error")
         finally:
             starboard_lock.release()
+
     elif isinstance(payload, RawReactionClearEvent):
         # if exists in starboard, do something about it, otherwise don't care
         msg = await get_starboard_msg(bot, payload.message_id)
@@ -118,7 +122,7 @@ async def starboard_handler(bot, payload):  # noqa: C901, PLR0912, PLR0915
                     await bot.pg_pool.execute(
                         f"DELETE FROM starboard WHERE msg_id = {payload.message_id};"
                     )
-                except Exception as e:
-                    await db.log(bot, f"Unexpected error: {e}")
+                except Exception:
+                    logger.exception("Unexpected error")
                 finally:
                     starboard_lock.release()

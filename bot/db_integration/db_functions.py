@@ -1,14 +1,10 @@
-import inspect
 import json
-import re
 from datetime import datetime as dt
-from pathlib import Path
 
 import asyncpg
 
-from config.constants import URL, Format
+from config.constants import URL
 from db_integration.create_scripts import create_tables
-from utils import util_functions as uf
 
 bot_start_time = dt.now()
 
@@ -89,29 +85,3 @@ async def update_button_params(bot, message_id, new_params):
     await bot.pg_pool.execute(
         f"UPDATE buttons SET params = '{params}' WHERE message_id = '{message_id}'"
     )
-
-
-async def log(bot, message=None, cached_line=None):
-    if message:
-        module = ".".join(re.split(r"[/\\]", inspect.stack()[1][1])[-2:])[:-3]
-        func = inspect.stack()[1][3] + "()"
-        time = uf.now().strftime(Format.YYYYMMDD_HHMMSS)
-    else:
-        time, module, func, message = cached_line
-        message += " [Added from cache]"
-    try:
-        await bot.pg_pool.execute(
-            "INSERT INTO logs (timestamp, module, function, message) "
-            "VALUES ($1, $2, $3, $4);",
-            time,
-            module,
-            func,
-            message,
-        )
-    except Exception as e:
-        print(  # noqa: T201
-            f"Failed to log message '{message}' to database with exception '{e}': "
-            "adding to cache."
-        )
-        with Path("db_cache.txt").open("a") as f:
-            f.write(json.dumps([time, module, func, message]) + "\n")

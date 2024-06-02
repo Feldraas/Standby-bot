@@ -4,10 +4,7 @@ from enum import IntEnum, StrEnum
 from pathlib import Path
 
 import nextcord
-from dotenv import load_dotenv
 from pytz import timezone
-
-load_dotenv(".env.debug")
 
 # Uncategorized
 BOT_TZ = timezone(os.getenv("TZ", default="UTC"))
@@ -159,6 +156,7 @@ class Format(StrEnum):
     YYYYMMDD = "%Y-%m-%d"
     YYYYMMDD_HHMMSS = "%Y-%m-%d %H:%M:%S"
     YYYYMMDD_HHMMSSZ = "%Y-%m-%dT%H:%M:%S%z"
+    LOGGING = "%(levelname)s | %(name)s:%(lineno)s | %(funcName)s | %(message)s"
 
 
 class Emoji(StrEnum):

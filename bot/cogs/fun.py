@@ -1,5 +1,6 @@
 import io
 import json
+import logging
 import os
 import random
 import re
@@ -28,6 +29,8 @@ from transliterate.base import TranslitLanguagePack, registry
 from config.constants import EMPTY_STRING, ID, URL, Duration, Threshold, TimerType
 from db_integration import db_functions as db
 from utils import util_functions as uf
+
+logger = logging.getLogger(__name__)
 
 TOUCAN_PRAISE = """
 ░░░░░░░░▄▄▄▀▀▀▄▄███▄░░░░░░░░░░░░░░
@@ -220,8 +223,8 @@ class Fun(Cog):
             )
             return
 
-        if "horny" in query.lower() and interaction.user.id == ID.FEL:
-            link = URL.GITHUB_STATIS + "/images/memes/Horny%20(2).png"
+        if "horny" in query.lower() and interaction.user.id == ID.JORM:
+            link = URL.GITHUB_STATIC + "/images/memes/Horny%20(2).png"
             await interaction.response.send_message(link)
         else:
             matches = []
@@ -244,7 +247,7 @@ class Fun(Cog):
                 await interaction.response.send_message(link)
 
             else:
-                await db.log(self.bot, f"No matching meme found for {query=}")
+                logger.warning(f"No matching meme found for {query=}")
                 await interaction.response.send_message(
                     f"No match found for '{query}' - use `/meme help` "
                     "to see list of available memes.",
@@ -292,6 +295,7 @@ class Fun(Cog):
         interaction,
         target: Member = SlashOption(description="The person you want to burger"),
     ):
+        logger.info(f"{interaction.user} is attempting to burger {target}")
         burgered = uf.get_role(interaction.guild, "Burgered")
         if burgered and burgered in interaction.user.roles:
             if target == interaction.user:
@@ -306,12 +310,17 @@ class Fun(Cog):
                     ephemeral=True,
                 )
             else:
+                logger.info("Transferring burger")
                 await interaction.user.remove_roles(burgered)
                 await target.add_roles(burgered)
+
+                logger.info("Sending message")
                 await interaction.send(target.mention)
                 await interaction.channel.send(
                     URL.GITHUB_STATIC + "/images/burgered.png"
                 )
+
+                logger.info("Setting timer")
                 expires = dt.now() + Duration.BURGER_TIMEOUT
                 await db.get_or_insert_usr(self.bot, target.id, interaction.guild.id)
                 await self.bot.pg_pool.execute(
@@ -323,6 +332,8 @@ class Fun(Cog):
                     expires,
                     TimerType.BURGER,
                 )
+
+                logger.info("Updating history")
                 await self.bot.pg_pool.execute(
                     f"UPDATE usr SET burgers = burgers + 1 WHERE usr_id = {target.id}"
                 )
@@ -333,6 +344,7 @@ class Fun(Cog):
                 else:
                     history = [target.id]
                 await db.log_or_update_note(self.bot, "burger history", history)
+
         elif burgered.members:
             await interaction.send(
                 f"{burgered.members[0].mention} holds the burger - "
@@ -353,12 +365,14 @@ class Fun(Cog):
 
     @slash_command(description="Yoink the burger")
     async def yoink(self, interaction):
+        logger.info(f"{interaction.user} is attempting to yoink the burger")
         await db.get_or_insert_usr(self.bot, interaction.user.id, interaction.guild.id)
         recs = await self.bot.pg_pool.fetch(
             f"SELECT last_yoink FROM usr WHERE usr_id = {interaction.user.id}"
         )
         last_yoink = recs[0]["last_yoink"]
         if last_yoink and dt.now() - last_yoink < timedelta(days=30):
+            logger.info("Not enough time has passed since last yoink - disallowing")
             await interaction.send(
                 "You have yoinked the burger too recently and cannot do so again until "
                 f"{uf.dynamic_timestamp(last_yoink + timedelta(days=30))}",
@@ -366,6 +380,7 @@ class Fun(Cog):
             )
             return
 
+        logger.info("Yoinking")
         burgered_role = uf.get_role(interaction.guild, "Burgered")
         holders = [
             member
@@ -408,102 +423,107 @@ class Fun(Cog):
             gtable = await self.bot.pg_pool.fetch(
                 f"SELECT * FROM tmers WHERE ttype = {TimerType.BURGER}"
             )
-            for rec in gtable:
-                timenow = dt.now()
-                if timenow <= rec["expires"]:
-                    continue
-
-                guild = self.bot.get_guild(ID.GUILD)
-
-                if not guild:
-                    await db.log(self.bot, "Could not fetch guild")
-                    return
-                general = await guild.fetch_channel(ID.GENERAL)
-                user = await guild.fetch_member(rec["usr_id"])
-                burgered = uf.get_role(guild, "Burgered")
-                if len(burgered.members) > 1:
-                    maint = await guild.fetch_channel(ID.ERROR_CHANNEL)
-                    await maint.send(
-                        "Multiple burgers detected: "
-                        f"{', '.join([usr.mention for usr in burgered.members])}"
-                    )
-
-                await user.remove_roles(burgered)
-                try:
-                    response = requests.get(
-                        "https://the-trivia-api.com/v2/questions?limit=1"
-                    )
-                    data = json.loads(response.text)[0]
-                    params = {
-                        "question": data["question"]["text"],
-                        "correct": [data["correctAnswer"]],
-                        "wrong": data["incorrectAnswers"],
-                    }
-                except:
-                    await db.log(self.bot, "Invalid response from Trivia API")
-                    questions = [
-                        dict(
-                            question="How much does the average "
-                            "American ambulance trip cost?",
-                            correct=["$1200"],
-                            wrong=["$200", "$800"],
-                        ),
-                        dict(
-                            question="How many Americans think the sun "
-                            "revolves around the earth?",
-                            correct=["1 in 4"],
-                            wrong=["1 in 2", "1 in 3", "1 in 5"],
-                        ),
-                        dict(
-                            question="How many avocados do Americans "
-                            "eat a year combined?",
-                            correct=["4.2 bn"],
-                            wrong=["2 bn", "6.5 bn"],
-                        ),
-                        dict(
-                            question="How many Americans get injuries "
-                            "related to a TV falling every year?",
-                            correct=["11 800"],
-                            wrong=["5 200", "13 900"],
-                        ),
-                    ]
-                    params = random.choice(questions)
-
-                answers = [*params["correct"], *params["wrong"]]
-                shuffled = answers.copy()
-                random.shuffle(shuffled)
-                params["ordering"] = [answers.index(elem) for elem in shuffled]
-                params["attempted"] = []
-                params["last_owner_id"] = user.id
-                view = BurgerView(bot=self.bot, **params)
-
-                recs = await self.bot.pg_pool.fetch(
-                    f"SELECT moldy_burgers FROM usr WHERE usr_id = {user.id}"
-                )
-                count = (recs[0]["moldy_burgers"] + 1) if recs else 1
-
-                await self.bot.pg_pool.execute(
-                    f"UPDATE usr SET moldy_burgers = {count} WHERE usr_id = {user.id}"
-                )
-
-                msg = await general.send(
-                    f"After its {count}{uf.ordinal_suffix(count)} bout of fending off "
-                    f"the mold in {user.mention}'s fridge for a full week, the burger "
-                    f"yearns for freedom!\n"
-                    "To claim it, answer the following question:\n \n"
-                    f"{params['question']}",
-                    view=view,
-                )
-                await db.log_buttons(self.bot, view, general.id, msg.id, params)
-                await self.bot.pg_pool.execute(
-                    f"DELETE FROM tmers WHERE ttype = {TimerType.BURGER};"
-                )
-
-        except AttributeError:  # bot hasn't loaded yet and pg_pool doesn't exist
+        except AttributeError:
+            logger.info("Bot hasn't loaded yet - pg_pool doesn't exist")
+        except Exception:
+            logger.exception("Unexpected exception - will retry in one minute")
             return
-        except Exception as e:
-            await db.log(self.bot, f"Unexpected exception: {e}")
-            return
+
+        for rec in gtable:
+            timenow = dt.now()
+            if timenow <= rec["expires"]:
+                continue
+
+            logger.info("Burger timer has expired")
+
+            guild = self.bot.get_guild(ID.GUILD)
+            if not guild:
+                logger.error("Could not fetch guild - will retry in 1 minute")
+                return
+
+            general = await guild.fetch_channel(ID.GENERAL)
+            user = await guild.fetch_member(rec["usr_id"])
+            burgered = uf.get_role(guild, "Burgered")
+            if len(burgered.members) > 1:
+                logger.warning("Multiple burgers detected.")
+                maint = await guild.fetch_channel(ID.ERROR_CHANNEL)
+                await maint.send(
+                    "Multiple burgers detected: "
+                    f"{', '.join([usr.mention for usr in burgered.members])}"
+                )
+
+            await user.remove_roles(burgered)
+            try:
+                response = requests.get(
+                    "https://the-trivia-api.com/v2/questions?limit=1"
+                )
+                data = json.loads(response.text)[0]
+                params = {
+                    "question": data["question"]["text"],
+                    "correct": [data["correctAnswer"]],
+                    "wrong": data["incorrectAnswers"],
+                }
+            except:
+                logger.warning(
+                    "Invalid response from Trivia API, using random default question"
+                )
+                questions = [
+                    dict(
+                        question="How much does the average "
+                        "American ambulance trip cost?",
+                        correct=["$1200"],
+                        wrong=["$200", "$800"],
+                    ),
+                    dict(
+                        question="How many Americans think the sun "
+                        "revolves around the earth?",
+                        correct=["1 in 4"],
+                        wrong=["1 in 2", "1 in 3", "1 in 5"],
+                    ),
+                    dict(
+                        question="How many avocados do Americans "
+                        "eat a year combined?",
+                        correct=["4.2 bn"],
+                        wrong=["2 bn", "6.5 bn"],
+                    ),
+                    dict(
+                        question="How many Americans get injuries "
+                        "related to a TV falling every year?",
+                        correct=["11 800"],
+                        wrong=["5 200", "13 900"],
+                    ),
+                ]
+                params = random.choice(questions)
+
+            answers = [*params["correct"], *params["wrong"]]
+            shuffled = answers.copy()
+            random.shuffle(shuffled)
+            params["ordering"] = [answers.index(elem) for elem in shuffled]
+            params["attempted"] = []
+            params["last_owner_id"] = user.id
+            view = BurgerView(bot=self.bot, **params)
+
+            recs = await self.bot.pg_pool.fetch(
+                f"SELECT moldy_burgers FROM usr WHERE usr_id = {user.id}"
+            )
+            count = (recs[0]["moldy_burgers"] + 1) if recs else 1
+
+            await self.bot.pg_pool.execute(
+                f"UPDATE usr SET moldy_burgers = {count} WHERE usr_id = {user.id}"
+            )
+
+            msg = await general.send(
+                f"After its {count}{uf.ordinal_suffix(count)} bout of fending off "
+                f"the mold in {user.mention}'s fridge for a full week, the burger "
+                f"yearns for freedom!\n"
+                "To claim it, answer the following question:\n \n"
+                f"{params['question']}",
+                view=view,
+            )
+            await db.log_buttons(self.bot, view, general.id, msg.id, params)
+            await self.bot.pg_pool.execute(
+                f"DELETE FROM tmers WHERE ttype = {TimerType.BURGER};"
+            )
 
     @slash_command(description="Make predictions")
     async def prediction(self, interaction):
@@ -527,12 +547,13 @@ class Fun(Cog):
             "text": text,
         }
 
+        logger.info(f"Adding prediction for {interaction.user}")
         await uf.update_user_predictions(self.bot, interaction.user, predictions)
-        (
-            await interaction.send(
-                f"Prediction saved with label '{label}'!", ephemeral=True
-            ),
+        await interaction.send(
+            f"Prediction saved with label '{label}'!",
+            ephemeral=True,
         )
+
         await interaction.channel.send(
             f"{interaction.user.mention} just made a prediction!"
         )
@@ -545,6 +566,7 @@ class Fun(Cog):
     ):
         predictions = await uf.get_user_predictions(self.bot, interaction.user)
         if label in predictions:
+            logger.info(f"Adding prediction '{label}' for {interaction.user}")
             params = {
                 "owner_id": interaction.user.id,
                 "votes_for": [],
@@ -615,6 +637,7 @@ class Fun(Cog):
     ):
         predictions = await uf.get_user_predictions(self.bot, interaction.user)
         if label in predictions:
+            logger.info(f"Removing prediction for {interaction.user}")
             predictions.pop(label)
             await uf.update_user_predictions(self.bot, interaction.user, predictions)
             await interaction.send(
@@ -649,9 +672,11 @@ class Fun(Cog):
         await interaction.send(view=view)
         await view.wait()
         if view.value:
+            logger.info(f"Removing vanity roles for {interaction.user}")
             await interaction.user.remove_roles(*vanity_roles)
             text = "Your vanity role has been removed."
             if view.value != "remove":
+                logger.info(f"Adding vanity role {role.name} to {interaction.user}")
                 role = uf.get_role(interaction.guild, view.value)
                 await interaction.user.add_roles(role)
                 text = f"You are now (a) {role.name}."
@@ -674,6 +699,9 @@ class Fun(Cog):
         else:  # template == "Megamind":
             query, font_size, align = "Megamind no bitches", 125, "top"
 
+        logger.info(f"Captioning {template=} for {interaction.user}")
+
+        logger.info("Fetching base image")
         img = Image.open(
             requests.get(
                 URL.GITHUB_STATIC + f"/images/memes/{query}.png", stream=True
@@ -681,6 +709,7 @@ class Fun(Cog):
         )
         draw = ImageDraw.Draw(img)
 
+        logger.info("Drawing text")
         font_path = URL.LOCAL_STATIC + "/fonts/impact.ttf"
 
         font = ImageFont.truetype(font=str(font_path), size=font_size)
@@ -697,10 +726,12 @@ class Fun(Cog):
         draw.text((x_coord - 3, y_coord + 3), text, (0, 0, 0), font=font)
         draw.text((x_coord, y_coord), text, (255, 255, 255), font=font)
 
+        logger.info("Saving captioned image")
         obj = io.BytesIO()
         img.save(obj, "png")
         obj.seek(0)
 
+        logger.info("Sending image")
         await interaction.send(file=nextcord.File(obj, filename=f"{template}.png"))
 
     @slash_command(
@@ -741,6 +772,7 @@ class Fun(Cog):
 
     @slash_command(description="Do you feel lucky?")
     async def roulette(self, interaction):
+        logger.info(f"{interaction.user} is feeling lucky")
         cooldown = await self.bot.pg_pool.fetch(
             "SELECT * FROM tmers "
             f"WHERE usr_id = {interaction.user.id} AND ttype = {TimerType.ROULETTE}"
@@ -749,11 +781,13 @@ class Fun(Cog):
         if cooldown:
             expires = cooldown[0]["expires"]
             if dt.now() >= expires:
+                logger.info("Cooldown expired, removing timer")
                 await self.bot.pg_pool.execute(
                     f"DELETE FROM tmers WHERE usr_id = {interaction.user.id} "
                     f"AND ttype = {TimerType.ROULETTE}"
                 )
             else:
+                logger.info("User is timed out")
                 await interaction.send(
                     "You have been timed out from using this command. "
                     "You will be able to use it again "
@@ -768,6 +802,7 @@ class Fun(Cog):
         lose = random.randint(1, 6) == 6  # noqa: PLR2004
 
         if lose:
+            logger.info(f"{interaction.user} has lost.")
             await self.bot.pg_pool.execute(
                 "UPDATE usr SET current_roulette_streak = 0 "
                 f"WHERE usr_id = {interaction.user.id}"
@@ -778,9 +813,13 @@ class Fun(Cog):
                 "Your streak has been reset."
             )
             try:
+                logger.info(f"Setting full timeout for {interaction.user}")
                 await interaction.user.timeout(Duration.ROULETTE_TIMEOUT)
                 message = message[:-1] + " and you have been timed out."
             except nextcord.errors.Forbidden:
+                logger.info(
+                    f"Setting roulette timeout for privileged user {interaction.user}"
+                )
                 expires = dt.now() + Duration.ROULETTE_TIMEOUT
                 await self.bot.pg_pool.execute(
                     "INSERT INTO tmers (usr_id, expires, ttype) VALUES ($1, $2, $3);",
@@ -791,6 +830,7 @@ class Fun(Cog):
             await interaction.send(message)
 
         else:
+            logger.info(f"{interaction.user} has won")
             current_streak = stats[0]["current_roulette_streak"]
             max_streak = stats[0]["max_roulette_streak"]
 
