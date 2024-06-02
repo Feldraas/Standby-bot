@@ -914,7 +914,7 @@ class Fun(Cog):
                 if res:
                     msg = (
                         f"`{target}` from `{digits}` can be 'mathed' out "
-                        "this way:`{res}`"
+                        f"this way:`{res}`"
                     )
                     await interaction.send(msg)
                     return
