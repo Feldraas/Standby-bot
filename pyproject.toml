@@ -24,6 +24,7 @@ pytz = "^2024.1"
 requests = "^2.31.0"
 sqlalchemy = "^2.0.30"
 transliterate = "^1.10.2"
+setuptools = "^70.0.0"
 
 [tool.poetry.group.dev.dependencies]
 ipykernel = "^6.29.4"

@@ -6,7 +6,7 @@ from datetime import timedelta
 from nextcord import SlashOption, slash_command
 from nextcord.ext.commands import Cog
 
-from config.constants import TimerType
+from config.constants import ID, TimerType
 from db_integration import db_functions as db
 from utils import util_functions as uf
 
@@ -52,22 +52,28 @@ class Timers(Cog):
             channel = self.bot.get_channel(params_dict["channel"])
             if not channel:
                 logger.warning(f"Could not find {channel=}")
-                continue
 
+            location = params_dict.get("location", "This channel")
             message = (
                 f"<@{rec['usr_id']}> "
                 f"{uf.dynamic_timestamp(rec['expires'], 'date and time')}: "
                 f"{params_dict['msg']}"
             )
-
             try:
                 confirmation_id = params_dict["confirmation_id"]
                 confirmation = await channel.fetch_message(confirmation_id)
                 message += " " + confirmation.jump_url
             except Exception:
-                logger.exception("Unknown error")
+                logger.exception("Could not find confirmation mesage id")
 
-            await channel.send(message)
+            if location in ["This channel", "Both"]:
+                await channel.send(message)
+
+            if location == "DM":
+                guild = await self.bot.fetch_guild(ID.GUILD)
+                user = await guild.fetch_member(rec["usr_id"])
+                await user.send(message)
+
             await self.bot.pg_pool.execute(
                 "DELETE FROM tmers WHERE tmer_id = $1;", rec["tmer_id"]
             )
@@ -86,6 +92,11 @@ class Timers(Cog):
             description="Minutes until the reminder", min_value=0
         ),
         message=SlashOption(description="A message for the reminder"),
+        location: str = SlashOption(
+            description="Where to send the reminder",
+            choices=["This channel", "DM", "Both"],
+            default="This channel",
+        ),
     ):
         if days + hours + minutes == 0:
             await interaction.send(
@@ -111,7 +122,12 @@ class Timers(Cog):
         )
         full_confirmation = await confirmation.fetch()
         await create_reminder(
-            self.bot, interaction, expires, message, full_confirmation.id
+            self.bot,
+            interaction,
+            expires,
+            message,
+            full_confirmation.id,
+            location,
         )
 
     @remindme.subcommand(
@@ -126,6 +142,11 @@ class Timers(Cog):
         hour: int = SlashOption(description="Hour of the reminder"),
         minute: int = SlashOption(description="Minute of the reminder"),
         message: str = SlashOption(description="A message for the reminder"),
+        location: str = SlashOption(
+            description="Where to send the reminder",
+            choices=["This channel", "DM", "Both"],
+            default="This channel",
+        ),
     ):
         now = dt.now()
         try:
@@ -159,11 +180,23 @@ class Timers(Cog):
         )
         full_confirmation = await confirmation.fetch()
         await create_reminder(
-            self.bot, interaction, expires, message, full_confirmation.id
+            self.bot,
+            interaction,
+            expires,
+            message,
+            full_confirmation.id,
+            location,
         )
 
 
-async def create_reminder(bot, interaction, tfuture, message, confirmation_id):
+async def create_reminder(
+    bot,
+    interaction,
+    tfuture,
+    message,
+    confirmation_id,
+    location,
+):
     await db.ensure_guild_existence(bot, interaction.guild.id)
     await db.get_or_insert_usr(bot, interaction.user.id, interaction.guild.id)
 
@@ -171,6 +204,7 @@ async def create_reminder(bot, interaction, tfuture, message, confirmation_id):
         "msg": message,
         "channel": interaction.channel.id,
         "confirmation_id": confirmation_id,
+        "location": location,
     }
     params_json = json.dumps(params_dict)
 
