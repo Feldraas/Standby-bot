@@ -91,7 +91,7 @@ async def starboard_handler(bot, payload):  # noqa: C901, PLR0912, PLR0915
                 await bot.pg_pool.execute(
                     f"DELETE FROM starboard WHERE msg_id = {payload.message_id};"
                 )
-        except Exception as e:
+        except Exception:
             logger.exception("Unexpected error")
         finally:
             starboard_lock.release()
