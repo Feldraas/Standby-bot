@@ -26,7 +26,15 @@ from PIL import Image, ImageDraw, ImageFont
 from transliterate import translit
 from transliterate.base import TranslitLanguagePack, registry
 
-from config.constants import EMPTY_STRING, ID, URL, Duration, Threshold, TimerType
+from config.constants import (
+    EMPTY_STRING,
+    ID,
+    URL,
+    Duration,
+    RoleName,
+    Threshold,
+    TimerType,
+)
 from db_integration import db_functions as db
 from utils import util_functions as uf
 
@@ -367,6 +375,25 @@ class Fun(Cog):
     async def yoink(self, interaction):
         logger.info(f"{interaction.user} is attempting to yoink the burger")
         await db.get_or_insert_usr(self.bot, interaction.user.id, interaction.guild.id)
+
+        burgered_role = uf.get_role(interaction.guild, "Burgered")
+        holders = [
+            member
+            for member in interaction.guild.members
+            if burgered_role in member.roles
+        ]
+        current_holder = holders[0]
+
+        birthday_role = uf.get_role(interaction.guild, RoleName.BIRTHDAY)
+        if birthday_role in current_holder.roles:
+            await interaction.send(
+                f"{interaction.user.mention} has shamelessly attempted to yoink the "
+                f"burger from the {birthday_role.mention}. The punishment for such a "
+                "heinous crime is jail."
+            )
+            await uf.invoke_slash_command("jail", self, interaction, interaction.user)
+            return
+
         recs = await self.bot.pg_pool.fetch(
             f"SELECT last_yoink FROM usr WHERE usr_id = {interaction.user.id}"
         )
@@ -381,13 +408,6 @@ class Fun(Cog):
             return
 
         logger.info("Yoinking")
-        burgered_role = uf.get_role(interaction.guild, "Burgered")
-        holders = [
-            member
-            for member in interaction.guild.members
-            if burgered_role in member.roles
-        ]
-        current_holder = holders[0]
         await current_holder.remove_roles(burgered_role)
         await self.bot.pg_pool.execute(
             f"DELETE FROM tmers WHERE ttype = {TimerType.BURGER}"
