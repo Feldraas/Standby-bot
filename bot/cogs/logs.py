@@ -7,6 +7,7 @@ from nextcord import (
     InteractionType,
     MessageType,
 )
+from nextcord.errors import NotFound
 from nextcord.ext.commands import Cog
 
 from config.constants import EMPTY_STRING, ChannelName, Color
@@ -97,9 +98,13 @@ async def deleted_embed(payload, channel):
         embed.add_field(name="Channel", value=message.channel.mention)
         if message.attachments:
             for attachment in message.attachments:
-                file = await attachment.to_file()
-                files.append(file)
-            embed.add_field(name="Attachments", value="[See below]", inline=False)
+                try:
+                    file = await attachment.to_file()
+                    files.append(file)
+                except NotFound:
+                    logger.info("Attachment not found in cache")
+            attachment_text = "[See below]" if files else "[Not found in cache]"
+            embed.add_field(name="Attachments", value=attachment_text, inline=False)
     else:
         embed.description = "[Message not found in cache]"
         embed.add_field(name="Channel", value=channel.mention)
