@@ -64,13 +64,14 @@ class Logs(Cog):
             logger.error("Log channel not found")
             return
 
-        logger.info("Interaction detected")
         if interaction.type == InteractionType.application_command:
             embed = await command_embed(interaction)
             await logs.send(embed=embed)
         elif interaction.type == InteractionType.component:
             embed = await component_embed(interaction)
             await logs.send(embed=embed)
+        elif interaction.type == InteractionType.application_command_autocomplete:
+            pass
         else:
             logger.warning(
                 f"Unknown interaction in {interaction.channel.name} "
