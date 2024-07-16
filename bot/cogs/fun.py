@@ -1,17 +1,16 @@
 import io
 import json
 import logging
-import os
 import random
 import re
 from datetime import datetime as dt
 from datetime import timedelta
 from itertools import permutations
+from pathlib import Path
 
 import aiohttp
 import nextcord
 import requests
-from fuzzywuzzy import fuzz
 from nextcord import (
     ButtonStyle,
     Embed,
@@ -74,6 +73,12 @@ YEEE = """
 ░░░░░░░░▀▀█▀▀▀▀░░░░░░█░░░░░
 ░░░░░░░░░█░░░░░░░░░░░░█░░░░
 """
+
+ALL_MEMES = []
+for file in Path("static/images/memes").iterdir():
+    ending_brackets = r" \[.+\]$"
+    ALL_MEMES.append(re.sub(ending_brackets, "", file.stem))
+ALL_MEMES = sorted(set(ALL_MEMES), key=str.casefold)
 
 
 def add(lhs: int, rhs: int, pstr: str):
@@ -208,59 +213,49 @@ class Fun(Cog):
     async def meme(
         self,
         interaction,
-        query: str = SlashOption(
-            name="search_term",
-            description="Enter a search term for the meme you want to post",
+        meme: str = SlashOption(
+            description="Start typing to see suggestions or enter `list` to "
+            "see a list of all available memes"
         ),
     ):
-        if query == "help":
-            all_memes = []
-            for filename in os.listdir("static/images/memes"):
-                parts = re.split(r"\.", filename)
-                name = "".join(parts[:-1])
-                if re.search(r" \(\d+\)$", name):
-                    stripped = re.split(r" \(\d+\)", name)[0]
-                    all_memes.append(stripped)
-                else:
-                    all_memes.append(name)
-            all_memes = sorted(set(all_memes), key=str.casefold)
-            meme_names = "\n".join(all_memes)
-            help_text = f"Currently available memes:\n{meme_names}"
-            await interaction.response.send_message(
-                f"```{help_text}```", ephemeral=True
+        if meme == "list":
+            help_text = (
+                f"```Currently available memes:\n{"\n".join(["list", *ALL_MEMES])}```"
             )
+            await interaction.response.send_message(help_text, ephemeral=True)
             return
 
-        if "horny" in query.lower() and interaction.user.id == ID.JORM:
-            link = URL.GITHUB_STATIC + "/images/memes/Horny%20(2).png"
+        if "horny" in meme.lower() and interaction.user.id == ID.JORM:
+            link = URL.GITHUB_STATIC + "/images/memes/Horny [DD].png"
+            await interaction.response.send_message(link)
+        elif meme in ALL_MEMES:
+            meme_dir = Path(URL.LOCAL_STATIC) / "images/memes"
+            matches = list(meme_dir.glob(f"{meme}*"))
+            file = random.choice(matches)
+            link = (
+                URL.GITHUB_STATIC
+                + "/images/memes/"
+                + file.with_stem(file.stem.replace(", ", "%20")).name
+            )
             await interaction.response.send_message(link)
         else:
-            matches = []
-            for filename in os.listdir("static/images/memes"):
-                parts = re.split(r"\.", filename)
-                name = "".join(parts[:-1])
-                extension = parts[-1]
-                if (
-                    extension in ["jpg", "jpeg", "png", "gif"]
-                    and fuzz.token_set_ratio(query, name) >= 67  # noqa: PLR2004
-                ):
-                    matches.append((name, extension))
+            await interaction.response.send_message(
+                f"No match found for '{meme}' - use `/meme list` "
+                "to see a list of all available memes.",
+                ephemeral=True,
+            )
 
-            if matches:
-                meme = random.choice(matches)
-                filename = meme[0] + "." + meme[1]
-                link = (
-                    URL.GITHUB_STATIC + "/images/memes/" + re.sub(" ", "%20", filename)
-                )
-                await interaction.response.send_message(link)
-
-            else:
-                logger.warning(f"No matching meme found for {query=}")
-                await interaction.response.send_message(
-                    f"No match found for '{query}' - use `/meme help` "
-                    "to see list of available memes.",
-                    ephemeral=True,
-                )
+    @meme.on_autocomplete("meme")
+    async def suggest_meme(self, interaction, user_input):
+        if user_input:
+            matches = sorted(
+                (meme for meme in ALL_MEMES if user_input.lower() in meme.lower()),
+                key=lambda meme: meme.lower().startswith(user_input.lower()),
+                reverse=True,
+            )
+            await interaction.response.send_autocomplete(matches[:25])
+        else:
+            await interaction.response.send_autocomplete([])
 
     @slash_command(description="Convert text into cyrillic")
     async def cyrillify(
