@@ -3,7 +3,14 @@ import logging
 from nextcord import ButtonStyle, Embed, PermissionOverwrite, slash_command, ui
 from nextcord.ext.commands import Cog
 
-from config.constants import CategoryName, ChannelName, Color, Permissions, RoleName
+from config.domain import (
+    CategoryName,
+    ChannelName,
+    Color,
+    Permissions,
+    RoleName,
+    Standby,
+)
 from db_integration import db_functions as db
 from utils import util_functions as uf
 
@@ -33,8 +40,8 @@ REOPENED_MESSAGE = (
 
 
 class Tickets(Cog):
-    def __init__(self, bot):
-        self.bot = bot
+    def __init__(self):
+        self.standby = Standby()
 
     @slash_command(description="Mark your ticket as resolved")
     async def resolve(self, interaction):
@@ -58,7 +65,7 @@ class Tickets(Cog):
             interaction.user, read_messages=True, send_messages=False
         )
         msg = await interaction.original_message()
-        await db.log_buttons(self.bot, view, interaction.channel.id, msg.id)
+        await db.log_buttons(view, interaction.channel.id, msg.id)
 
     @slash_command(
         description="Initiates ticket system - creates categories, channels etc",
@@ -68,7 +75,7 @@ class Tickets(Cog):
         logger.info("Initiaing ticket system")
         claimable_ticket_cat = await get_or_create_claimable_cat(interaction)
         if not claimable_ticket_cat.channels:
-            await create_claimable_channel(self.bot, claimable_ticket_cat)
+            await create_claimable_channel(claimable_ticket_cat)
         await get_or_create_active_cat(interaction)
         await get_or_create_resolved_cat(interaction)
         await get_or_create_tickets_log(interaction)
@@ -95,7 +102,7 @@ def get_tickets_log_embed(message):
     return embed
 
 
-async def create_claimable_channel(bot, cat):
+async def create_claimable_channel(cat):
     chnl = await cat.create_text_channel(
         name=ChannelName.CLAIMABLE, reason="Making a claimable channel."
     )
@@ -105,7 +112,7 @@ async def create_claimable_channel(bot, cat):
         await chnl.set_permissions(muted_role, send_messages=True)
     view = OpenTicketView()
     msg = await chnl.send(CLAIMABLE_CHANNEL_MESSAGE, view=view)
-    await db.log_buttons(bot, view, chnl.id, msg.id)
+    await db.log_buttons(view, chnl.id, msg.id)
 
 
 async def get_or_create_tickets_log(interaction):
@@ -264,4 +271,4 @@ class ResolvedTicketView(ui.View):
 
 
 def setup(bot):
-    bot.add_cog(Tickets(bot))
+    bot.add_cog(Tickets())

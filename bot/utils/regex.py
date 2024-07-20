@@ -7,7 +7,7 @@ from dataclasses import dataclass
 import nextcord
 import requests
 
-from config.constants import ID, URL, ChannelName
+from config.domain import ID, URL, ChannelName, Standby
 from db_integration import db_functions as db
 from utils import util_functions as uf
 from utils import warframe as wf
@@ -25,7 +25,7 @@ class RegexResponse:
 regex_responses = []
 
 
-async def cough_resp(bot, message):
+async def cough_resp(message):
     await message.channel.send(":mask:")
     await message.channel.send("Wear a mask!")
 
@@ -35,7 +35,7 @@ regex_responses.append(
 )
 
 
-async def ping_resp(bot, message):
+async def ping_resp(message):
     custom_responses = {
         ID.DARKNESS: URL.GITHUB_STATIC + "/images/darkness.jpg",
         ID.AIRU: URL.GITHUB_STATIC + "/images/airu.gif",
@@ -53,7 +53,7 @@ async def ping_resp(bot, message):
 regex_responses.append(RegexResponse(trigger=str(ID.BOT), response=ping_resp))
 
 
-async def uwu_resp(bot, message):
+async def uwu_resp(message):
     msg = message.content
     whitelist = [
         r":[^ ]*(o|u|0|O|U)[wvWV](o|u|0|O|U)[^ ]*:",
@@ -90,7 +90,7 @@ regex_responses.append(
 )
 
 
-async def nephew_resp(bot, message):
+async def nephew_resp(message):
     if message.content == "||nephew||":
         await message.channel.send("||delet this||")
     else:
@@ -100,7 +100,7 @@ async def nephew_resp(bot, message):
 regex_responses.append(RegexResponse(trigger=r"^\|*nephew\|*$", response=nephew_resp))
 
 
-async def kenobi_resp(bot, message):
+async def kenobi_resp(message):
     if random.randint(1, 2) == 1:
         await message.channel.send("General " + message.author.mention)
     else:
@@ -110,21 +110,21 @@ async def kenobi_resp(bot, message):
 regex_responses.append(RegexResponse(trigger="hello there", response=kenobi_resp))
 
 
-async def bell_resp(bot, message):
+async def bell_resp(message):
     await message.channel.send(URL.GITHUB_STATIC + "/images/bell.gif")
 
 
 regex_responses.append(RegexResponse(trigger="ringing my bell", response=bell_resp))
 
 
-async def no_u_resp(bot, message):
+async def no_u_resp(message):
     await message.channel.send(URL.GITHUB_STATIC + "/images/no_u.png")
 
 
 regex_responses.append(RegexResponse(trigger="^no u$", response=no_u_resp))
 
 
-async def one_of_us_resp(bot, message):
+async def one_of_us_resp(message):
     await message.channel.send("One of us!")
 
 
@@ -133,7 +133,7 @@ regex_responses.append(
 )
 
 
-async def society_resp(bot, message):
+async def society_resp(message):
     await message.channel.send("Bottom Text")
 
 
@@ -142,7 +142,7 @@ regex_responses.append(
 )
 
 
-async def deep_one_resp(bot, message):
+async def deep_one_resp(message):
     await message.channel.send(
         "blub blub blub blub blub blub blub blub blub blub blub blub blub blub blub"
     )
@@ -153,7 +153,7 @@ regex_responses.append(
 )
 
 
-async def sixtynine_resp(bot, message):
+async def sixtynine_resp(message):
     await message.add_reaction("🇳")
     await message.add_reaction("🇮")
     await message.add_reaction("🇨")
@@ -167,7 +167,7 @@ regex_responses.append(
 )
 
 
-async def fourtwenty_resp(bot, message):
+async def fourtwenty_resp(message):
     await message.add_reaction("🔥")
     await message.add_reaction("🇧")
     await message.add_reaction("🇱")
@@ -181,21 +181,21 @@ async def fourtwenty_resp(bot, message):
 regex_responses.append(RegexResponse(trigger=r"^[^\/<]*420", response=fourtwenty_resp))
 
 
-async def woop_resp(bot, message):
+async def woop_resp(message):
     await message.channel.send("That's the sound of da police!")
 
 
 regex_responses.append(RegexResponse(trigger=r"^woop woop[\.!]*$", response=woop_resp))
 
 
-async def paragon_resp(bot, message):
+async def paragon_resp(message):
     await message.channel.send("Fuck Epic!")
 
 
 regex_responses.append(RegexResponse(trigger="paragon", response=paragon_resp))
 
 
-async def bruh_resp(bot, message):
+async def bruh_resp(message):
     await message.add_reaction("🅱️")
     await message.add_reaction("🇷")
     await message.add_reaction("🇺")
@@ -205,14 +205,14 @@ async def bruh_resp(bot, message):
 regex_responses.append(RegexResponse(trigger=r"^\W*bruh\W*$", response=bruh_resp))
 
 
-async def hans_resp(bot, message):
+async def hans_resp(message):
     await message.channel.send("Get ze Flammenwerfer!")
 
 
 regex_responses.append(RegexResponse(trigger=r"^hans\W*$", response=hans_resp))
 
 
-async def loli_resp(bot, message):
+async def loli_resp(message):
     glare = uf.get_emoji(message.guild, "BlobGlare")
     if glare is not None:
         await message.add_reaction(glare)
@@ -233,7 +233,7 @@ regex_responses.append(
 )
 
 
-async def dont_at_me_resp(bot, message):
+async def dont_at_me_resp(message):
     await message.channel.send(f"{message.author.mention}")
 
 
@@ -242,7 +242,7 @@ regex_responses.append(
 )
 
 
-async def america_resp(bot, message):
+async def america_resp(message):
     await message.channel.send("Fuck yeah!")
 
 
@@ -251,7 +251,7 @@ regex_responses.append(
 )
 
 
-async def mod_resp(bot, message):
+async def mod_resp(message):
     mod_names = re.findall(r"(?<=\[)[a-zA-Z ']+(?=\])", message.content)
     for mod_name in mod_names:
         if mod_name.lower() in wf.mod_list:
@@ -261,7 +261,7 @@ async def mod_resp(bot, message):
 regex_responses.append(RegexResponse(trigger=r"\[.*\]", response=mod_resp))
 
 
-async def x_is_x_resp(bot, message):
+async def x_is_x_resp(message):
     await message.channel.send(URL.GITHUB_STATIC + "/images/x%20is%20x.png")
 
 
@@ -270,21 +270,21 @@ regex_responses.append(
 )
 
 
-async def tree_fiddy_resp(bot, message):
+async def tree_fiddy_resp(message):
     await message.add_reaction("🐍")
 
 
 regex_responses.append(RegexResponse(trigger="tree fiddy", response=tree_fiddy_resp))
 
 
-async def ass_testing_resp(bot, message):
+async def ass_testing_resp(message):
     await message.add_reaction("🍑")
 
 
 regex_responses.append(RegexResponse(trigger="ass testing", response=ass_testing_resp))
 
 
-async def belgium_resp(bot, message):
+async def belgium_resp(message):
     await message.channel.send("Watch your language!")
 
 
@@ -293,7 +293,7 @@ regex_responses.append(
 )
 
 
-async def finally_resp(bot, message):
+async def finally_resp(message):
     await message.channel.send("middle text")
 
 
@@ -302,7 +302,7 @@ regex_responses.append(
 )
 
 
-async def now_resp(bot, message):
+async def now_resp(message):
     await message.channel.send(URL.GITHUB_STATIC + "/images/now.png")
 
 
@@ -311,7 +311,7 @@ regex_responses.append(
 )
 
 
-async def maybe_resp(bot, message):
+async def maybe_resp(message):
     await message.channel.send(
         URL.GITHUB_STATIC + "/images/memes/Maybe%20I%20am%20a%20monster.png"
     )
@@ -320,7 +320,7 @@ async def maybe_resp(bot, message):
 regex_responses.append(RegexResponse(trigger="^maybe i am an?", response=maybe_resp))
 
 
-async def twitter_resp(bot, message):
+async def twitter_resp(message):
     tweets = re.findall(
         r"(https://(?:www\.)?(\w+)\.com/\w+/status/(\d+))", message.content
     )
@@ -353,7 +353,7 @@ regex_responses.append(
 )
 
 
-async def coinflip_resp(bot, message):
+async def coinflip_resp(message):
     await message.channel.send("Heads" if random.randint(0, 1) == 1 else "Tails")
 
 
@@ -365,7 +365,7 @@ regex_responses.append(
 )
 
 
-async def mario_resp(bot, message):
+async def mario_resp(message):
     await message.channel.send("Mario!")
 
 
@@ -374,7 +374,7 @@ regex_responses.append(
 )
 
 
-async def uhoh_resp(bot, message):
+async def uhoh_resp(message):
     await message.channel.send("SpaghettiOs 😦")
     if random.randint(0, 1) == 1:
         await message.channel.send("..and stinky!")
@@ -385,7 +385,7 @@ regex_responses.append(
 )
 
 
-async def ahoy_resp(bot, message):
+async def ahoy_resp(message):
     await message.channel.send("Ahoy Matey!")
     if message.guild.id == ID.GUILD:
         await message.add_reaction("BlobWave:382606234148143115")
@@ -396,7 +396,7 @@ regex_responses.append(
 )
 
 
-async def spooky_resp(bot, message):
+async def spooky_resp(message):
     await message.channel.send("2spooky4me")
 
 
@@ -405,7 +405,7 @@ regex_responses.append(
 )
 
 
-async def wait_min_resp(bot, message):
+async def wait_min_resp(message):
     if message.guild.id == ID.GUILD:
         await message.add_reaction("Thonk:383190394457948181")
 
@@ -415,7 +415,7 @@ regex_responses.append(
 )
 
 
-async def easy_peasy_resp(bot, message):
+async def easy_peasy_resp(message):
     await message.channel.send("Lemon squeezy!")
 
 
@@ -424,7 +424,7 @@ regex_responses.append(
 )
 
 
-async def tuesday_resp(bot, message):
+async def tuesday_resp(message):
     await message.channel.send("Happy <@235055132843180032> appreciation day everyone!")
 
 
@@ -433,7 +433,7 @@ regex_responses.append(
 )
 
 
-async def yeboi_resp(bot, message):
+async def yeboi_resp(message):
     boii = "BO" + "I" * (len(message.content) - 1)
     await message.channel.send(boii[:1999])
 
@@ -441,7 +441,7 @@ async def yeboi_resp(bot, message):
 regex_responses.append(RegexResponse(trigger="^ye{3,}$", response=yeboi_resp))
 
 
-async def cough_bless_resp(bot, message):
+async def cough_bless_resp(message):
     await message.channel.send("Bless you!")
 
 
@@ -452,14 +452,14 @@ regex_responses.append(
 )
 
 
-async def egeis_resp(bot, message):
+async def egeis_resp(message):
     await message.channel.send("👀?egeiS yas enoemos diD")
 
 
 regex_responses.append(RegexResponse(trigger=r"^.*egeis[^\?]*$", response=egeis_resp))
 
 
-async def fme_resp(bot, message):
+async def fme_resp(message):
     await message.channel.send("Don't mind if I do 👍")
 
 
@@ -468,7 +468,7 @@ regex_responses.append(
 )
 
 
-async def ayaya_resp(bot, message):
+async def ayaya_resp(message):
     await message.channel.send("Ayaya!")
     await message.add_reaction("Ayy:610479153937907733")
     await message.add_reaction("Ayy2:470743166207787010")
@@ -477,7 +477,7 @@ async def ayaya_resp(bot, message):
 regex_responses.append(RegexResponse(trigger=r"^ayaya\W{0,4}$", response=ayaya_resp))
 
 
-async def link_resp(bot, message):
+async def link_resp(message):
     ids = re.search(r"\d+/\d+/\d+", message.content).group()
     guild_id, channel_id, message_id = re.split("/", ids)
     channel = uf.get_channel(message.guild, channel_id)
@@ -514,7 +514,7 @@ regex_responses.append(
 )
 
 
-async def what_is_love_resp(bot, message):
+async def what_is_love_resp(message):
     await message.channel.send("*♬ Baby don't hurt me ♬*")
 
 
@@ -523,7 +523,7 @@ regex_responses.append(
 )
 
 
-async def baby_dont_hurt_me_resp(bot, message):
+async def baby_dont_hurt_me_resp(message):
     await message.channel.send("*♬ no more ♬*")
 
 
@@ -534,7 +534,7 @@ regex_responses.append(
 )
 
 
-async def sweet_dreams_resp(bot, message):
+async def sweet_dreams_resp(message):
     await message.channel.send("*♬ are made of this ♬*")
 
 
@@ -543,7 +543,7 @@ regex_responses.append(
 )
 
 
-async def yarr_harr_resp(bot, message):
+async def yarr_harr_resp(message):
     await message.channel.send("fiddle de dee")
 
 
@@ -552,7 +552,7 @@ regex_responses.append(
 )
 
 
-async def trust_me_resp(bot, message):
+async def trust_me_resp(message):
     await message.channel.send("I'm an engineer!")
 
 
@@ -561,7 +561,7 @@ regex_responses.append(
 )
 
 
-async def long_ass_time_resp(bot, message):
+async def long_ass_time_resp(message):
     await message.channel.send("*♬ ..in a town called Kickapoo ♬*")
 
 
@@ -573,7 +573,7 @@ regex_responses.append(
 )
 
 
-async def testing_attention_resp(bot, message):
+async def testing_attention_resp(message):
     await message.channel.send("*♬ Feel the tension soon as someone mentions me ♬*")
 
 
@@ -585,7 +585,7 @@ regex_responses.append(
 )
 
 
-async def testing_emn_resp(bot, message):
+async def testing_emn_resp(message):
     await message.channel.send("**♬ Attention please! ♬**")
 
 
@@ -594,7 +594,7 @@ regex_responses.append(
 )
 
 
-async def spaghetti_resp(bot, message):
+async def spaghetti_resp(message):
     await message.channel.send("*mom's spaghetti*")
 
 
@@ -603,7 +603,7 @@ regex_responses.append(
 )
 
 
-async def moneyyy_resp(bot, message):
+async def moneyyy_resp(message):
     await message.channel.send(
         "Money money money money money money money money money money!"
     )
@@ -614,7 +614,7 @@ regex_responses.append(
 )
 
 
-async def yesterday_resp(bot, message):
+async def yesterday_resp(message):
     await message.channel.send("*♬ All my troubles seemed so far away ♬*")
 
 
@@ -623,7 +623,7 @@ regex_responses.append(
 )
 
 
-async def deja_vu_resp(bot, message):
+async def deja_vu_resp(message):
     await message.channel.send("*♬ I've just been in this place before ♬*")
 
 
@@ -632,7 +632,7 @@ regex_responses.append(
 )
 
 
-async def higher_on_the_street_resp(bot, message):
+async def higher_on_the_street_resp(message):
     await message.channel.send("*♬ And I know it's my time to go ♬*")
 
 
@@ -643,7 +643,7 @@ regex_responses.append(
 )
 
 
-async def somebody_resp(bot, message):
+async def somebody_resp(message):
     await message.channel.send("**BODY ONCE TOLD ME**")
 
 
@@ -652,7 +652,7 @@ regex_responses.append(
 )
 
 
-async def roll_me_resp(bot, message):
+async def roll_me_resp(message):
     await message.channel.send("**I AIN'T THE SHARPEST TOOL IN THE SHED**")
 
 
@@ -661,7 +661,7 @@ regex_responses.append(
 )
 
 
-async def hard_rock_resp(bot, message):
+async def hard_rock_resp(message):
     await message.channel.send("**Hallelujah!**")
 
 
@@ -670,7 +670,7 @@ regex_responses.append(
 )
 
 
-async def wake_up_resp(bot, message):
+async def wake_up_resp(message):
     await message.channel.send("*♬ Grab a brush and put a little make up! ♬*")
 
 
@@ -679,7 +679,7 @@ regex_responses.append(
 )
 
 
-async def beep_boop_resp(bot, message):
+async def beep_boop_resp(message):
     await message.channel.send("I'm a robot.")
 
 
@@ -688,7 +688,7 @@ regex_responses.append(
 )
 
 
-async def beep_beep_resp(bot, message):
+async def beep_beep_resp(message):
     await message.channel.send("I'm a sheep.")
 
 
@@ -697,7 +697,7 @@ regex_responses.append(
 )
 
 
-async def bark_bark_resp(bot, message):
+async def bark_bark_resp(message):
     await message.channel.send("I'm a shark.")
 
 
@@ -706,7 +706,7 @@ regex_responses.append(
 )
 
 
-async def meow_meow_resp(bot, message):
+async def meow_meow_resp(message):
     await message.channel.send("I'm a cow.")
 
 
@@ -715,7 +715,7 @@ regex_responses.append(
 )
 
 
-async def quack_quack_resp(bot, message):
+async def quack_quack_resp(message):
     await message.channel.send("I'm a yak.")
 
 
@@ -724,7 +724,7 @@ regex_responses.append(
 )
 
 
-async def dab_dab_resp(bot, message):
+async def dab_dab_resp(message):
     await message.channel.send("I'm a crab.")
 
 
@@ -733,7 +733,7 @@ regex_responses.append(
 )
 
 
-async def float_float_resp(bot, message):
+async def float_float_resp(message):
     await message.channel.send("I'm a goat.")
 
 
@@ -742,7 +742,7 @@ regex_responses.append(
 )
 
 
-async def screech_screech_resp(bot, message):
+async def screech_screech_resp(message):
     await message.channel.send("I'm a leech.")
 
 
@@ -753,7 +753,7 @@ regex_responses.append(
 )
 
 
-async def bam_bam_resp(bot, message):
+async def bam_bam_resp(message):
     await message.channel.send("I'm a lamb.")
 
 
@@ -762,7 +762,7 @@ regex_responses.append(
 )
 
 
-async def dig_dig_resp(bot, message):
+async def dig_dig_resp(message):
     await message.channel.send("I'm a pig.")
 
 
@@ -771,7 +771,7 @@ regex_responses.append(
 )
 
 
-async def roar_roar_resp(bot, message):
+async def roar_roar_resp(message):
     await message.channel.send(
         "I'm a boar." if random.randint(0, 1) == 1 else "Dinosaur"
     )
@@ -782,7 +782,7 @@ regex_responses.append(
 )
 
 
-async def shake_shake_resp(bot, message):
+async def shake_shake_resp(message):
     await message.channel.send("I'm a snake.")
 
 
@@ -791,7 +791,7 @@ regex_responses.append(
 )
 
 
-async def swish_swish_resp(bot, message):
+async def swish_swish_resp(message):
     await message.channel.send("I'm a fish.")
 
 
@@ -800,7 +800,7 @@ regex_responses.append(
 )
 
 
-async def squawk_squawk_resp(bot, message):
+async def squawk_squawk_resp(message):
     await message.channel.send("I'm a hawk.")
 
 
@@ -809,7 +809,7 @@ regex_responses.append(
 )
 
 
-async def cluck_cluck_resp(bot, message):
+async def cluck_cluck_resp(message):
     await message.channel.send("I'm a duck.")
 
 
@@ -818,7 +818,7 @@ regex_responses.append(
 )
 
 
-async def growl_growl_resp(bot, message):
+async def growl_growl_resp(message):
     await message.channel.send("I'm an owl.")
 
 
@@ -827,7 +827,7 @@ regex_responses.append(
 )
 
 
-async def drop_drop_resp(bot, message):
+async def drop_drop_resp(message):
     await message.channel.send("Do the flop!")
 
 
@@ -836,7 +836,7 @@ regex_responses.append(
 )
 
 
-async def boink_boink_resp(bot, message):
+async def boink_boink_resp(message):
     await message.channel.send("I'm bad at rhyming. :(")
 
 
@@ -845,7 +845,7 @@ regex_responses.append(
 )
 
 
-async def click_click_resp(bot, message):
+async def click_click_resp(message):
     await message.channel.send("I'm a chick.")
 
 
@@ -854,7 +854,7 @@ regex_responses.append(
 )
 
 
-async def blue_resp(bot, message):
+async def blue_resp(message):
     await message.channel.send("♬ Da ba dee da ba di ♬")
 
 
@@ -863,7 +863,7 @@ regex_responses.append(
 )
 
 
-async def pingsock_resp(bot, message):
+async def pingsock_resp(message):
     await asyncio.sleep(5)
     if random.randint(1, 4) == 1:
         await message.channel.send(
@@ -876,7 +876,7 @@ regex_responses.append(
 )
 
 
-async def wave_resp(bot, message):
+async def wave_resp(message):
     if message.author.id == ID.FEL:
         reacts = [
             "BlobWave:382606234148143115",
@@ -904,7 +904,7 @@ regex_responses.append(
 )
 
 
-async def pedestal_resp(bot, message):
+async def pedestal_resp(message):
     await message.add_reaction("👏")
     await message.channel.send("Quickly, master <@235055132843180032>, quickly!")
 
@@ -916,7 +916,7 @@ regex_responses.append(
 )
 
 
-async def wood_resp(bot, message):
+async def wood_resp(message):
     await message.add_reaction("🪓")
     await message.add_reaction("🌲")
 
@@ -930,7 +930,7 @@ regex_responses.append(
 )
 
 
-async def stradavar_resp(bot, message):
+async def stradavar_resp(message):
     await message.channel.send(f"Quickly, <@{ID.JORM}>, quickly!")
     await message.add_reaction("👏")
 
@@ -943,7 +943,7 @@ regex_responses.append(
 )
 
 
-async def keto_resp(bot, message):
+async def keto_resp(message):
     await message.add_reaction("ketoroll:634859950283161602")
     await message.add_reaction("ketoface:634852360514174976")
 
@@ -962,7 +962,7 @@ regex_responses.append(
 )
 
 
-async def siege_resp(bot, message):
+async def siege_resp(message):
     reactions = [
         "⏰",
         "2️⃣",
@@ -982,7 +982,7 @@ async def siege_resp(bot, message):
 regex_responses.append(RegexResponse(trigger=r"siege.*\?", response=siege_resp))
 
 
-async def offers_resp(bot, message):
+async def offers_resp(message):
     await message.delete()
     await message.author.send(
         f"Hi {message.author.mention}! We're trying to streamline "
@@ -1022,7 +1022,7 @@ regex_responses.append(
 )
 
 
-async def good_bot_resp(bot, message):
+async def good_bot_resp(message):
     await message.add_reaction("BlobAww:380182813300752395")
 
 
@@ -1035,7 +1035,7 @@ regex_responses.append(
 )
 
 
-async def bad_bot_resp(bot, message):
+async def bad_bot_resp(message):
     await message.add_reaction("BlobBan:438000257385889792")
 
 
@@ -1049,7 +1049,7 @@ regex_responses.append(
 )
 
 
-async def hms_resp(bot, message):
+async def hms_resp(message):
     await message.channel.send(URL.GITHUB_STATIC + "/images/hms%20fucking.png")
 
 
@@ -1058,7 +1058,7 @@ regex_responses.append(
 )
 
 
-async def gramps_resp(bot, message):
+async def gramps_resp(message):
     await message.channel.send(URL.GITHUB_STATIC + "/images/markus.gif")
     await message.channel.send(message.content)
 
@@ -1068,13 +1068,13 @@ regex_responses.append(
 )
 
 
-async def reputation_resp(bot, message):
+async def reputation_resp(message):
     for mentioned_user in message.mentions:
         if message.author.id == mentioned_user.id:
             await message.channel.send("Thanking yourself gives no reputation.")
             continue
-        await db.get_or_insert_usr(bot, mentioned_user.id, mentioned_user.guild.id)
-        await bot.pg_pool.execute(
+        await db.get_or_insert_usr(mentioned_user.id, mentioned_user.guild.id)
+        await Standby().pg_pool.execute(
             f"UPDATE usr SET thanks = thanks + 1 WHERE usr_id = {mentioned_user.id}"
         )
         await message.channel.send(f"Gave +1 Void to {mentioned_user.mention}")
@@ -1090,7 +1090,7 @@ regex_responses.append(
 )
 
 
-async def so_true_resp(bot, message):
+async def so_true_resp(message):
     await message.channel.send(URL.GITHUB_STATIC + "/videos/so_true.mov")
 
 

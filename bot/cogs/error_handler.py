@@ -4,16 +4,15 @@ import logging
 from nextcord import Embed, Message
 from nextcord.ext.commands import Cog, Context, errors
 
-from config.constants import ID, ChannelName, Color
-from db_integration import db_functions as db
+from config.domain import ID, ChannelName, Color, Standby
 from utils import util_functions as uf
 
 logger = logging.getLogger(__name__)
 
 
 class ErrorHandler(Cog):
-    def __init__(self, bot):
-        self.bot = bot
+    def __init__(self):
+        self.standby = Standby
 
     async def send_help_command(self, ctx: Context):
         if ctx.command:
@@ -24,7 +23,6 @@ class ErrorHandler(Cog):
     @Cog.listener()
     async def on_command_error(self, ctx: Context, e: errors.CommandError) -> None:
         logger.error(f"Command error: {e}")
-        await db.log(self.bot, f"CommandError: {e}")
         if isinstance(e, errors.UserInputError):
             logger.error("UserInputError")
             await self.handle_user_input_error(ctx, e)
@@ -56,7 +54,7 @@ class ErrorHandler(Cog):
         try:
             await msg.delete()
         except:
-            await db.log(self.bot, "Can't delete message")
+            logger.warning(f"Can't delete message {msg}")
 
     async def handle_user_input_error(
         self, ctx: Context, e: errors.UserInputError
@@ -115,4 +113,4 @@ def unhandled_error_embed(cont, chan, e) -> Embed:
 
 
 def setup(bot):
-    bot.add_cog(ErrorHandler(bot))
+    bot.add_cog(ErrorHandler())

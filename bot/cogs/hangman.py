@@ -4,7 +4,7 @@ import re
 from nextcord import Embed, Interaction, SlashOption, slash_command
 from nextcord.ext.commands import Cog
 
-from config.constants import URL, Color
+from config.domain import URL, Color, Standby
 from utils import util_functions as uf
 
 IMAGE_LINKS = [URL.GITHUB_STATIC + f"/images/Hangman-{num}.png" for num in range(7)]
@@ -97,8 +97,8 @@ game = HangmanGame()
 
 
 class Hangman(Cog, name="Void Hangman"):
-    def __init__(self, bot):
-        self.bot = bot
+    def __init__(self):
+        self.standby = Standby()
 
     @slash_command(description="Commands for running games of hangman")
     async def hangman(self, interaction):
@@ -207,4 +207,4 @@ class Hangman(Cog, name="Void Hangman"):
 
 
 def setup(bot):
-    bot.add_cog(Hangman(bot))
+    bot.add_cog(Hangman())

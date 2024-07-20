@@ -5,7 +5,7 @@ from datetime import datetime as dt
 from nextcord.ext.commands import Cog
 
 from cogs.error_handler import unhandled_error_embed
-from config.constants import ID, VALID_TEXT_CHANNEL, ChannelName
+from config.domain import ID, VALID_TEXT_CHANNEL, ChannelName, Standby
 from utils import util_functions as uf
 from utils.regex import (
     RegexResponse,
@@ -35,7 +35,7 @@ def get_response_command(message):  # noqa: C901
 
         if type(resp) is WednesdayResponse:
 
-            async def resp_command(bot, msg, resp=resp):  # noqa: ARG001
+            async def resp_command(msg, resp=resp):
                 if dt.now().weekday() == resp.trigger_day:
                     await msg.channel.send(resp.response)
                     scream = 10 * resp.a
@@ -53,8 +53,8 @@ def get_response_command(message):  # noqa: C901
 
 
 class MessageHandler(Cog):
-    def __init__(self, bot):
-        self.bot = bot
+    def __init__(self):
+        self.standby = Standby()
 
     @Cog.listener()
     async def on_message(self, message):
@@ -73,7 +73,7 @@ class MessageHandler(Cog):
         response_command = get_response_command(message)
         if response_command:
             try:
-                await response_command(self.bot, message)
+                await response_command(message)
             except Exception as e:
                 logger.exception(
                     f"Error when executing regex command {response_command.__name__}()"
@@ -105,4 +105,4 @@ class MessageHandler(Cog):
 
 
 def setup(bot):
-    bot.add_cog(MessageHandler(bot))
+    bot.add_cog(MessageHandler())

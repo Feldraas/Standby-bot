@@ -6,7 +6,7 @@ from math import ceil
 from nextcord import ButtonStyle, Embed, SelectOption, SlashOption, slash_command, ui
 from nextcord.ext.commands import Cog
 
-from config.constants import (
+from config.domain import (
     EMPTY_STRING,
     ID,
     URL,
@@ -14,6 +14,7 @@ from config.constants import (
     Color,
     Permissions,
     RoleName,
+    Standby,
 )
 from db_integration import db_functions as db
 from utils import util_functions as uf
@@ -55,8 +56,8 @@ MAX_SELECT_MENU_SIZE = 24
 
 
 class Rules(Cog):
-    def __init__(self, bot):
-        self.bot = bot
+    def __init__(self):
+        self.standby = Standby()
         self.kick_inactives.start()
 
     def cog_unload(self):
@@ -112,7 +113,7 @@ class Rules(Cog):
             embed=alli_embed,
             view=view,
         )
-        await db.log_buttons(self.bot, view, rules_ch.id, alli_msg.id)
+        await db.log_buttons(view, rules_ch.id, alli_msg.id)
 
         await asyncio.sleep(delay)
 
@@ -123,9 +124,7 @@ class Rules(Cog):
         )
         view = RoleChoiceView(guild=vie, role_type="clan")
         clan_msg = await rules_ch.send(embed=clan_embed, view=view)
-        await db.log_buttons(
-            self.bot, view, rules_ch.id, clan_msg.id, {"role_type": "clan"}
-        )
+        await db.log_buttons(view, rules_ch.id, clan_msg.id, {"role_type": "clan"})
         await asyncio.sleep(delay)
 
         opt_embed = Embed(color=Color.VIE_PURPLE)
@@ -135,7 +134,7 @@ class Rules(Cog):
         )
         view = OptInView(guild=vie)
         opt_msg = await rules_ch.send(embed=opt_embed, view=view)
-        await db.log_buttons(self.bot, view, rules_ch.id, opt_msg.id)
+        await db.log_buttons(view, rules_ch.id, opt_msg.id)
 
         color_embed = Embed(color=Color.VIE_PURPLE)
         color_embed.title = (
@@ -144,9 +143,7 @@ class Rules(Cog):
         )
         view = RoleChoiceView(guild=vie, role_type="color")
         color_msg = await rules_ch.send(embed=color_embed, view=view)
-        await db.log_buttons(
-            self.bot, view, rules_ch.id, color_msg.id, {"role_type": "color"}
-        )
+        await db.log_buttons(view, rules_ch.id, color_msg.id, {"role_type": "color"})
         await asyncio.sleep(delay)
 
         general = uf.get_channel(vie, "general")
@@ -233,7 +230,7 @@ class Rules(Cog):
     async def kick_inactives(self):
         logger.info("Checking for inactive members")
         try:
-            guild = await self.bot.fetch_guild(ID.GUILD)
+            guild = await self.standby.bot.fetch_guild(ID.GUILD)
         except Exception:
             logger.exception("Could not fetch guild")
             return
@@ -265,7 +262,7 @@ class Rules(Cog):
                         )
 
                     try:
-                        maint = await self.bot.fetch_channel(ID.ERROR_CHANNEL)
+                        maint = await self.standby.bot.fetch_channel(ID.ERROR_CHANNEL)
                         await maint.send(
                             f"{member.name}{discriminator} has been kicked "
                             "due to inactivity."
@@ -437,4 +434,4 @@ class OptInView(ui.View):
 
 
 def setup(bot):
-    bot.add_cog(Rules(bot))
+    bot.add_cog(Rules())

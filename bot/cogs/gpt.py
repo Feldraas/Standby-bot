@@ -5,14 +5,14 @@ import requests
 from nextcord import SlashOption, slash_command
 from nextcord.ext.commands import Cog
 
-from config.constants import Token
+from config.domain import Standby, Token
 
 logger = logging.getLogger(__name__)
 
 
 class GPT(Cog):
-    def __init__(self, bot):
-        self.bot = bot
+    def __init__(self):
+        self.standby = Standby()
 
     @slash_command(description="Ask, and the Void shall answer.")
     async def voidgpt(
@@ -47,4 +47,4 @@ class GPT(Cog):
 
 
 def setup(bot):
-    bot.add_cog(GPT(bot))
+    bot.add_cog(GPT())

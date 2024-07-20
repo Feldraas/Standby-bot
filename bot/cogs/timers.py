@@ -6,7 +6,7 @@ from datetime import timedelta
 from nextcord import SlashOption, slash_command
 from nextcord.ext.commands import Cog
 
-from config.constants import ID, TimerType
+from config.domain import ID, Standby, TimerType
 from db_integration import db_functions as db
 from utils import util_functions as uf
 
@@ -14,8 +14,8 @@ logger = logging.getLogger(__name__)
 
 
 class Timers(Cog):
-    def __init__(self, bot):
-        self.bot = bot
+    def __init__(self):
+        self.standby = Standby()
         self.check_timers.start()
 
     def cog_unload(self):
@@ -24,7 +24,7 @@ class Timers(Cog):
     @uf.delayed_loop(seconds=10)
     async def check_timers(self):
         try:
-            gtable = await self.bot.pg_pool.fetch(
+            gtable = await self.standby.pg_pool.fetch(
                 f"SELECT * FROM tmers WHERE ttype={TimerType.REMINDER}"
             )
         except AttributeError:
@@ -44,12 +44,12 @@ class Timers(Cog):
             params_dict = json.loads(rec["params"])
             if "msg" not in params_dict or "channel" not in params_dict:
                 logger.warning(f"Deleting invalid json: {params_dict}")
-                await self.bot.pg_pool.execute(
+                await self.standby.pg_pool.execute(
                     "DELETE FROM tmers WHERE tmer_id = $1;", rec["tmer_id"]
                 )
                 continue
 
-            channel = self.bot.get_channel(params_dict["channel"])
+            channel = self.standby.bot.get_channel(params_dict["channel"])
             if not channel:
                 logger.warning(f"Could not find {channel=}")
 
@@ -70,11 +70,11 @@ class Timers(Cog):
                 await channel.send(message)
 
             if location == "DM":
-                guild = await self.bot.fetch_guild(ID.GUILD)
+                guild = await self.standby.bot.fetch_guild(ID.GUILD)
                 user = await guild.fetch_member(rec["usr_id"])
                 await user.send(message)
 
-            await self.bot.pg_pool.execute(
+            await self.standby.pg_pool.execute(
                 "DELETE FROM tmers WHERE tmer_id = $1;", rec["tmer_id"]
             )
 
@@ -122,7 +122,6 @@ class Timers(Cog):
         )
         full_confirmation = await confirmation.fetch()
         await create_reminder(
-            self.bot,
             interaction,
             expires,
             message,
@@ -180,7 +179,6 @@ class Timers(Cog):
         )
         full_confirmation = await confirmation.fetch()
         await create_reminder(
-            self.bot,
             interaction,
             expires,
             message,
@@ -190,15 +188,14 @@ class Timers(Cog):
 
 
 async def create_reminder(
-    bot,
     interaction,
     tfuture,
     message,
     confirmation_id,
     location,
 ):
-    await db.ensure_guild_existence(bot, interaction.guild.id)
-    await db.get_or_insert_usr(bot, interaction.user.id, interaction.guild.id)
+    await db.ensure_guild_existence(interaction.guild.id)
+    await db.get_or_insert_usr(interaction.user.id, interaction.guild.id)
 
     params_dict = {
         "msg": message,
@@ -208,7 +205,7 @@ async def create_reminder(
     }
     params_json = json.dumps(params_dict)
 
-    await bot.pg_pool.execute(
+    await Standby().pg_pool.execute(
         "INSERT INTO tmers (usr_id, expires, ttype, params) VALUES ($1, $2, $3, $4);",
         interaction.user.id,
         tfuture,
@@ -218,4 +215,4 @@ async def create_reminder(
 
 
 def setup(bot):
-    bot.add_cog(Timers(bot))
+    bot.add_cog(Timers())

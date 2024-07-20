@@ -1,20 +1,21 @@
 from nextcord.ext.commands import Cog
 
+from config.domain import Standby
 from db_integration import db_functions as db
 
 
 class GuildEvents(Cog):
-    def __init__(self, bot):
-        self.bot = bot
+    def __init__(self):
+        self.standby = Standby()
 
     @Cog.listener()
     async def on_guild_join(self, guild):
-        await db.ensure_guild_existence(self.bot, guild.id)
+        await db.ensure_guild_existence(guild.id)
 
     @Cog.listener()
     async def on_guild_update(self, before, after):  # noqa: ARG002
-        await db.ensure_guild_existence(self.bot, after.id)
+        await db.ensure_guild_existence(after.id)
 
 
 def setup(bot):
-    bot.add_cog(GuildEvents(bot))
+    bot.add_cog(GuildEvents())

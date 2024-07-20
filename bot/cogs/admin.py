@@ -16,17 +16,17 @@ from nextcord import (
     ui,
     user_command,
 )
-from nextcord.ext.commands import Cog
+from nextcord.ext.commands import Bot, Cog
 from PIL import Image
 
-import config.startup
-from config.constants import (
+from config.domain import (
     ID,
     URL,
     VALID_TEXT_CHANNEL,
     ChannelName,
     Permissions,
     RoleName,
+    Standby,
 )
 from utils import util_functions as uf
 
@@ -34,8 +34,8 @@ logger = logging.getLogger(__name__)
 
 
 class Admin(Cog):
-    def __init__(self, bot):
-        self.bot = bot
+    def __init__(self):
+        self.standby = Standby()
 
     @slash_command(
         description="Pong!", default_member_permissions=Permissions.MODS_AND_GUIDES
@@ -212,7 +212,7 @@ class Admin(Cog):
                 await ping.delete()
                 await asyncio.sleep(2)
             else:
-                logger.warning(self.bot, f"Channel {ch} could not be found")
+                logger.warning(f"Channel {ch} could not be found")
 
         await asyncio.sleep(45)
 
@@ -223,7 +223,7 @@ class Admin(Cog):
                 await ping.delete()
                 await asyncio.sleep(2)
             else:
-                logger.warning(self.bot, f"Channel {ch} could not be found")
+                logger.warning(f"Channel {ch} could not be found")
 
     @user_command(
         name="Punish",
@@ -362,7 +362,7 @@ class Admin(Cog):
     ):
         maint = uf.get_channel(interaction.guild, ChannelName.ERRORS)
         if not maint:
-            logger.error(self.bot, "Could not find maintenance channel")
+            logger.error("Could not find maintenance channel")
             await interaction.send("Could not find maintenance channel", ephemeral=True)
             return
 
@@ -604,7 +604,7 @@ class Admin(Cog):
     @Cog.listener()
     async def on_guild_role_update(self, before, after):  # noqa: ARG002
         logger.info("Roles updated")
-        await config.startup.reconnect_buttons(self.bot)
+        await self.standby.reconnect_buttons()
 
 
 async def move_or_copy_message(interaction, message_id, from_channel, to_channel):
@@ -685,5 +685,5 @@ async def delete_emoji(interaction, emoji):
         return name
 
 
-def setup(bot):
-    bot.add_cog(Admin(bot))
+def setup(bot: Bot):
+    bot.add_cog(Admin())

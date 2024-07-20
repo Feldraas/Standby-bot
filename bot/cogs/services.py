@@ -15,7 +15,7 @@ from nextcord import (
 from nextcord.ext.commands import Cog
 
 import utils.util_functions as uf
-from config.constants import ID, Color
+from config.domain import ID, Color, Standby
 from db_integration import db_functions as db
 
 logger = logging.getLogger(__name__)
@@ -90,7 +90,7 @@ ALL_LEADERBOARDS = {
 
 class Services(Cog):
     def __init__(self, bot):
-        self.bot = bot
+        self.standby = Standby()
 
     @slash_command(description="Displays a user's profile picture.")
     async def avatar(
@@ -129,7 +129,7 @@ class Services(Cog):
         ),
     ):
         if stat == "Burger history":
-            history = await db.get_note(self.bot, "burger history")
+            history = await db.get_note("burger history")
             if history:
                 history = json.loads(history)
                 mentions = [f"<@{user_id}>" for user_id in history]
@@ -147,7 +147,7 @@ class Services(Cog):
 
         settings = ALL_LEADERBOARDS[stat]
 
-        leaderboard = await create_leaderboard(self.bot, settings, interaction.guild.id)
+        leaderboard = await create_leaderboard(settings, interaction.guild.id)
 
         embed = build_leaderboard_embed(interaction, leaderboard, settings)
 
@@ -170,9 +170,9 @@ class Services(Cog):
             )
             return
 
-        await db.get_or_insert_usr(self.bot, recipient.id, recipient.guild.id)
+        await db.get_or_insert_usr(recipient.id, recipient.guild.id)
 
-        await self.bot.pg_pool.execute(
+        await self.standby.pg_pool.execute(
             f"UPDATE usr SET skulls = skulls + 1 WHERE usr_id = {recipient.id}"
         )
         await interaction.send(f"Gave a 💀 to {recipient.mention}")
@@ -197,7 +197,7 @@ class Services(Cog):
 
         if stat != "Everything":
             settings = ALL_LEADERBOARDS[stat]
-            stats = await create_leaderboard(self.bot, settings, filter_by_user=user)
+            stats = await create_leaderboard(settings, filter_by_user=user)
             if not stats:
                 await interaction.send(
                     f"{subject} currently {has} no {settings.stat_name.lower()}."
@@ -215,21 +215,19 @@ class Services(Cog):
         else:
             message = f"{possessive} current stats are:\n"
             for settings in ALL_LEADERBOARDS.values():
-                stats = await create_leaderboard(
-                    self.bot, settings, filter_by_user=user
-                )
+                stats = await create_leaderboard(settings, filter_by_user=user)
                 message += (
                     f"{settings.stat_name}: {stats[0]['total'] if stats else 0}\n"
                 )
             await interaction.send(message)
 
 
-async def create_leaderboard(bot, settings, guild_id=ID.GUILD, filter_by_user=None):
+async def create_leaderboard(settings, guild_id=ID.GUILD, filter_by_user=None):
     filter_condition = (
         "AND usr_id = " + str(filter_by_user.id) if filter_by_user else ""
     )
 
-    return await bot.pg_pool.fetch(
+    return await Standby().pg_pool.fetch(
         f"SELECT usr_id, SUM({settings.stat_col_name}) as total "
         f"FROM {settings.table} "
         f"WHERE usr_id IN "
@@ -273,11 +271,11 @@ def build_leaderboard_embed(
     return embed
 
 
-async def urban_handler(bot, payload):
+async def urban_handler(payload):
     if not isinstance(payload, RawReactionActionEvent):
         return
 
-    channel = bot.get_channel(payload.channel_id)
+    channel = Standby().bot.get_channel(payload.channel_id)
     try:
         message = await channel.fetch_message(payload.message_id)
         if (
@@ -356,4 +354,4 @@ async def urban_embed(query, page):
 
 
 def setup(bot):
-    bot.add_cog(Services(bot))
+    bot.add_cog(Services())
