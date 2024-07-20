@@ -3,7 +3,8 @@ import logging
 from nextcord import ButtonStyle, Embed, PermissionOverwrite, slash_command, ui
 from nextcord.ext.commands import Cog
 
-from config.domain import (
+from db_integration import db_functions as db
+from domain import (
     CategoryName,
     ChannelName,
     Color,
@@ -11,7 +12,6 @@ from config.domain import (
     RoleName,
     Standby,
 )
-from db_integration import db_functions as db
 from utils import util_functions as uf
 
 logger = logging.getLogger(__name__)

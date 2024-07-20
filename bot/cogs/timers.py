@@ -6,8 +6,8 @@ from datetime import timedelta
 from nextcord import SlashOption, slash_command
 from nextcord.ext.commands import Cog
 
-from config.domain import ID, Standby, TimerType
 from db_integration import db_functions as db
+from domain import ID, Standby, TimerType
 from utils import util_functions as uf
 
 logger = logging.getLogger(__name__)

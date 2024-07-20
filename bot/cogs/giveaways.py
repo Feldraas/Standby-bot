@@ -8,7 +8,7 @@ import nextcord.utils
 from nextcord import Embed, SlashOption, slash_command
 from nextcord.ext.commands import Cog
 
-from config.domain import (
+from domain import (
     EMPTY_STRING,
     ID,
     URL,

@@ -19,7 +19,7 @@ from nextcord import (
 from nextcord.ext.commands import Bot, Cog
 from PIL import Image
 
-from config.domain import (
+from domain import (
     ID,
     URL,
     VALID_TEXT_CHANNEL,

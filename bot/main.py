@@ -1,8 +1,8 @@
 import logging
 import os
 
-from config.domain import Format, Standby, Token
 from db_integration import db_functions as db
+from domain import Format, Standby
 
 DEBUG = os.getenv("DEBUG") == "True"
 logging.basicConfig(

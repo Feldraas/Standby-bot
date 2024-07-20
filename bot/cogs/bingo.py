@@ -4,7 +4,7 @@ import random
 from nextcord import SlashOption, slash_command
 from nextcord.ext.commands import Cog
 
-from config.domain import Standby
+from domain import Standby
 from utils import util_functions as uf
 
 

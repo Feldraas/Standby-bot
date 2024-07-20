@@ -3,7 +3,7 @@ import logging
 from nextcord.channel import VoiceChannel
 from nextcord.ext.commands import Cog
 
-from config.domain import Standby
+from domain import Standby
 from utils import util_functions as uf
 
 logger = logging.getLogger(__name__)

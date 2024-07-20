@@ -4,7 +4,7 @@ import re
 from nextcord import Embed, Interaction, SlashOption, slash_command
 from nextcord.ext.commands import Cog
 
-from config.domain import URL, Color, Standby
+from domain import URL, Color, Standby
 from utils import util_functions as uf
 
 IMAGE_LINKS = [URL.GITHUB_STATIC + f"/images/Hangman-{num}.png" for num in range(7)]

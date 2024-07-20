@@ -2,12 +2,13 @@ from nextcord.ext.commands import Cog
 
 from cogs.giveaways import giveaway_handler
 from cogs.services import urban_handler
+from domain import Standby
 from utils.starboard import starboard_handler
 
 
 class ReactionHandler(Cog):
-    # def __init__(self, bot):
-    #     self.bot = bot
+    def __init__(self):
+        self.standby = Standby()
 
     @Cog.listener()
     async def on_raw_reaction_add(self, payload):

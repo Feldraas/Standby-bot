@@ -1,7 +1,7 @@
 from nextcord.ext.commands import Cog
 
-from config.domain import Standby
 from db_integration import db_functions as db
+from domain import Standby
 
 
 class GuildEvents(Cog):

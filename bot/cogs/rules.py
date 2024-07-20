@@ -6,7 +6,8 @@ from math import ceil
 from nextcord import ButtonStyle, Embed, SelectOption, SlashOption, slash_command, ui
 from nextcord.ext.commands import Cog
 
-from config.domain import (
+from db_integration import db_functions as db
+from domain import (
     EMPTY_STRING,
     ID,
     URL,
@@ -16,7 +17,6 @@ from config.domain import (
     RoleName,
     Standby,
 )
-from db_integration import db_functions as db
 from utils import util_functions as uf
 
 logger = logging.getLogger(__name__)

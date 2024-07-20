@@ -4,7 +4,7 @@ import logging
 from nextcord import Embed, Message
 from nextcord.ext.commands import Cog, Context, errors
 
-from config.domain import ID, ChannelName, Color, Standby
+from domain import ID, ChannelName, Color, Standby
 from utils import util_functions as uf
 
 logger = logging.getLogger(__name__)

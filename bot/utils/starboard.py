@@ -8,8 +8,8 @@ from nextcord import (
     RawReactionClearEvent,
 )
 
-from config.domain import ID, Color, Standby, Threshold
 from db_integration import db_functions as db
+from domain import ID, Color, Standby, Threshold
 
 logger = logging.getLogger(__name__)
 starboard_lock = asyncio.Lock()

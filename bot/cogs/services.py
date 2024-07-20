@@ -15,8 +15,8 @@ from nextcord import (
 from nextcord.ext.commands import Cog
 
 import utils.util_functions as uf
-from config.domain import ID, Color, Standby
 from db_integration import db_functions as db
+from domain import ID, Color, Standby
 
 logger = logging.getLogger(__name__)
 
@@ -89,7 +89,7 @@ ALL_LEADERBOARDS = {
 
 
 class Services(Cog):
-    def __init__(self, bot):
+    def __init__(self):
         self.standby = Standby()
 
     @slash_command(description="Displays a user's profile picture.")

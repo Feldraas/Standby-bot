@@ -25,7 +25,8 @@ from PIL import Image, ImageDraw, ImageFont
 from transliterate import translit
 from transliterate.base import TranslitLanguagePack, registry
 
-from config.domain import (
+from db_integration import db_functions as db
+from domain import (
     EMPTY_STRING,
     ID,
     URL,
@@ -35,7 +36,6 @@ from config.domain import (
     Threshold,
     TimerType,
 )
-from db_integration import db_functions as db
 from utils import util_functions as uf
 
 logger = logging.getLogger(__name__)

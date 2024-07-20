@@ -1,6 +1,6 @@
 import requests
 
-from config.domain import URL
+from domain import URL
 
 mod_list = {}
 

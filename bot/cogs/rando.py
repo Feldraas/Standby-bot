@@ -4,7 +4,7 @@ import re
 from nextcord import SlashOption, slash_command
 from nextcord.ext import commands
 
-from config.domain import Standby
+from domain import Standby
 
 
 class Rando(commands.Cog):

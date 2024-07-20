@@ -3,8 +3,8 @@ from datetime import datetime as dt
 
 import asyncpg
 
-from config.domain import URL, Standby
 from db_integration.create_scripts import create_tables
+from domain import URL, Standby
 
 bot_start_time = dt.now()
 
