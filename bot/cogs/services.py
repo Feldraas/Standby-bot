@@ -235,7 +235,7 @@ async def create_leaderboard(bot, settings, guild_id=ID.GUILD, filter_by_user=No
         f"WHERE usr_id IN "
         f"(SELECT usr_id FROM usr WHERE guild_id = {guild_id}{filter_condition}) "
         f"GROUP BY usr_id "
-        f"HAVING SUM({settings.stat_col_name}) > 0"
+        f"HAVING SUM({settings.stat_col_name}) > 0 "
         f"ORDER BY total DESC ;"
     )
 
