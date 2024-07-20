@@ -4,6 +4,7 @@ import random
 from nextcord import SlashOption, slash_command
 from nextcord.ext.commands import Cog
 
+from config.domain import Standby
 from utils import util_functions as uf
 
 
@@ -135,8 +136,8 @@ class Bingo(
     description="Embrace your inner boomer and play some Void Bingo - win by "
     "completing a row, column or diagonal (middle square is free).",
 ):
-    def __init__(self, bot):
-        self.bot = bot
+    def __init__(self):
+        self.standby = Standby()
 
     async def create(self, interaction):
         if game.status == "Lobby open":
@@ -366,4 +367,4 @@ async def bingo(
 
 
 def setup(bot):
-    bot.add_cog(Bingo(bot))
+    bot.add_cog(Bingo())

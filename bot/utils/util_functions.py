@@ -13,7 +13,7 @@ from nextcord.ext.tasks import LF, Loop
 from nextcord.utils import MISSING
 from PIL import Image, ImageDraw, ImageFont
 
-from config.domain import BOT_TZ, EMPTY_STRING, URL, Color, RoleName
+from config.domain import BOT_TZ, EMPTY_STRING, URL, Color, RoleName, Standby
 
 
 def get_emoji(guild, name):
@@ -313,24 +313,24 @@ def delayed_loop(
 
         @inner_loop.before_loop
         async def impr(self):
-            await self.bot.wait_until_ready()
+            await self.standby.bot.wait_until_ready()
 
         return inner_loop
 
     return decorator
 
 
-async def get_user_predictions(bot, user) -> dict:
+async def get_user_predictions(user) -> dict:
     query = f"SELECT predictions FROM usr WHERE usr_id = {user.id}"
-    recs = await bot.pg_pool.fetch(query)
+    recs = await Standby().pg_pool.fetch(query)
     predictions = recs[0]["predictions"]
     return json.loads(predictions) if predictions else {}
 
 
-async def update_user_predictions(bot, user, predictions):
+async def update_user_predictions(user, predictions):
     sql_string = json.dumps(predictions).replace("'", "''")
     query = f"UPDATE usr SET predictions = '{sql_string}' WHERE usr_id = {user.id}"
-    await bot.pg_pool.execute(query)
+    await Standby().pg_pool.execute(query)
 
 
 def ordinal_suffix(n):

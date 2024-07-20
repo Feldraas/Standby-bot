@@ -4,10 +4,12 @@ import re
 from nextcord import SlashOption, slash_command
 from nextcord.ext import commands
 
+from config.domain import Standby
+
 
 class Rando(commands.Cog):
-    def __init__(self, bot):
-        self.bot = bot
+    def __init__(self):
+        self.standby = Standby()
 
     @slash_command(description="RNG commands", name="rng")
     async def rng(self, interaction):
@@ -95,4 +97,4 @@ class Rando(commands.Cog):
 
 
 def setup(bot):
-    bot.add_cog(Rando(bot))
+    bot.add_cog(Rando())

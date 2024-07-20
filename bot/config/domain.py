@@ -1,16 +1,117 @@
+import importlib
+import json
+import logging
 import os
-from datetime import timedelta
+from datetime import datetime, timedelta
 from enum import IntEnum, StrEnum
 from pathlib import Path
 
+import aiohttp
 import nextcord
+from asyncpg import Pool
+from nextcord import Intents
+from nextcord.ext.commands import Bot
 from pytz import timezone
+
+logger = logging.getLogger(__name__)
 
 # Uncategorized
 BOT_TZ = timezone(os.getenv("TZ", default="UTC"))
 VALID_TEXT_CHANNEL = nextcord.TextChannel | nextcord.VoiceChannel | nextcord.Thread
 EMPTY_STRING = "\u200b"
 EMPTY_STRING_2 = "᲼"
+
+
+class Standby:
+    instance = None
+
+    bot: Bot
+    pg_pool: Pool
+    token: str
+
+    def __new__(cls):
+        if cls.instance is None:
+            cls.instance = super().__new__(cls)
+            cls.instance.bot = Bot(intents=Intents.all(), case_insensitive=True)
+            cls.instance.token = os.getenv("BOT_TOKEN")
+        return cls.instance
+
+    def load_cogs(self):
+        for file in Path().glob("bot/cogs/*.py"):
+            logger.info(f"Loading cog {file.stem}")
+            self.bot.load_extension(f"cogs.{file.stem}")
+
+    async def announce(self):
+        channel = self.bot.get_channel(ID.ERROR_CHANNEL)
+        if not channel:
+            logger.error("Could not find error channel")
+            return
+
+        logger.info("Fetching commit history")
+        async with aiohttp.ClientSession() as cs, cs.get(URL.GITHUB_COMMITS) as r:
+            data = await r.json()
+            time_now = datetime.now().astimezone(BOT_TZ)
+            commit_time = datetime.strptime(
+                data["commit"]["committer"]["date"], Format.YYYYMMDD_HHMMSSZ
+            ).astimezone(BOT_TZ)
+            time_past = time_now - timedelta(minutes=15)
+            if time_past < commit_time:
+                author = data["author"]["login"]
+                message = data["commit"]["message"]
+                link = data["html_url"]
+                reason = (
+                    f"commit from {author} with message `{message}`. Link: <{link}>"
+                )
+            else:
+                reason = "Heroku restart or crash."
+        reboot_message = f"Reboot complete. Caused by {reason}"
+        await channel.send(reboot_message)
+
+    def create_view(self, view_type, **params):
+        package_name, view_class_name = view_type.split(" ")
+        package = importlib.import_module(package_name)
+        view_class = getattr(package, view_class_name)
+        return view_class(**params)
+
+    async def reconnect_buttons(self):
+        logger.info("Checking buttons")
+        guild = self.bot.get_guild(ID.GUILD)
+        buttons = await self.pg_pool.fetch("SELECT * FROM buttons")
+        for button in buttons:
+            try:
+                channel = await self.bot.fetch_channel(button["channel_id"])
+                message = await channel.fetch_message(button["message_id"])
+                if len(message.components) == 0:
+                    raise nextcord.errors.NotFound  # noqa: TRY301
+            except nextcord.errors.NotFound:
+                logger.info("Deleting record for deleted message button")
+                await self.pg_pool.execute(
+                    f"DELETE from buttons WHERE channel_id = {button['channel_id']} "
+                    f"AND message_id = {button['message_id']}"
+                )
+            else:
+                logger.info(
+                    f"Processing button for message {button['message_id']} "
+                    f"in channel {button['channel_id']}"
+                )
+                disabled = [
+                    child.disabled
+                    for component in message.components
+                    for child in component.children
+                ]
+                if all(disabled):
+                    logger.info("All buttons disabled - ignoring")
+                    continue
+
+                logger.info("Reconnecting button")
+                params = json.loads(button["params"]) if button["params"] else {}
+                view = self.create_view(
+                    button["type"], bot=self.bot, guild=guild, **params
+                )
+                await message.edit(view=view)
+
+    async def set_status(self, status):
+        await self.bot.change_presence(activity=nextcord.Game(name=status))
 
 
 class ID(IntEnum):
@@ -33,7 +134,6 @@ class ID(IntEnum):
 
 
 class Token(StrEnum):
-    BOT = os.getenv("BOT_TOKEN")
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 
@@ -142,7 +242,7 @@ class Color(IntEnum):
 
 class Duration:
     ROULETTE_TIMEOUT = timedelta(minutes=30)
-    BURGER_TIMEOUT = timedelta(weeks=1)
+    BURGER_TIMEOUT = timedelta(minutes=1)
     REPOSTER = timedelta(days=1)
 
 
@@ -157,6 +257,7 @@ class Format(StrEnum):
     YYYYMMDD_HHMMSS = "%Y-%m-%d %H:%M:%S"
     YYYYMMDD_HHMMSSZ = "%Y-%m-%dT%H:%M:%S%z"
     LOGGING = "%(levelname)s | %(name)s:%(lineno)s | %(funcName)s | %(message)s"
+    LOGGING_DEBUG = f"%(asctime)s | {LOGGING}"
 
 
 class Emoji(StrEnum):

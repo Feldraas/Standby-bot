@@ -31,6 +31,7 @@ from config.domain import (
     URL,
     Duration,
     RoleName,
+    Standby,
     Threshold,
     TimerType,
 )
@@ -152,8 +153,8 @@ async def dfs(target, current_target, current_digits, current_str):
 
 
 class Fun(Cog):
-    def __init__(self, bot):
-        self.bot = bot
+    def __init__(self):
+        self.standby = Standby()
         self.check_burger.start()
 
     def cog_unload(self):
@@ -318,18 +319,18 @@ class Fun(Cog):
                 await target.add_roles(burgered)
 
                 logger.info("Sending message")
-                await interaction.send(target.mention)
+                await interaction.response.send_message(target.mention)
                 await interaction.channel.send(
                     URL.GITHUB_STATIC + "/images/burgered.png"
                 )
 
                 logger.info("Setting timer")
                 expires = dt.now() + Duration.BURGER_TIMEOUT
-                await db.get_or_insert_usr(self.bot, target.id, interaction.guild.id)
-                await self.bot.pg_pool.execute(
+                await db.get_or_insert_usr(target.id, interaction.guild.id)
+                await self.standby.pg_pool.execute(
                     f"DELETE FROM tmers WHERE ttype = {TimerType.BURGER};"
                 )
-                await self.bot.pg_pool.execute(
+                await self.standby.pg_pool.execute(
                     "INSERT INTO tmers (usr_id, expires, ttype) VALUES ($1, $2, $3);",
                     target.id,
                     expires,
@@ -337,16 +338,16 @@ class Fun(Cog):
                 )
 
                 logger.info("Updating history")
-                await self.bot.pg_pool.execute(
+                await self.standby.pg_pool.execute(
                     f"UPDATE usr SET burgers = burgers + 1 WHERE usr_id = {target.id}"
                 )
-                history = await db.get_note(self.bot, "burger history")
+                history = await db.get_note("burger history")
                 if history:
                     history = json.loads(history)
                     history = [target.id, *history[:4]]
                 else:
                     history = [target.id]
-                await db.log_or_update_note(self.bot, "burger history", history)
+                await db.log_or_update_note("burger history", history)
 
         elif burgered.members:
             await interaction.send(
@@ -369,7 +370,7 @@ class Fun(Cog):
     @slash_command(description="Yoink the burger")
     async def yoink(self, interaction):
         logger.info(f"{interaction.user} is attempting to yoink the burger")
-        await db.get_or_insert_usr(self.bot, interaction.user.id, interaction.guild.id)
+        await db.get_or_insert_usr(interaction.user.id, interaction.guild.id)
 
         burgered_role = uf.get_role(interaction.guild, "Burgered")
         holders = [
@@ -389,7 +390,7 @@ class Fun(Cog):
             await uf.invoke_slash_command("jail", self, interaction, interaction.user)
             return
 
-        recs = await self.bot.pg_pool.fetch(
+        recs = await self.standby.pg_pool.fetch(
             f"SELECT last_yoink FROM usr WHERE usr_id = {interaction.user.id}"
         )
         last_yoink = recs[0]["last_yoink"]
@@ -404,29 +405,29 @@ class Fun(Cog):
 
         logger.info("Yoinking")
         await current_holder.remove_roles(burgered_role)
-        await self.bot.pg_pool.execute(
+        await self.standby.pg_pool.execute(
             f"DELETE FROM tmers WHERE ttype = {TimerType.BURGER}"
         )
         await interaction.user.add_roles(burgered_role)
         expires = dt.now() + Duration.BURGER_TIMEOUT
-        await self.bot.pg_pool.execute(
+        await self.standby.pg_pool.execute(
             "INSERT INTO tmers (usr_id, expires, ttype) VALUES ($1, $2, $3);",
             interaction.user.id,
             expires,
             TimerType.BURGER,
         )
-        await self.bot.pg_pool.execute(
+        await self.standby.pg_pool.execute(
             f"UPDATE usr SET last_yoink = '{dt.now()}', burgers = burgers + 1 "
             f"WHERE usr_id = {interaction.user.id}"
         )
 
-        history = await db.get_note(self.bot, "burger history")
+        history = await db.get_note("burger history")
         if history:
             history = json.loads(history)
             history = [interaction.user.id, *history[:4]]
         else:
             history = [interaction.user.id]
-        await db.log_or_update_note(self.bot, "burger history", history)
+        await db.log_or_update_note("burger history", history)
         await interaction.send(
             f"{interaction.user.mention} has yoinked the burger "
             f"from {current_holder.mention}!"
@@ -435,7 +436,7 @@ class Fun(Cog):
     @uf.delayed_loop(minutes=1)
     async def check_burger(self):
         try:
-            gtable = await self.bot.pg_pool.fetch(
+            gtable = await self.standby.pg_pool.fetch(
                 f"SELECT * FROM tmers WHERE ttype = {TimerType.BURGER}"
             )
         except AttributeError:
@@ -451,7 +452,7 @@ class Fun(Cog):
 
             logger.info("Burger timer has expired")
 
-            guild = self.bot.get_guild(ID.GUILD)
+            guild = self.standby.bot.get_guild(ID.GUILD)
             if not guild:
                 logger.error("Could not fetch guild - will retry in 1 minute")
                 return
@@ -516,14 +517,14 @@ class Fun(Cog):
             params["ordering"] = [answers.index(elem) for elem in shuffled]
             params["attempted"] = []
             params["last_owner_id"] = user.id
-            view = BurgerView(bot=self.bot, **params)
+            view = BurgerView(**params)
 
-            recs = await self.bot.pg_pool.fetch(
+            recs = await self.standby.pg_pool.fetch(
                 f"SELECT moldy_burgers FROM usr WHERE usr_id = {user.id}"
             )
             count = (recs[0]["moldy_burgers"] + 1) if recs else 1
 
-            await self.bot.pg_pool.execute(
+            await self.standby.pg_pool.execute(
                 f"UPDATE usr SET moldy_burgers = {count} WHERE usr_id = {user.id}"
             )
 
@@ -535,8 +536,8 @@ class Fun(Cog):
                 f"{params['question']}",
                 view=view,
             )
-            await db.log_buttons(self.bot, view, general.id, msg.id, params)
-            await self.bot.pg_pool.execute(
+            await db.log_buttons(view, general.id, msg.id, params)
+            await self.standby.pg_pool.execute(
                 f"DELETE FROM tmers WHERE ttype = {TimerType.BURGER};"
             )
 
@@ -551,7 +552,7 @@ class Fun(Cog):
         label: str = SlashOption(description="A label to identify your prediction"),
         text: str = SlashOption(description="The text of your prediction"),
     ):
-        predictions = await uf.get_user_predictions(self.bot, interaction.user)
+        predictions = await uf.get_user_predictions(interaction.user)
 
         if label in predictions:
             num = len([key for key in predictions if key.startswith(label + "_")])
@@ -563,7 +564,7 @@ class Fun(Cog):
         }
 
         logger.info(f"Adding prediction for {interaction.user}")
-        await uf.update_user_predictions(self.bot, interaction.user, predictions)
+        await uf.update_user_predictions(interaction.user, predictions)
         await interaction.send(
             f"Prediction saved with label '{label}'!",
             ephemeral=True,
@@ -579,7 +580,7 @@ class Fun(Cog):
         interaction,
         label: str = SlashOption(description="Label of the prediction to reveal"),
     ):
-        predictions = await uf.get_user_predictions(self.bot, interaction.user)
+        predictions = await uf.get_user_predictions(interaction.user)
         if label in predictions:
             logger.info(f"Adding prediction '{label}' for {interaction.user}")
             params = {
@@ -587,7 +588,7 @@ class Fun(Cog):
                 "votes_for": [],
                 "votes_against": [],
             }
-            view = PredictionView(bot=self.bot, **params)
+            view = PredictionView(**params)
             await interaction.send(
                 f"On {predictions[label]['timestamp']}, {interaction.user.mention} "
                 f"made the following prediction:\n{EMPTY_STRING}\n"
@@ -596,9 +597,9 @@ class Fun(Cog):
                 view=view,
             )
             msg = await interaction.original_message()
-            await db.log_buttons(self.bot, view, interaction.channel.id, msg.id, params)
+            await db.log_buttons(view, interaction.channel.id, msg.id, params)
             predictions.pop(label)
-            await uf.update_user_predictions(self.bot, interaction.user, predictions)
+            await uf.update_user_predictions(interaction.user, predictions)
         else:
             await interaction.send(
                 f"No prediction found for the label '{label}'. "
@@ -615,7 +616,7 @@ class Fun(Cog):
             description="Label of the prediction you want to check"
         ),
     ):
-        predictions = await uf.get_user_predictions(self.bot, interaction.user)
+        predictions = await uf.get_user_predictions(interaction.user)
         if label in predictions:
             await interaction.send(
                 f"Prediction '{label}' made on {predictions[label]['timestamp']}:"
@@ -632,7 +633,7 @@ class Fun(Cog):
 
     @prediction.subcommand(name="list", description="List your predictions (privately)")
     async def list_(self, interaction):
-        predictions = await uf.get_user_predictions(self.bot, interaction.user)
+        predictions = await uf.get_user_predictions(interaction.user)
         if not predictions:
             await interaction.send("You have not made any predictions!", ephemeral=True)
         else:
@@ -650,11 +651,11 @@ class Fun(Cog):
         interaction,
         label: str = SlashOption(description="Label of the prediction to delete"),
     ):
-        predictions = await uf.get_user_predictions(self.bot, interaction.user)
+        predictions = await uf.get_user_predictions(interaction.user)
         if label in predictions:
             logger.info(f"Removing prediction for {interaction.user}")
             predictions.pop(label)
-            await uf.update_user_predictions(self.bot, interaction.user, predictions)
+            await uf.update_user_predictions(interaction.user, predictions)
             await interaction.send(
                 f"Prediction '{label}' successfully deleted!", ephemeral=True
             )
@@ -788,7 +789,7 @@ class Fun(Cog):
     @slash_command(description="Do you feel lucky?")
     async def roulette(self, interaction):
         logger.info(f"{interaction.user} is feeling lucky")
-        cooldown = await self.bot.pg_pool.fetch(
+        cooldown = await self.standby.pg_pool.fetch(
             "SELECT * FROM tmers "
             f"WHERE usr_id = {interaction.user.id} AND ttype = {TimerType.ROULETTE}"
         )
@@ -797,7 +798,7 @@ class Fun(Cog):
             expires = cooldown[0]["expires"]
             if dt.now() >= expires:
                 logger.info("Cooldown expired, removing timer")
-                await self.bot.pg_pool.execute(
+                await self.standby.pg_pool.execute(
                     f"DELETE FROM tmers WHERE usr_id = {interaction.user.id} "
                     f"AND ttype = {TimerType.ROULETTE}"
                 )
@@ -813,12 +814,12 @@ class Fun(Cog):
 
         await interaction.response.defer()
 
-        stats = await db.ensured_get_usr(self.bot, interaction.user.id, ID.GUILD)
+        stats = await db.ensured_get_usr(interaction.user.id, ID.GUILD)
         lose = random.randint(1, 6) == 6  # noqa: PLR2004
 
         if lose:
             logger.info(f"{interaction.user} has lost.")
-            await self.bot.pg_pool.execute(
+            await self.standby.pg_pool.execute(
                 "UPDATE usr SET current_roulette_streak = 0 "
                 f"WHERE usr_id = {interaction.user.id}"
             )
@@ -836,7 +837,7 @@ class Fun(Cog):
                     f"Setting roulette timeout for privileged user {interaction.user}"
                 )
                 expires = dt.now() + Duration.ROULETTE_TIMEOUT
-                await self.bot.pg_pool.execute(
+                await self.standby.pg_pool.execute(
                     "INSERT INTO tmers (usr_id, expires, ttype) VALUES ($1, $2, $3);",
                     interaction.user.id,
                     expires,
@@ -849,17 +850,17 @@ class Fun(Cog):
             current_streak = stats[0]["current_roulette_streak"]
             max_streak = stats[0]["max_roulette_streak"]
 
-            server_current_max = await self.bot.pg_pool.fetch(
+            server_current_max = await self.standby.pg_pool.fetch(
                 "SELECT MAX(current_roulette_streak) from usr"
             )
             server_current_max = server_current_max[0]["max"]
 
-            server_alltime_max = await self.bot.pg_pool.fetch(
+            server_alltime_max = await self.standby.pg_pool.fetch(
                 "SELECT MAX(max_roulette_streak) from usr"
             )
             server_alltime_max = server_alltime_max[0]["max"]
 
-            await self.bot.pg_pool.execute(
+            await self.standby.pg_pool.execute(
                 "UPDATE usr SET current_roulette_streak = current_roulette_streak + 1,"
                 "max_roulette_streak = "
                 "GREATEST(current_roulette_streak + 1, max_roulette_streak) "
@@ -978,8 +979,8 @@ class Fun(Cog):
             )
             return
 
-        await db.get_or_insert_usr(self.bot, user.id, interaction.guild.id)
-        await self.bot.pg_pool.execute(
+        await db.get_or_insert_usr(user.id, interaction.guild.id)
+        await self.standby.pg_pool.execute(
             f"UPDATE usr SET thanks = thanks + 1 WHERE usr_id = {user.id}"
         )
         await interaction.send(f"Gave +1 Void to {user.mention}")
@@ -1046,12 +1047,12 @@ class Fun(Cog):
         review=SlashOption(description="Review or comment (optional)", required=False),
     ):
         title = uf.titlecase(title)
-        exists = await self.bot.pg_pool.fetch(
+        exists = await self.standby.pg_pool.fetch(
             "SELECT * FROM movies "
             f"WHERE usr_id = '{interaction.user.id}' AND title = '{title}'"
         )
         if exists:
-            await self.bot.pg_pool.execute(
+            await self.standby.pg_pool.execute(
                 f"UPDATE movies SET rating = {rating}, review = '{review}' "
                 f"WHERE usr_id = {interaction.user.id} AND title = '{title}'"
             )
@@ -1063,7 +1064,7 @@ class Fun(Cog):
                 msg += f"\nNew review: {review}"
             await interaction.send(msg)
         else:
-            await self.bot.pg_pool.execute(
+            await self.standby.pg_pool.execute(
                 "INSERT INTO movies (usr_id, title, rating, review) "
                 "VALUES ($1, $2, $3, $4);",
                 interaction.user.id,
@@ -1079,7 +1080,7 @@ class Fun(Cog):
     @movie.subcommand(description="Check a movie's average score")
     async def score(self, interaction, title):
         title = uf.titlecase(title)
-        ratings = await self.bot.pg_pool.fetch(
+        ratings = await self.standby.pg_pool.fetch(
             f"SELECT COUNT(rating) AS count, ROUND(AVG(rating), 1) AS score "
             f"FROM movies WHERE title = '{title}'"
         )
@@ -1095,7 +1096,7 @@ class Fun(Cog):
     @movie.subcommand(description="Read all reviews for a movie")
     async def reviews(self, interaction, title):
         title = uf.titlecase(title)
-        recs = await self.bot.pg_pool.fetch(
+        recs = await self.standby.pg_pool.fetch(
             f"SELECT usr_id, rating, review FROM movies WHERE title = '{title}'"
         )
         if not recs:
@@ -1118,15 +1119,14 @@ class BurgerView(ui.View):
         self.attempted = params["attempted"]
         self.ordering = params["ordering"]
         answers = [*params["correct"], *params["wrong"]]
-        bot = params["bot"]
 
         for index in self.ordering:
-            self.add_item(self.BurgerButton(label=answers[index], bot=bot))
+            self.add_item(self.BurgerButton(label=answers[index]))
 
     class BurgerButton(ui.Button):
-        def __init__(self, label, bot):
+        def __init__(self, label):
             super().__init__(style=ButtonStyle.blurple, label=label)
-            self.bot = bot
+            self.standby = Standby()
 
         async def callback(self, interaction):
             if interaction.user.id == self.view.last_owner_id:
@@ -1152,20 +1152,18 @@ class BurgerView(ui.View):
                     f"{interaction.user.mention} has claimed the burger! "
                     "Now use it wisely."
                 )
-                await self.bot.pg_pool.execute(
+                await self.standby.pg_pool.execute(
                     f"DELETE from buttons WHERE channel_id = {interaction.channel.id} "
-                    f"AND message_id = {interaction.message.id}"
+                    f"AND message_id = {interaction.message.id}",
                 )
 
-                await db.get_or_insert_usr(
-                    self.bot, interaction.user.id, interaction.guild.id
-                )
-                await self.bot.pg_pool.execute(
+                await db.get_or_insert_usr(interaction.user.id, interaction.guild.id)
+                await self.standby.pg_pool.execute(
                     f"UPDATE usr SET burgers = burgers + 1 "
                     f"WHERE usr_id = {interaction.user.id}"
                 )
 
-                history = await db.get_note(self.bot, "burger history")
+                history = await db.get_note("burger history")
                 if history:
                     history = json.loads(history)
                     mentions = [f"<@{user_id}>" for user_id in history]
@@ -1180,13 +1178,13 @@ class BurgerView(ui.View):
                     history = [interaction.user.id, *history[:4]]
                 else:
                     history = [interaction.user.id]
-                await self.bot.pg_pool.execute(
+                await self.standby.pg_pool.execute(
                     "INSERT INTO tmers (usr_id, expires, ttype) VALUES ($1, $2, $3);",
                     interaction.user.id,
                     dt.now() + Duration.BURGER_TIMEOUT,
                     TimerType.BURGER,
                 )
-                await db.log_or_update_note(self.bot, "burger history", history)
+                await db.log_or_update_note("burger history", history)
 
             else:
                 await interaction.send(
@@ -1195,14 +1193,14 @@ class BurgerView(ui.View):
                 )
                 self.view.attempted.append(interaction.user.id)
                 await db.update_button_params(
-                    self.bot, interaction.message.id, {"attempted": self.view.attempted}
+                    interaction.message.id, {"attempted": self.view.attempted}
                 )
 
 
 class PredictionView(ui.View):
     def __init__(self, **params):
         super().__init__(timeout=None)
-        self.bot = params["bot"]
+        self.standby = Standby()
         self.owner_id = params["owner_id"]
         self.votes_for = params["votes_for"]
         self.votes_against = params["votes_against"]
@@ -1231,7 +1229,7 @@ class PredictionView(ui.View):
             await interaction.send(
                 f"{uf.id_to_mention(self.owner_id)} has been awarded an orb!"
             )
-            await self.bot.pg_pool.execute(
+            await self.standby.pg_pool.execute(
                 f"DELETE FROM buttons WHERE message_id = {interaction.message.id}"
             )
             new_text = re.sub(
@@ -1243,7 +1241,6 @@ class PredictionView(ui.View):
             await interaction.message.edit(content=new_text, view=None)
         else:
             await db.update_button_params(
-                self.bot,
                 interaction.message.id,
                 {"votes_for": self.votes_for, "votes_against": self.votes_against},
             )
@@ -1251,7 +1248,7 @@ class PredictionView(ui.View):
     @ui.button(emoji="❌", style=ButtonStyle.blurple)
     async def deny_orb(self, button, interaction):  # noqa: ARG002
         if interaction.user.id == self.owner_id:
-            await self.bot.pg_pool.execute(
+            await self.standby.pg_pool.execute(
                 f"DELETE FROM buttons WHERE message_id = {interaction.message.id}"
             )
             new_text = re.sub(
@@ -1279,7 +1276,7 @@ class PredictionView(ui.View):
                 f"{uf.id_to_mention(self.owner_id)}'s prediction has been deemed "
                 "unworthy of an 🔮!"
             )
-            await self.bot.pg_pool.execute(
+            await self.standby.pg_pool.execute(
                 f"DELETE FROM buttons WHERE message_id = {interaction.message.id}"
             )
             new_text = re.sub(
@@ -1291,11 +1288,10 @@ class PredictionView(ui.View):
             await interaction.message.edit(content=new_text, view=None)
         else:
             await db.update_button_params(
-                self.bot,
                 interaction.message.id,
                 {"votes_for": self.votes_for, "votes_against": self.votes_against},
             )
 
 
 def setup(bot):
-    bot.add_cog(Fun(bot))
+    bot.add_cog(Fun())

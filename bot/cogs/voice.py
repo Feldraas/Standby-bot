@@ -3,14 +3,15 @@ import logging
 from nextcord.channel import VoiceChannel
 from nextcord.ext.commands import Cog
 
+from config.domain import Standby
 from utils import util_functions as uf
 
 logger = logging.getLogger(__name__)
 
 
 class Voice(Cog):
-    def __init__(self, bot):
-        self.bot = bot
+    def __init__(self):
+        self.standby = Standby()
 
     @Cog.listener()
     async def on_voice_state_update(self, member, before, after):
@@ -49,4 +50,4 @@ class Voice(Cog):
 
 
 def setup(bot):
-    bot.add_cog(Voice(bot))
+    bot.add_cog(Voice())

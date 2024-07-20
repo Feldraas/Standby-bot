@@ -8,7 +8,15 @@ import nextcord.utils
 from nextcord import Embed, SlashOption, slash_command
 from nextcord.ext.commands import Cog
 
-from config.domain import EMPTY_STRING, ID, URL, ChannelName, Color, Permissions
+from config.domain import (
+    EMPTY_STRING,
+    ID,
+    URL,
+    ChannelName,
+    Color,
+    Permissions,
+    Standby,
+)
 from utils import util_functions as uf
 
 logger = logging.getLogger(__name__)
@@ -18,8 +26,8 @@ TADA = "🎉"
 
 
 class Giveaways(Cog):
-    def __init__(self, bot):
-        self.bot = bot
+    def __init__(self):
+        self.standby = Standby()
         self.check_giveaways.start()
 
     def cog_unload(self):
@@ -226,7 +234,7 @@ class Giveaways(Cog):
     @uf.delayed_loop(minutes=1)
     async def check_giveaways(self):
         try:
-            guild = await self.bot.fetch_guild(ID.GUILD)
+            guild = await self.standby.bot.fetch_guild(ID.GUILD)
         except Exception:
             logger.exception("Could not fetch guild")
             return
@@ -263,9 +271,9 @@ async def who_reacted(message, emoji):
     return users
 
 
-async def giveaway_handler(bot, payload):
+async def giveaway_handler(payload):
     if isinstance(payload, nextcord.RawReactionActionEvent):
-        channel = bot.get_channel(payload.channel_id)
+        channel = Standby().bot.get_channel(payload.channel_id)
         message = await channel.fetch_message(payload.message_id)
         if (
             payload.emoji.name == TADA
@@ -391,4 +399,4 @@ def delta_to_text(delta) -> str:
 
 
 def setup(bot):
-    bot.add_cog(Giveaways(bot))
+    bot.add_cog(Giveaways())

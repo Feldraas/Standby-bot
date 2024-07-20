@@ -10,7 +10,7 @@ from nextcord import (
 from nextcord.errors import NotFound
 from nextcord.ext.commands import Cog
 
-from config.domain import EMPTY_STRING, ChannelName, Color
+from config.domain import EMPTY_STRING, ChannelName, Color, Standby
 from utils import util_functions as uf
 
 EMBED_DESCRIPTION_LIMIT = 950
@@ -19,12 +19,12 @@ logger = logging.getLogger(__name__)
 
 
 class Logs(Cog):
-    def __init__(self, bot):
-        self.bot = bot
+    def __init__(self):
+        self.standby = Standby()
 
     @Cog.listener()
     async def on_raw_message_delete(self, payload):
-        channel = self.bot.get_channel(payload.channel_id)
+        channel = self.standby.bot.get_channel(payload.channel_id)
         logger.info(f"Message deleted in {channel.name}")
         if channel.name == ChannelName.LOGS:
             return
@@ -38,9 +38,9 @@ class Logs(Cog):
 
     @Cog.listener()
     async def on_raw_message_edit(self, payload):
-        embed = await edited_embed(self.bot, payload)
+        embed = await edited_embed(payload)
         if embed:
-            channel = self.bot.get_channel(payload.channel_id)
+            channel = self.standby.bot.get_channel(payload.channel_id)
             logs = uf.get_channel(channel.guild, ChannelName.LOGS)
             if logs:
                 await logs.send(embed=embed)
@@ -113,7 +113,7 @@ async def deleted_embed(payload, channel):
     return embed, files
 
 
-async def edited_embed(bot, payload):  # noqa: C901, PLR0912, PLR0915
+async def edited_embed(payload):  # noqa: C901, PLR0912, PLR0915
     before = payload.cached_message
     after = payload.data
     if "content" in after:
@@ -148,6 +148,7 @@ async def edited_embed(bot, payload):  # noqa: C901, PLR0912, PLR0915
         channel_id = after["channel_id"]
         message_id = after["id"]
 
+        bot = Standby().bot
         guild = await bot.fetch_guild(guild_id)
         author = await guild.fetch_member(author_id)
         if author.bot or not author:
@@ -347,4 +348,4 @@ async def component_embed(interaction):
 
 
 def setup(bot):
-    bot.add_cog(Logs(bot))
+    bot.add_cog(Logs())

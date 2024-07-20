@@ -3,7 +3,7 @@ import logging
 from nextcord import RawReactionActionEvent
 from nextcord.ext.commands import Cog
 
-from config.domain import ID, Duration, Emoji, RoleName, Threshold, TimerType
+from config.domain import ID, Duration, Emoji, RoleName, Standby, Threshold, TimerType
 from db_integration import db_functions as db
 from utils import util_functions as uf
 
@@ -11,8 +11,8 @@ logger = logging.getLogger(__name__)
 
 
 class Reposts(Cog):
-    def __init__(self, bot):
-        self.bot = bot
+    def __init__(self):
+        self.standby = Standby()
         self.check_reposters.start()
 
     def cog_unload(self):
@@ -20,7 +20,7 @@ class Reposts(Cog):
 
     @Cog.listener()
     async def on_raw_reaction_add(self, payload):
-        guild = await self.bot.fetch_guild(ID.GUILD)
+        guild = await self.standby.bot.fetch_guild(ID.GUILD)
         reemoji = uf.get_emoji(guild, Emoji.REEPOSTER)
         reeposter = uf.get_role(guild, RoleName.REEPOSTER)
 
@@ -29,7 +29,7 @@ class Reposts(Cog):
         ):
             return
         logger.info(f"Reeposter emoji added to {reeposter}'s post")
-        channel = self.bot.get_channel(payload.channel_id)
+        channel = self.standby.bot.get_channel(payload.channel_id)
         message = await channel.fetch_message(payload.message_id)
         message_age = uf.utcnow() - message.created_at
 
@@ -43,10 +43,10 @@ class Reposts(Cog):
                 rees = emoji.count
 
         if rees >= Threshold.REEPOSTER:
-            await db.ensure_guild_existence(self.bot, message.guild.id)
-            await db.get_or_insert_usr(self.bot, message.author.id, message.guild.id)
+            await db.ensure_guild_existence(message.guild.id)
+            await db.get_or_insert_usr(message.author.id, message.guild.id)
             await message.author.add_roles(reeposter)
-            exists = await self.bot.pg_pool.fetch(
+            exists = await self.standby.pg_pool.fetch(
                 "SELECT * FROM tmers "
                 f"WHERE ttype={TimerType.REPOST} AND usr_id = {message.author.id}"
             )
@@ -55,7 +55,7 @@ class Reposts(Cog):
                 logger.info(f"Adding reeposter role to {reeposter}")
                 expires = message.created_at + Duration.REPOSTER
                 expires = expires.replace(microsecond=0, tzinfo=None)
-                await self.bot.pg_pool.execute(
+                await self.standby.pg_pool.execute(
                     "INSERT INTO tmers (usr_id, expires, ttype) VALUES ($1, $2, $3)",
                     message.author.id,
                     expires,
@@ -65,7 +65,7 @@ class Reposts(Cog):
     @uf.delayed_loop(seconds=60)
     async def check_reposters(self):
         try:
-            gtable = await self.bot.pg_pool.fetch(
+            gtable = await self.standby.pg_pool.fetch(
                 f"SELECT * FROM tmers WHERE ttype={TimerType.REPOST}"
             )
             for rec in gtable:
@@ -74,14 +74,14 @@ class Reposts(Cog):
                     continue
 
                 logger.info("Reepost timer expired")
-                guild_id = await self.bot.pg_pool.fetchval(
+                guild_id = await self.standby.pg_pool.fetchval(
                     f"SELECT guild_id FROM usr WHERE usr_id = {rec['usr_id']}"
                 )
-                guild = await self.bot.fetch_guild(guild_id)
+                guild = await self.standby.bot.fetch_guild(guild_id)
                 user = await guild.fetch_member(rec["usr_id"])
                 reeposter = uf.get_role(guild, RoleName.REEPOSTER)
                 await user.remove_roles(reeposter)
-                await self.bot.pg_pool.execute(
+                await self.standby.pg_pool.execute(
                     f"DELETE FROM tmers WHERE tmer_id = {rec['tmer_id']};"
                 )
         except AttributeError:
@@ -91,4 +91,4 @@ class Reposts(Cog):
 
 
 def setup(bot):
-    bot.add_cog(Reposts(bot))
+    bot.add_cog(Reposts())

@@ -4,7 +4,7 @@ import nextcord.utils
 from nextcord import SlashOption, slash_command
 from nextcord.ext.commands import Cog
 
-from config.domain import ID, RoleName
+from config.domain import ID, RoleName, Standby
 from db_integration import db_functions as db
 from utils import util_functions as uf
 
@@ -12,8 +12,8 @@ logger = logging.getLogger(__name__)
 
 
 class Birthdays(Cog):
-    def __init__(self, bot):
-        self.bot = bot
+    def __init__(self):
+        self.standby = Standby()
         self.check_bdays.start()
 
     def cog_unload(self):
@@ -54,22 +54,22 @@ class Birthdays(Cog):
             await interaction.send("Invalid date - please try again.", ephemeral=True)
             return
 
-        await db.ensure_guild_existence(self.bot, interaction.guild.id)
-        await db.get_or_insert_usr(self.bot, interaction.user.id, interaction.guild.id)
+        await db.ensure_guild_existence(interaction.guild.id)
+        await db.get_or_insert_usr(interaction.user.id, interaction.guild.id)
 
-        exists = await self.bot.pg_pool.fetch(
+        exists = await self.standby.pg_pool.fetch(
             f"SELECT * FROM bdays WHERE usr_id = {interaction.user.id}"
         )
 
         if exists:
             logger.info(f"Updating {interaction.user}'s birthday to {day} {month_name}")
-            await self.bot.pg_pool.execute(
+            await self.standby.pg_pool.execute(
                 f"UPDATE bdays SET month = {month}, day = {day} "
                 f"WHERE usr_id = {interaction.user.id}"
             )
         else:
             logger.info(f"Setting {interaction.user}'s birthday to {day} {month_name}")
-            await self.bot.pg_pool.execute(
+            await self.standby.pg_pool.execute(
                 "INSERT INTO bdays (usr_id, month, day) VALUES ($1, $2, $3);",
                 interaction.user.id,
                 month,
@@ -80,21 +80,21 @@ class Birthdays(Cog):
 
     @birthday.subcommand(description="Remove your birthday")
     async def remove(self, interaction):
-        exists = await self.bot.pg_pool.fetch(
+        exists = await self.standby.pg_pool.fetch(
             f"SELECT * FROM bdays WHERE usr_id = {interaction.user.id}"
         )
         if not exists:
             await interaction.send("You have not set your birthday.", ephemeral=True)
         else:
             logger.info(f"Removing {interaction.user}'s birthday")
-            await self.bot.pg_pool.execute(
+            await self.standby.pg_pool.execute(
                 f"DELETE FROM bdays WHERE usr_id = {interaction.user.id};"
             )
             await interaction.send("Birthday removed.", ephemeral=True)
 
     @birthday.subcommand(description="Check your birthday (only visible to you)")
     async def check(self, interaction):
-        exists = await self.bot.pg_pool.fetch(
+        exists = await self.standby.pg_pool.fetch(
             f"SELECT * FROM bdays WHERE usr_id = {interaction.user.id}"
         )
         if not exists:
@@ -114,9 +114,9 @@ class Birthdays(Cog):
             return
 
         logger.info("Checking birthdays")
-        await self.bot.wait_until_ready()
+        await self.standby.bot.wait_until_ready()
 
-        guild = await self.bot.fetch_guild(ID.GUILD)
+        guild = await self.standby.bot.fetch_guild(ID.GUILD)
 
         bday_role = uf.get_role(guild, RoleName.BIRTHDAY)
 
@@ -125,7 +125,7 @@ class Birthdays(Cog):
                 logger.info(f"Removing birthday role from {member}")
                 await member.remove_roles(bday_role)
 
-        gtable = await self.bot.pg_pool.fetch(
+        gtable = await self.standby.pg_pool.fetch(
             f"SELECT * FROM bdays WHERE month = {now.month} AND day = {now.day}"
         )
 
@@ -153,4 +153,4 @@ class Birthdays(Cog):
 
 
 def setup(bot):
-    bot.add_cog(Birthdays(bot))
+    bot.add_cog(Birthdays())

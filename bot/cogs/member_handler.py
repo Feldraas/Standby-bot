@@ -5,15 +5,15 @@ import random
 from nextcord import Embed
 from nextcord.ext.commands import Cog
 
-from config.domain import ID, URL, ChannelName, Color
+from config.domain import ID, URL, ChannelName, Color, Standby
 from utils import util_functions as uf
 
 logger = logging.getLogger(__name__)
 
 
 class MemberHandler(Cog):
-    def __init__(self, bot):
-        self.bot = bot
+    def __init__(self):
+        self.standby = Standby()
 
     @Cog.listener()
     async def on_member_remove(self, payload):
@@ -113,4 +113,4 @@ async def level3_handler(before, after):
 
 
 def setup(bot):
-    bot.add_cog(MemberHandler(bot))
+    bot.add_cog(MemberHandler())
