@@ -5,7 +5,7 @@ import requests
 from nextcord import SlashOption, slash_command
 from nextcord.ext.commands import Cog
 
-from config.constants import Token
+from config.domain import Token
 
 logger = logging.getLogger(__name__)
 

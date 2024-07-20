@@ -13,7 +13,7 @@ from nextcord.ext.tasks import LF, Loop
 from nextcord.utils import MISSING
 from PIL import Image, ImageDraw, ImageFont
 
-from config.constants import BOT_TZ, EMPTY_STRING, URL, Color, RoleName
+from config.domain import BOT_TZ, EMPTY_STRING, URL, Color, RoleName
 
 
 def get_emoji(guild, name):

@@ -5,7 +5,7 @@ from datetime import datetime as dt
 from nextcord.ext.commands import Cog
 
 from cogs.error_handler import unhandled_error_embed
-from config.constants import ID, VALID_TEXT_CHANNEL, ChannelName
+from config.domain import ID, VALID_TEXT_CHANNEL, ChannelName
 from utils import util_functions as uf
 from utils.regex import (
     RegexResponse,

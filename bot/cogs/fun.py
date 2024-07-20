@@ -25,7 +25,7 @@ from PIL import Image, ImageDraw, ImageFont
 from transliterate import translit
 from transliterate.base import TranslitLanguagePack, registry
 
-from config.constants import (
+from config.domain import (
     EMPTY_STRING,
     ID,
     URL,

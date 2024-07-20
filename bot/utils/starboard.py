@@ -8,7 +8,7 @@ from nextcord import (
     RawReactionClearEvent,
 )
 
-from config.constants import ID, Color, Threshold
+from config.domain import ID, Color, Threshold
 from db_integration import db_functions as db
 
 logger = logging.getLogger(__name__)

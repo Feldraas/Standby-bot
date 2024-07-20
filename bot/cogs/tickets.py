@@ -3,7 +3,7 @@ import logging
 from nextcord import ButtonStyle, Embed, PermissionOverwrite, slash_command, ui
 from nextcord.ext.commands import Cog
 
-from config.constants import CategoryName, ChannelName, Color, Permissions, RoleName
+from config.domain import CategoryName, ChannelName, Color, Permissions, RoleName
 from db_integration import db_functions as db
 from utils import util_functions as uf
 

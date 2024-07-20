@@ -7,7 +7,7 @@ from dataclasses import dataclass
 import nextcord
 import requests
 
-from config.constants import ID, URL, ChannelName
+from config.domain import ID, URL, ChannelName
 from db_integration import db_functions as db
 from utils import util_functions as uf
 from utils import warframe as wf

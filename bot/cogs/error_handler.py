@@ -4,7 +4,7 @@ import logging
 from nextcord import Embed, Message
 from nextcord.ext.commands import Cog, Context, errors
 
-from config.constants import ID, ChannelName, Color
+from config.domain import ID, ChannelName, Color
 from db_integration import db_functions as db
 from utils import util_functions as uf
 

@@ -8,7 +8,7 @@ import nextcord.utils
 from nextcord import Embed, SlashOption, slash_command
 from nextcord.ext.commands import Cog
 
-from config.constants import EMPTY_STRING, ID, URL, ChannelName, Color, Permissions
+from config.domain import EMPTY_STRING, ID, URL, ChannelName, Color, Permissions
 from utils import util_functions as uf
 
 logger = logging.getLogger(__name__)

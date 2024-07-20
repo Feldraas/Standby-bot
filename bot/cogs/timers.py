@@ -6,7 +6,7 @@ from datetime import timedelta
 from nextcord import SlashOption, slash_command
 from nextcord.ext.commands import Cog
 
-from config.constants import ID, TimerType
+from config.domain import ID, TimerType
 from db_integration import db_functions as db
 from utils import util_functions as uf
 

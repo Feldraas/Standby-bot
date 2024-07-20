@@ -3,7 +3,7 @@ import logging
 from nextcord import RawReactionActionEvent
 from nextcord.ext.commands import Cog
 
-from config.constants import ID, Duration, Emoji, RoleName, Threshold, TimerType
+from config.domain import ID, Duration, Emoji, RoleName, Threshold, TimerType
 from db_integration import db_functions as db
 from utils import util_functions as uf
 

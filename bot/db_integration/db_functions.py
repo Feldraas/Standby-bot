@@ -3,7 +3,7 @@ from datetime import datetime as dt
 
 import asyncpg
 
-from config.constants import URL
+from config.domain import URL
 from db_integration.create_scripts import create_tables
 
 bot_start_time = dt.now()

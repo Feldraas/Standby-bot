@@ -6,7 +6,7 @@ from math import ceil
 from nextcord import ButtonStyle, Embed, SelectOption, SlashOption, slash_command, ui
 from nextcord.ext.commands import Cog
 
-from config.constants import (
+from config.domain import (
     EMPTY_STRING,
     ID,
     URL,

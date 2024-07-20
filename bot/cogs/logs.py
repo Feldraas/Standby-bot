@@ -10,7 +10,7 @@ from nextcord import (
 from nextcord.errors import NotFound
 from nextcord.ext.commands import Cog
 
-from config.constants import EMPTY_STRING, ChannelName, Color
+from config.domain import EMPTY_STRING, ChannelName, Color
 from utils import util_functions as uf
 
 EMBED_DESCRIPTION_LIMIT = 950

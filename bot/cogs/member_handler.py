@@ -5,7 +5,7 @@ import random
 from nextcord import Embed
 from nextcord.ext.commands import Cog
 
-from config.constants import ID, URL, ChannelName, Color
+from config.domain import ID, URL, ChannelName, Color
 from utils import util_functions as uf
 
 logger = logging.getLogger(__name__)

@@ -11,7 +11,7 @@ import nextcord
 from nextcord import Game
 from sqlalchemy import create_engine, text
 
-from config.constants import BOT_TZ, ID, URL, Format
+from config.domain import BOT_TZ, ID, URL, Format
 
 logger = logging.getLogger(__name__)
 

@@ -15,7 +15,7 @@ from nextcord import (
 from nextcord.ext.commands import Cog
 
 import utils.util_functions as uf
-from config.constants import ID, Color
+from config.domain import ID, Color
 from db_integration import db_functions as db
 
 logger = logging.getLogger(__name__)

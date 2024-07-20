@@ -4,7 +4,7 @@ import nextcord.utils
 from nextcord import SlashOption, slash_command
 from nextcord.ext.commands import Cog
 
-from config.constants import ID, RoleName
+from config.domain import ID, RoleName
 from db_integration import db_functions as db
 from utils import util_functions as uf
 

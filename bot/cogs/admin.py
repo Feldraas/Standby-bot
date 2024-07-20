@@ -20,7 +20,7 @@ from nextcord.ext.commands import Cog
 from PIL import Image
 
 import config.startup
-from config.constants import (
+from config.domain import (
     ID,
     URL,
     VALID_TEXT_CHANNEL,

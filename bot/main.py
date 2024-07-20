@@ -5,7 +5,7 @@ from nextcord import Intents
 from nextcord.ext.commands import Bot
 
 from config import startup
-from config.constants import Token
+from config.domain import Token
 from db_integration import db_functions as db
 
 bot = Bot(intents=Intents.all(), case_insensitive=True)
