@@ -1,10 +1,11 @@
+"""Create and manage timers."""
+
 import json
 import logging
-from datetime import datetime as dt
-from datetime import timedelta
+from datetime import datetime, timedelta
 
-from nextcord import SlashOption, slash_command
-from nextcord.ext.commands import Cog
+from nextcord import Interaction, SlashOption, slash_command
+from nextcord.ext.commands import Bot, Cog
 
 from db_integration import db_functions as db
 from domain import Standby, TimerType
@@ -14,18 +15,16 @@ logger = logging.getLogger(__name__)
 
 
 class Timers(Cog):
-    def __init__(self):
+    def __init__(self) -> None:
         self.standby = Standby()
-        self.check_timers.start()
-
-    def cog_unload(self):
-        self.check_timers.cancel()
+        self.check_reminders.start()
 
     @uf.delayed_loop(seconds=10)
-    async def check_timers(self):
+    async def check_reminders(self) -> None:
+        """Check if any reminder timers have expired."""
         try:
             gtable = await self.standby.pg_pool.fetch(
-                f"SELECT * FROM tmers WHERE ttype={TimerType.REMINDER}"
+                f"SELECT * FROM tmers WHERE ttype={TimerType.REMINDER}",
             )
         except AttributeError:
             logger.exception("Bot hasn't loaded yet - pg_pool doesn't exist")
@@ -35,7 +34,7 @@ class Timers(Cog):
             return
 
         for rec in gtable:
-            timenow = dt.now()
+            timenow = datetime.now()
             if timenow <= rec["expires"]:
                 continue
 
@@ -45,7 +44,8 @@ class Timers(Cog):
             if "msg" not in params_dict or "channel" not in params_dict:
                 logger.warning(f"Deleting invalid json: {params_dict}")
                 await self.standby.pg_pool.execute(
-                    "DELETE FROM tmers WHERE tmer_id = $1;", rec["tmer_id"]
+                    "DELETE FROM tmers WHERE tmer_id = $1;",
+                    rec["tmer_id"],
                 )
                 continue
 
@@ -74,29 +74,42 @@ class Timers(Cog):
                 await user.send(message)
 
             await self.standby.pg_pool.execute(
-                "DELETE FROM tmers WHERE tmer_id = $1;", rec["tmer_id"]
+                "DELETE FROM tmers WHERE tmer_id = $1;",
+                rec["tmer_id"],
             )
 
     @slash_command(description="Commands for setting reminders")
-    async def remindme(self, interaction):
-        pass
+    async def remindme(self, interaction: Interaction) -> None:
+        """Command group for setting reminders."""
 
     @remindme.subcommand(description="Reminds you after a specified time", name="in")
     async def remindme_in(
         self,
-        interaction,
+        interaction: Interaction,
         days: int = SlashOption(description="Days until the reminder", min_value=0),
         hours: int = SlashOption(description="Hours until the reminder", min_value=0),
         minutes: int = SlashOption(
-            description="Minutes until the reminder", min_value=0
+            description="Minutes until the reminder",
+            min_value=0,
         ),
-        message=SlashOption(description="A message for the reminder"),
+        message: str = SlashOption(description="A message for the reminder"),
         location: str = SlashOption(
             description="Where to send the reminder",
             choices=["This channel", "DM", "Both"],
             default="This channel",
         ),
-    ):
+    ) -> None:
+        """Create a reminder that triggers after the specified delay.
+
+        Args:
+            interaction (Interaction): Invoking interaction
+            days (int): Days until the reminder
+            hours (int): Hours until the reminder
+            minutes (int): Minutes until the reminder
+            message (str): A message for the reminder
+            location (str, optional): Where to send the reminder. Can be
+                in the interaction channel, as a DM, or both.
+        """
         if days + hours + minutes == 0:
             await interaction.send(
                 ephemeral=True,
@@ -109,7 +122,7 @@ class Timers(Cog):
             return
 
         logger.info(f"Creating reminder for {interaction.user}")
-        now = dt.now()
+        now = datetime.now()
         delta = timedelta(days=days, hours=hours, minutes=minutes)
         expires = now + delta
         expires = expires.replace(microsecond=0)
@@ -117,7 +130,7 @@ class Timers(Cog):
         confirmation = await interaction.send(
             f"{uf.dynamic_timestamp(now, 'short time')}: Your reminder has been "
             "registered and you will be reminded "
-            f"on {uf.dynamic_timestamp(expires, 'date and time')}."
+            f"on {uf.dynamic_timestamp(expires, 'date and time')}.",
         )
         full_confirmation = await confirmation.fetch()
         await create_reminder(
@@ -129,11 +142,12 @@ class Timers(Cog):
         )
 
     @remindme.subcommand(
-        description="Reminds you at a specified date and time", name="at"
+        description="Reminds you at a specified date and time",
+        name="at",
     )
     async def remindme_at(
         self,
-        interaction,
+        interaction: Interaction,
         year: int = SlashOption(description="Year of the reminder"),
         month: int = SlashOption(description="Month of the reminder"),
         day: int = SlashOption(description="Day of the reminder"),
@@ -145,10 +159,23 @@ class Timers(Cog):
             choices=["This channel", "DM", "Both"],
             default="This channel",
         ),
-    ):
-        now = dt.now()
+    ) -> None:
+        """Create a reminder that triggers at a specified point in time.
+
+        Args:
+            interaction (Interaction): Invoking interaction.
+            year (int): Year of the reminder
+            month (int): Month of the reminder
+            day (int): Day of the reminder
+            hour (int): Hour of the reminder
+            minute (int): Minute of the reminder
+            message (str): A message for the reminder
+            location (str, optional): Where to send the reminder. Can be
+                in the interaction channel, as a DM, or both.
+        """
+        now = datetime.now()
         try:
-            expires = dt(
+            expires = datetime(
                 year=year,
                 month=month,
                 day=day,
@@ -158,7 +185,8 @@ class Timers(Cog):
             )
         except ValueError:
             await interaction.send(
-                "Please input a valid date and time.", ephemeral=True
+                "Please input a valid date and time.",
+                ephemeral=True,
             )
             return
 
@@ -174,7 +202,7 @@ class Timers(Cog):
         confirmation = await interaction.send(
             f"{uf.dynamic_timestamp(now, 'short time')}: Your reminder has been "
             "registered and you will be reminded "
-            f"on {uf.dynamic_timestamp(expires, 'date and time')}."
+            f"on {uf.dynamic_timestamp(expires, 'date and time')}.",
         )
         full_confirmation = await confirmation.fetch()
         await create_reminder(
@@ -187,14 +215,24 @@ class Timers(Cog):
 
 
 async def create_reminder(
-    interaction,
-    tfuture,
-    message,
-    confirmation_id,
-    location,
-):
+    interaction: Interaction,
+    tfuture: datetime,
+    message: str,
+    confirmation_id: int,
+    location: str,
+) -> None:
+    """Store the reminder in the database.
+
+    Args:
+        interaction (Interaction): Invoking interaction
+        tfuture (datetime): Reminder time
+        message (str): Reminder message
+        confirmation_id (int): ID of the confirmation message.
+            Used to send the reminder as a reply
+        location (str): Where to send the reminder
+    """
     await db.ensure_guild_existence(interaction.guild.id)
-    await db.get_or_insert_usr(interaction.user.id, interaction.guild.id)
+    await db.get_or_insert_usr(interaction.user.id)
 
     params_dict = {
         "msg": message,
@@ -213,5 +251,6 @@ async def create_reminder(
     )
 
 
-def setup(bot):
+def setup(bot: Bot) -> None:
+    """Automatically called during bot setup."""
     bot.add_cog(Timers())

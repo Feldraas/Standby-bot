@@ -1,3 +1,5 @@
+"""Fun commands (memes etc)."""
+
 import io
 import json
 import logging
@@ -8,19 +10,19 @@ from datetime import timedelta
 from itertools import permutations
 from pathlib import Path
 
-import aiohttp
 import nextcord
 import requests
 from nextcord import (
     ButtonStyle,
     Embed,
+    Interaction,
     Member,
     SlashOption,
     slash_command,
-    ui,
     user_command,
 )
-from nextcord.ext.commands import Cog
+from nextcord.ext.commands import Bot, Cog
+from nextcord.ui import Button, Select, View, button, select
 from PIL import Image, ImageDraw, ImageFont
 from transliterate import translit
 from transliterate.base import TranslitLanguagePack, registry
@@ -82,28 +84,33 @@ for file in Path("static/images/memes").iterdir():
 ALL_MEMES = sorted(set(ALL_MEMES), key=str.casefold)
 
 
-def add(lhs: int, rhs: int, pstr: str):
+def add(lhs: int, rhs: int, pstr: str) -> tuple[int, str]:
+    """Support function for the fabricate_number command."""
     return lhs + rhs, pstr + "+" + str(rhs)
 
 
-def sub(lhs: int, rhs: int, pstr: str):
+def sub(lhs: int, rhs: int, pstr: str) -> tuple[int, str]:
+    """Support function for the fabricate_number command."""
     return lhs - rhs, pstr + "-" + str(rhs)
 
 
-def mult(lhs: int, rhs: int, pstr: str):
+def mult(lhs: int, rhs: int, pstr: str) -> tuple[int, str]:
+    """Support function for the fabricate_number command."""
     if rhs == 0:
         return 0, ""
     return lhs * rhs, "(" + pstr + ")*" + str(rhs)
 
 
-def div(lhs: int, rhs: int, pstr: str):
+def div(lhs: int, rhs: int, pstr: str) -> tuple[float, str]:
+    """Support function for the fabricate_number command."""
     return lhs / rhs, "(" + pstr + ")/" + str(rhs)
 
 
 operations = [add, sub, mult, div]
 
 
-def create_concat_combinations(digits):
+def create_concat_combinations(digits: list[int]) -> list[list[int]]:
+    """Support function for the fabricate_number command."""
     combs = [digits.copy()]
     for tupling_sz in range(2, len(digits) + 1):
         for num_tupling in range(1, int(len(digits) / tupling_sz) + 1):
@@ -129,7 +136,13 @@ def create_concat_combinations(digits):
     return filtered_combs
 
 
-async def dfs(target, current_target, current_digits, current_str):
+async def dfs(
+    target: int,
+    current_target: int,
+    current_digits: list[int],
+    current_str: str,
+) -> str:
+    """Support function for the fabricate_number command."""
     if current_target == target:
         return current_str
 
@@ -153,45 +166,57 @@ async def dfs(target, current_target, current_digits, current_str):
 
 
 class Fun(Cog):
-    def __init__(self):
+    def __init__(self) -> None:
         self.standby = Standby()
         self.check_burger.start()
 
-    def cog_unload(self):
-        self.check_burger.cancel()
-
     @slash_command(description="YEE")
-    async def yee(self, interaction):
+    async def yee(self, interaction: Interaction) -> None:
+        """Send ASCII art of the YEEE dinosaur."""
         await interaction.send(YEEE)
 
     @slash_command(description="Gives a user a hug")
     async def hug(
         self,
-        interaction,
+        interaction: Interaction,
         user: Member = SlashOption(description="The user you want to send a hug to"),
-    ):
+    ) -> None:
+        """Hug another user.
+
+        Args:
+            interaction (Interaction): Invoking interaction
+            user (Member): Hug target
+        """
         if user == interaction.user:
             await interaction.send(URL.GITHUB_STATIC + "/images/selfhug.png")
         else:
             await interaction.send(
-                f"{user.mention}, {interaction.user.mention} sent you a hug!"
+                f"{user.mention}, {interaction.user.mention} sent you a hug!",
             )
             hug = uf.get_emoji("BlobReachAndHug")
             if hug:
                 await interaction.channel.send(hug)
 
     @user_command(name="Hug")
-    async def hug_context(self, interaction, user):
+    async def hug_context(self, interaction: Interaction, user: Member) -> None:
+        """Invoke the hug command through the user context menu."""
         await uf.invoke_slash_command("hug", self, interaction, user)
 
     @slash_command(description="Pay your respects")
     async def f(
         self,
-        interaction,
+        interaction: Interaction,
         target: str = SlashOption(
-            description="What do you want to pay your respects to?", required=False
+            description="What do you want to pay your respects to?",
+            required=False,
         ),
-    ):
+    ) -> None:
+        """Pay your respects to something.
+
+        Args:
+            interaction (Interaction): Invoking interaction
+            target (str): Target
+        """
         embed = Embed()
 
         embed.description = f"{interaction.user.mention} has paid their respects."
@@ -213,12 +238,18 @@ class Fun(Cog):
     @slash_command(description="Posts a meme.")
     async def meme(
         self,
-        interaction,
+        interaction: Interaction,
         meme: str = SlashOption(
             description="Start typing to see suggestions or enter `list` to "
-            "see a list of all available memes"
+            "see a list of all available memes",
         ),
-    ):
+    ) -> None:
+        """Send a meme.
+
+        Args:
+            interaction (Interaction): Invoking interaction
+            meme (str): Meme to send.
+        """
         if meme == "list":
             help_text = (
                 f"```Currently available memes:\n{"\n".join(["list", *ALL_MEMES])}```"
@@ -247,7 +278,19 @@ class Fun(Cog):
             )
 
     @meme.on_autocomplete("meme")
-    async def suggest_meme(self, interaction, user_input):
+    async def suggest_meme(
+        self,
+        interaction: Interaction,
+        user_input: str | None,
+    ) -> None:
+        """Autocomplete for user input in the meme command.
+
+        Suggests memes with matching names.
+
+        Args:
+            interaction (Interaction): Invoking interaction
+            user_input (str | None): Currently entered text
+        """
         if user_input:
             matches = sorted(
                 (meme for meme in ALL_MEMES if user_input.lower() in meme.lower()),
@@ -260,8 +303,17 @@ class Fun(Cog):
 
     @slash_command(description="Convert text into cyrillic")
     async def cyrillify(
-        self, interaction, text: str = SlashOption(description="Text to cyrillify")
-    ):
+        self,
+        interaction: Interaction,
+        text: str = SlashOption(description="Text to cyrillify"),
+    ) -> None:
+        """Convert a text to cyryllic script (badly).
+
+        Args:
+            interaction (Interaction): Invoking interaction
+            text (str): Text to convert.
+        """
+
         class ExampleLanguagePack(TranslitLanguagePack):
             language_code = "custom"
             language_name = "Custom"
@@ -296,9 +348,15 @@ class Fun(Cog):
     @slash_command(description="Burger someone")
     async def burger(
         self,
-        interaction,
+        interaction: Interaction,
         target: Member = SlashOption(description="The person you want to burger"),
-    ):
+    ) -> None:
+        """Burger another user.
+
+        Args:
+            interaction (Interaction): Invoking interaction
+            target (Member): The user to burger
+        """
         logger.info(f"{interaction.user} is attempting to burger {target}")
         burgered = uf.get_role("Burgered")
         if burgered and burgered in interaction.user.roles:
@@ -321,14 +379,14 @@ class Fun(Cog):
                 logger.info("Sending message")
                 await interaction.response.send_message(target.mention)
                 await interaction.channel.send(
-                    URL.GITHUB_STATIC + "/images/burgered.png"
+                    URL.GITHUB_STATIC + "/images/burgered.png",
                 )
 
                 logger.info("Setting timer")
                 expires = dt.now() + Duration.BURGER_TIMEOUT
-                await db.get_or_insert_usr(target.id, interaction.guild.id)
+                await db.get_or_insert_usr(target.id)
                 await self.standby.pg_pool.execute(
-                    f"DELETE FROM tmers WHERE ttype = {TimerType.BURGER};"
+                    f"DELETE FROM tmers WHERE ttype = {TimerType.BURGER};",
                 )
                 await self.standby.pg_pool.execute(
                     "INSERT INTO tmers (usr_id, expires, ttype) VALUES ($1, $2, $3);",
@@ -339,7 +397,7 @@ class Fun(Cog):
 
                 logger.info("Updating history")
                 await self.standby.pg_pool.execute(
-                    f"UPDATE usr SET burgers = burgers + 1 WHERE usr_id = {target.id}"
+                    f"UPDATE usr SET burgers = burgers + 1 WHERE usr_id = {target.id}",
                 )
                 history = await db.get_note("burger history")
                 if history:
@@ -364,13 +422,21 @@ class Fun(Cog):
             )
 
     @user_command(name="Burger")
-    async def burger_context(self, interaction, user):
+    async def burger_context(self, interaction: Interaction, user: Member) -> None:
+        """Burger a user through the user context menu."""
         await uf.invoke_slash_command("burger", self, interaction, user)
 
     @slash_command(description="Yoink the burger")
-    async def yoink(self, interaction):
+    async def yoink(self, interaction: Interaction) -> None:
+        """Yoink the burger.
+
+        Users are limited to one yoink per month.
+
+        Args:
+            interaction (Interaction): Invoking interaction
+        """
         logger.info(f"{interaction.user} is attempting to yoink the burger")
-        await db.get_or_insert_usr(interaction.user.id, interaction.guild.id)
+        await db.get_or_insert_usr(interaction.user.id)
 
         burgered_role = uf.get_role("Burgered")
         holders = [
@@ -385,13 +451,13 @@ class Fun(Cog):
             await interaction.send(
                 f"{interaction.user.mention} has shamelessly attempted to yoink the "
                 f"burger from the {birthday_role.mention}. The punishment for such a "
-                "heinous crime is jail."
+                "heinous crime is jail.",
             )
             await uf.invoke_slash_command("jail", self, interaction, interaction.user)
             return
 
         recs = await self.standby.pg_pool.fetch(
-            f"SELECT last_yoink FROM usr WHERE usr_id = {interaction.user.id}"
+            f"SELECT last_yoink FROM usr WHERE usr_id = {interaction.user.id}",
         )
         last_yoink = recs[0]["last_yoink"]
         if last_yoink and dt.now() - last_yoink < timedelta(days=30):
@@ -406,7 +472,7 @@ class Fun(Cog):
         logger.info("Yoinking")
         await current_holder.remove_roles(burgered_role)
         await self.standby.pg_pool.execute(
-            f"DELETE FROM tmers WHERE ttype = {TimerType.BURGER}"
+            f"DELETE FROM tmers WHERE ttype = {TimerType.BURGER}",
         )
         await interaction.user.add_roles(burgered_role)
         expires = dt.now() + Duration.BURGER_TIMEOUT
@@ -418,7 +484,7 @@ class Fun(Cog):
         )
         await self.standby.pg_pool.execute(
             f"UPDATE usr SET last_yoink = '{dt.now()}', burgers = burgers + 1 "
-            f"WHERE usr_id = {interaction.user.id}"
+            f"WHERE usr_id = {interaction.user.id}",
         )
 
         history = await db.get_note("burger history")
@@ -430,14 +496,15 @@ class Fun(Cog):
         await db.log_or_update_note("burger history", history)
         await interaction.send(
             f"{interaction.user.mention} has yoinked the burger "
-            f"from {current_holder.mention}!"
+            f"from {current_holder.mention}!",
         )
 
     @uf.delayed_loop(minutes=1)
-    async def check_burger(self):
+    async def check_burger(self) -> None:
+        """Check whether the burger holding period has expired."""
         try:
             gtable = await self.standby.pg_pool.fetch(
-                f"SELECT * FROM tmers WHERE ttype = {TimerType.BURGER}"
+                f"SELECT * FROM tmers WHERE ttype = {TimerType.BURGER}",
             )
         except AttributeError:
             logger.info("Bot hasn't loaded yet - pg_pool doesn't exist")
@@ -460,13 +527,13 @@ class Fun(Cog):
                 maint = await self.standby.guild.fetch_channel(ID.ERROR_CHANNEL)
                 await maint.send(
                     "Multiple burgers detected: "
-                    f"{', '.join([usr.mention for usr in burgered.members])}"
+                    f"{', '.join([usr.mention for usr in burgered.members])}",
                 )
 
             await user.remove_roles(burgered)
             try:
                 response = requests.get(
-                    "https://the-trivia-api.com/v2/questions?limit=1"
+                    "https://the-trivia-api.com/v2/questions?limit=1",
                 )
                 data = json.loads(response.text)[0]
                 params = {
@@ -476,7 +543,7 @@ class Fun(Cog):
                 }
             except:
                 logger.warning(
-                    "Invalid response from Trivia API, using random default question"
+                    "Invalid response from Trivia API, using random default question",
                 )
                 questions = [
                     dict(
@@ -515,12 +582,12 @@ class Fun(Cog):
             view = BurgerView(**params)
 
             recs = await self.standby.pg_pool.fetch(
-                f"SELECT moldy_burgers FROM usr WHERE usr_id = {user.id}"
+                f"SELECT moldy_burgers FROM usr WHERE usr_id = {user.id}",
             )
             count = (recs[0]["moldy_burgers"] + 1) if recs else 1
 
             await self.standby.pg_pool.execute(
-                f"UPDATE usr SET moldy_burgers = {count} WHERE usr_id = {user.id}"
+                f"UPDATE usr SET moldy_burgers = {count} WHERE usr_id = {user.id}",
             )
 
             msg = await general.send(
@@ -533,20 +600,29 @@ class Fun(Cog):
             )
             await db.log_buttons(view, general.id, msg.id, params)
             await self.standby.pg_pool.execute(
-                f"DELETE FROM tmers WHERE ttype = {TimerType.BURGER};"
+                f"DELETE FROM tmers WHERE ttype = {TimerType.BURGER};",
             )
 
     @slash_command(description="Make predictions")
-    async def prediction(self, interaction):
-        pass
+    async def prediction(self, interaction: Interaction) -> None:
+        """Command group for prediction functionality."""
 
     @prediction.subcommand(description="Make a prediction")
     async def make(
         self,
-        interaction,
+        interaction: Interaction,
         label: str = SlashOption(description="A label to identify your prediction"),
         text: str = SlashOption(description="The text of your prediction"),
-    ):
+    ) -> None:
+        """Make a prediction.
+
+        Prediction is stored with a label so it can be fetched later.
+
+        Args:
+            interaction (Interaction): Invoking interaction
+            label (str): Prediction label
+            text (str, optional): Prediction text
+        """
         predictions = await uf.get_user_predictions(interaction.user)
 
         if label in predictions:
@@ -566,15 +642,24 @@ class Fun(Cog):
         )
 
         await interaction.channel.send(
-            f"{interaction.user.mention} just made a prediction!"
+            f"{interaction.user.mention} just made a prediction!",
         )
 
     @prediction.subcommand(description="Reveal a prediction")
     async def reveal(
         self,
-        interaction,
+        interaction: Interaction,
         label: str = SlashOption(description="Label of the prediction to reveal"),
-    ):
+    ) -> None:
+        """Reveal a prediction.
+
+        Other users can vote whether the prediction was correct and
+        should be rewarded with an orb.
+
+        Args:
+            interaction (Interaction): Invoking interaction
+            label (str): Label of the prediction to reveal
+        """
         predictions = await uf.get_user_predictions(interaction.user)
         if label in predictions:
             logger.info(f"Adding prediction '{label}' for {interaction.user}")
@@ -606,11 +691,17 @@ class Fun(Cog):
     @prediction.subcommand(description="Check a prediction (privately)")
     async def check(
         self,
-        interaction,
+        interaction: Interaction,
         label: str = SlashOption(
-            description="Label of the prediction you want to check"
+            description="Label of the prediction you want to check",
         ),
-    ):
+    ) -> None:
+        """Check the text of a prediction.
+
+        Args:
+            interaction (Interaction): Invoking interaction
+            label (str): Label of the prediction you want to check
+        """
         predictions = await uf.get_user_predictions(interaction.user)
         if label in predictions:
             await interaction.send(
@@ -627,7 +718,12 @@ class Fun(Cog):
             )
 
     @prediction.subcommand(name="list", description="List your predictions (privately)")
-    async def list_(self, interaction):
+    async def list_(self, interaction: Interaction) -> None:
+        """Privately list all your predictions (and their labels).
+
+        Args:
+            interaction (Interaction): Invoking interaction
+        """
         predictions = await uf.get_user_predictions(interaction.user)
         if not predictions:
             await interaction.send("You have not made any predictions!", ephemeral=True)
@@ -643,40 +739,66 @@ class Fun(Cog):
     @prediction.subcommand(description="Delete a prediction")
     async def delete(
         self,
-        interaction,
+        interaction: Interaction,
         label: str = SlashOption(description="Label of the prediction to delete"),
-    ):
+    ) -> None:
+        """Delete a prediction.
+
+        Args:
+            interaction (Interaction): Invoking interaction
+            label (str, optional): Label of the prediction to delete
+        """
         predictions = await uf.get_user_predictions(interaction.user)
         if label in predictions:
             logger.info(f"Removing prediction for {interaction.user}")
             predictions.pop(label)
             await uf.update_user_predictions(interaction.user, predictions)
             await interaction.send(
-                f"Prediction '{label}' successfully deleted!", ephemeral=True
+                f"Prediction '{label}' successfully deleted!",
+                ephemeral=True,
             )
         else:
             await interaction.send(f"No prediction found for the label '{label}'!")
 
-    class VanityView(ui.View):
-        def __init__(self, creator):
+    class VanityView(View):
+        """Dropdown menu for selecting Vanity roles."""
+
+        def __init__(self, creator: Member) -> None:
             super().__init__()
             self.value = None
             self.creator = creator
 
-        @ui.select(placeholder="Pick a vanity role")
-        async def select_role(self, select: ui.Select, interaction):
+        @select(placeholder="Pick a vanity role")
+        async def select_role(self, select: Select, interaction: Interaction) -> None:
+            """Choose a role.
+
+            Args:
+                select (Select): Dropdown menu object
+                interaction (Interaction): Invoking interaction
+            """
             if self.creator == interaction.user and select.values:
                 self.value = select.values[0]
 
-        @ui.button(label="Pick", style=ButtonStyle.blurple)
-        async def press(self, button, interaction):  # noqa: ARG002
+        @button(label="Pick", style=ButtonStyle.blurple)
+        async def press(self, button: Button, interaction: Interaction) -> None:  # noqa: ARG002
+            """Disable the menu and send selection to the interaction.
+
+            Args:
+                button (_type_): _description_
+                interaction (_type_): _description_
+            """
             if self.creator == interaction.user and self.value:
                 self.stop()
 
     @slash_command(description="Pick a vanity role")
-    async def vanity(self, interaction):
+    async def vanity(self, interaction: Interaction) -> None:
+        """Choose a vanity role.
+
+        Args:
+            interaction (Interaction): Invoking interaction
+        """
         view = self.VanityView(interaction.user)
-        vanity_roles = uf.get_roles_by_type(interaction.guild, "Vanity")
+        vanity_roles = uf.get_roles_by_type("Vanity")
         for role in vanity_roles:
             view.children[0].add_option(label=role.name)
         view.children[0].add_option(label="Remove my vanity role", value="remove")
@@ -697,12 +819,20 @@ class Fun(Cog):
     @slash_command(description="Genererate a captioned meme")
     async def caption(
         self,
-        interaction,
+        interaction: Interaction,
         caption: str = SlashOption(description="The caption to use"),
         template: str = SlashOption(
-            description="The base template to caption", choices=["Farquaad", "Megamind"]
+            description="The base template to caption",
+            choices=["Farquaad", "Megamind"],
         ),
-    ):
+    ) -> None:
+        """Send a captioned meme template.
+
+        Args:
+            interaction (Interaction): Invoking interaction
+            caption (str): Caption text
+            template (str): Meme template to use
+        """
         await interaction.response.defer()
 
         if template == "Farquaad":
@@ -715,8 +845,9 @@ class Fun(Cog):
         logger.info("Fetching base image")
         img = Image.open(
             requests.get(
-                URL.GITHUB_STATIC + f"/images/memes/{query}.png", stream=True
-            ).raw
+                URL.GITHUB_STATIC + f"/images/memes/{query}.png",
+                stream=True,
+            ).raw,
         )
         draw = ImageDraw.Draw(img)
 
@@ -746,13 +877,20 @@ class Fun(Cog):
         await interaction.send(file=nextcord.File(obj, filename=f"{template}.png"))
 
     @slash_command(
-        name="8ball", description="Provides a Magic 8-Ball answer to a yes/no question"
+        name="8ball",
+        description="Provides a Magic 8-Ball answer to a yes/no question",
     )
     async def eightball(
         self,
-        interaction,
-        question=SlashOption(description="What is your question?"),  # noqa: ARG002
-    ):
+        interaction: Interaction,
+        question: str = SlashOption(description="What is your question?"),  # noqa: ARG002
+    ) -> None:
+        """Return a random Magic 8-Ball response.
+
+        Args:
+            interaction (Interaction): Invoking interaction
+            question (str): Question text
+        """
         answers = [
             "It is certain.",
             "It is decidedly so.",
@@ -778,15 +916,23 @@ class Fun(Cog):
         await interaction.send(random.choice(answers))
 
     @slash_command(description="Praise toucan")
-    async def praise(self, interaction):
+    async def praise(self, interaction: Interaction) -> None:
+        """Send Toucan ASCII art."""
         await interaction.send(TOUCAN_PRAISE)
 
     @slash_command(description="Do you feel lucky?")
-    async def roulette(self, interaction):
+    async def roulette(self, interaction: Interaction) -> None:
+        """Play Void roulette.
+
+        Losing results in a timeout. Winning streaks are recorded.
+
+        Args:
+            interaction (Interaction): Invoking interaction
+        """
         logger.info(f"{interaction.user} is feeling lucky")
         cooldown = await self.standby.pg_pool.fetch(
             "SELECT * FROM tmers "
-            f"WHERE usr_id = {interaction.user.id} AND ttype = {TimerType.ROULETTE}"
+            f"WHERE usr_id = {interaction.user.id} AND ttype = {TimerType.ROULETTE}",
         )
 
         if cooldown:
@@ -795,7 +941,7 @@ class Fun(Cog):
                 logger.info("Cooldown expired, removing timer")
                 await self.standby.pg_pool.execute(
                     f"DELETE FROM tmers WHERE usr_id = {interaction.user.id} "
-                    f"AND ttype = {TimerType.ROULETTE}"
+                    f"AND ttype = {TimerType.ROULETTE}",
                 )
             else:
                 logger.info("User is timed out")
@@ -809,14 +955,14 @@ class Fun(Cog):
 
         await interaction.response.defer()
 
-        stats = await db.ensured_get_usr(interaction.user.id, ID.GUILD)
+        stats = await db.ensured_get_usr(interaction.user.id)
         lose = random.randint(1, 6) == 6  # noqa: PLR2004
 
         if lose:
             logger.info(f"{interaction.user} has lost.")
             await self.standby.pg_pool.execute(
                 "UPDATE usr SET current_roulette_streak = 0 "
-                f"WHERE usr_id = {interaction.user.id}"
+                f"WHERE usr_id = {interaction.user.id}",
             )
 
             message = (
@@ -829,7 +975,7 @@ class Fun(Cog):
                 message = message[:-1] + " and you have been timed out."
             except nextcord.errors.Forbidden:
                 logger.info(
-                    f"Setting roulette timeout for privileged user {interaction.user}"
+                    f"Setting roulette timeout for privileged user {interaction.user}",
                 )
                 expires = dt.now() + Duration.ROULETTE_TIMEOUT
                 await self.standby.pg_pool.execute(
@@ -842,16 +988,16 @@ class Fun(Cog):
 
         else:
             logger.info(f"{interaction.user} has won")
-            current_streak = stats[0]["current_roulette_streak"]
-            max_streak = stats[0]["max_roulette_streak"]
+            current_streak = stats["current_roulette_streak"]
+            max_streak = stats["max_roulette_streak"]
 
             server_current_max = await self.standby.pg_pool.fetch(
-                "SELECT MAX(current_roulette_streak) from usr"
+                "SELECT MAX(current_roulette_streak) from usr",
             )
             server_current_max = server_current_max[0]["max"]
 
             server_alltime_max = await self.standby.pg_pool.fetch(
-                "SELECT MAX(max_roulette_streak) from usr"
+                "SELECT MAX(max_roulette_streak) from usr",
             )
             server_alltime_max = server_alltime_max[0]["max"]
 
@@ -859,7 +1005,7 @@ class Fun(Cog):
                 "UPDATE usr SET current_roulette_streak = current_roulette_streak + 1,"
                 "max_roulette_streak = "
                 "GREATEST(current_roulette_streak + 1, max_roulette_streak) "
-                f"WHERE usr_id = {interaction.user.id}"
+                f"WHERE usr_id = {interaction.user.id}",
             )
             current_streak += 1
 
@@ -886,11 +1032,21 @@ class Fun(Cog):
             await interaction.send(message)
 
     @slash_command(
-        description="Calculates how to 'math' a target number from given digits"
+        description="Calculates how to 'math' a target number from given digits",
     )
     async def fabricate_number(
-        self, interaction, wanted_result, comma_separated_digits
-    ):
+        self,
+        interaction: Interaction,
+        wanted_result: str,
+        comma_separated_digits: str,
+    ) -> None:
+        """Find a way to combine provided numbers to obtain a result.
+
+        Args:
+            interaction (Interaction): Invoking interaction
+            wanted_result (str): Target number (user input)
+            comma_separated_digits (str): Digits to user (user input)
+        """
         try:
             target = int(wanted_result)
             digits = [int(i) for i in comma_separated_digits.split(",")]
@@ -901,7 +1057,7 @@ class Fun(Cog):
         if not digits or target == 0:
             await interaction.send(
                 "Bad input - target must be non-zero and "
-                "at least one digit must be provided"
+                "at least one digit must be provided",
             )
             return
 
@@ -932,103 +1088,38 @@ class Fun(Cog):
 
         if did_cut:
             await interaction.send(
-                f"Nothing found in {attempt_limit}/{num_digit_combinations} combinations"  # noqa: E501
+                f"Nothing found in {attempt_limit}/{num_digit_combinations} combinations",  # noqa: E501
             )
         else:
             await interaction.send(
-                f"Nothing found in {num_digit_combinations} combinations"
+                f"Nothing found in {num_digit_combinations} combinations",
             )
 
-    class YesOrNo(ui.View):
-        def __init__(self, intended_user):
-            super().__init__()
-            self.value = None
-            self.yes = None
-            self.intended_user = intended_user
-
-        @ui.button(label="Yes", style=ButtonStyle.green)
-        async def yes_button(self, button, interaction):  # noqa: ARG002
-            if interaction.user == self.intended_user:
-                self.yes = True
-                self.stop()
-            else:
-                await interaction.send(
-                    URL.GITHUB_STATIC + "/images/bobby.gif", ephemeral=True
-                )
-
-        @ui.button(label="No", style=ButtonStyle.red)
-        async def no_button(self, button, interaction):  # noqa: ARG002
-            if interaction.user == self.intended_user:
-                self.yes = False
-                self.stop()
-            else:
-                await interaction.send(
-                    URL.GITHUB_STATIC + "/images/bobby.gif", ephemeral=True
-                )
-
     @user_command(name="Thank", guild_ids=[ID.GUILD])
-    async def thank_context(self, interaction, user):
+    async def thank_context(self, interaction: Interaction, user: Member) -> None:
+        """Thank a user through the user context menu."""
         if user == interaction.user:
             await interaction.send(
-                "Thanking yourself gives no reputation.", ephemeral=True
+                "Thanking yourself gives no reputation.",
+                ephemeral=True,
             )
             return
 
-        await db.get_or_insert_usr(user.id, interaction.guild.id)
+        await db.get_or_insert_usr(user.id)
         await self.standby.pg_pool.execute(
-            f"UPDATE usr SET thanks = thanks + 1 WHERE usr_id = {user.id}"
+            f"UPDATE usr SET thanks = thanks + 1 WHERE usr_id = {user.id}",
         )
         await interaction.send(f"Gave +1 Void to {user.mention}")
 
-    @slash_command(description="Posts a random animal image")
-    async def animal(
-        self,
-        interaction,
-        animal=SlashOption(
-            description="Choose a type of animal", choices={"Cat", "Dog", "Fox"}
-        ),
-    ):
-        args = {
-            "Cat": (
-                "https://api.thecatapi.com/v1/images/search?size=full",
-                "Meow",
-                "https://thecatapi.com",
-                "url",
-            ),
-            "Dog": (
-                "https://dog.ceo/api/breeds/image/random",
-                "Woof",
-                "https://dog.ceo",
-                "message",
-            ),
-            "Fox": (
-                "https://randomfox.ca/floof/",
-                "What does the fox say",
-                "https://randomfox.ca",
-                "image",
-            ),
-        }
-        api_url, title, url, json_key = args[animal]
-        async with aiohttp.ClientSession() as cs, cs.get(api_url) as r:
-            data = await r.json()
-            if not isinstance(data, dict):
-                data = data[0]
-
-            embed = Embed(title=title)
-            embed.set_image(url=data[json_key])
-            embed.set_footer(text=url)
-
-            await interaction.send(embed=embed)
-
     @slash_command(description="Movie rating features")
-    async def movie(self, interaction):
-        pass
+    async def movie(self, interaction: Interaction) -> None:
+        """Command group for movie rating features."""
 
     @movie.subcommand(description="Rate a movie")
     async def rate(
         self,
-        interaction,
-        title,
+        interaction: Interaction,
+        title: str,
         rating: int = SlashOption(
             description="Your rating",
             choices={
@@ -1039,17 +1130,30 @@ class Fun(Cog):
                 "5 (Great)": 5,
             },
         ),
-        review=SlashOption(description="Review or comment (optional)", required=False),
-    ):
+        review: str | None = SlashOption(
+            description="Review or comment (optional)",
+            required=False,
+        ),
+    ) -> None:
+        """Rate a movie.
+
+        Rating (and review, if provided) are stored.
+
+        Args:
+            interaction (Interaction): Invoking interaction
+            title (str): Movie title.
+            rating (int): Movie rating (1-5)
+            review (str | None): Review or comment
+        """
         title = uf.titlecase(title)
         exists = await self.standby.pg_pool.fetch(
             "SELECT * FROM movies "
-            f"WHERE usr_id = '{interaction.user.id}' AND title = '{title}'"
+            f"WHERE usr_id = '{interaction.user.id}' AND title = '{title}'",
         )
         if exists:
             await self.standby.pg_pool.execute(
                 f"UPDATE movies SET rating = {rating}, review = '{review}' "
-                f"WHERE usr_id = {interaction.user.id} AND title = '{title}'"
+                f"WHERE usr_id = {interaction.user.id} AND title = '{title}'",
             )
             msg = (
                 f"{interaction.user.mention} has updated their rating of {title}!\n"
@@ -1073,11 +1177,17 @@ class Fun(Cog):
             await interaction.send(msg)
 
     @movie.subcommand(description="Check a movie's average score")
-    async def score(self, interaction, title):
+    async def score(self, interaction: Interaction, title: str) -> None:
+        """Check a movie's current averages score.
+
+        Args:
+            interaction (Interaction): Invoking interaction
+            title (str): Movie title
+        """
         title = uf.titlecase(title)
         ratings = await self.standby.pg_pool.fetch(
             f"SELECT COUNT(rating) AS count, ROUND(AVG(rating), 1) AS score "
-            f"FROM movies WHERE title = '{title}'"
+            f"FROM movies WHERE title = '{title}'",
         )
         count, score = ratings[0]
         if count == 0:
@@ -1085,14 +1195,20 @@ class Fun(Cog):
         else:
             await interaction.send(
                 f"{title} currently has an average score of {score} "
-                f"based off {count} rating(s)."
+                f"based off {count} rating(s).",
             )
 
     @movie.subcommand(description="Read all reviews for a movie")
-    async def reviews(self, interaction, title):
+    async def reviews(self, interaction: Interaction, title: str) -> None:
+        """Check all reviews left for a movie.
+
+        Args:
+            interaction (Interaction): Invoking interaction
+            title (str): Movie title
+        """
         title = uf.titlecase(title)
         recs = await self.standby.pg_pool.fetch(
-            f"SELECT usr_id, rating, review FROM movies WHERE title = '{title}'"
+            f"SELECT usr_id, rating, review FROM movies WHERE title = '{title}'",
         )
         if not recs:
             await interaction.send(f"{title} has not been rated yet.")
@@ -1106,8 +1222,10 @@ class Fun(Cog):
             await interaction.send(msg)
 
 
-class BurgerView(ui.View):
-    def __init__(self, **params):
+class BurgerView(View):
+    """Trivia question buttons when the burger expires for a user."""
+
+    def __init__(self, **params: dict) -> None:
         super().__init__(timeout=None)
         self.last_owner_id = params["last_owner_id"]
         self.correct = params["correct"]
@@ -1118,12 +1236,15 @@ class BurgerView(ui.View):
         for index in self.ordering:
             self.add_item(self.BurgerButton(label=answers[index]))
 
-    class BurgerButton(ui.Button):
-        def __init__(self, label):
+    class BurgerButton(Button):
+        """Button for each answer option."""
+
+        def __init__(self, label: str) -> None:
             super().__init__(style=ButtonStyle.blurple, label=label)
             self.standby = Standby()
 
-        async def callback(self, interaction):
+        async def callback(self, interaction: Interaction) -> None:
+            """Action when a button is pressed."""
             if interaction.user.id == self.view.last_owner_id:
                 await interaction.send(
                     "The burger refuses to be held hostage by you any longer!",
@@ -1132,7 +1253,8 @@ class BurgerView(ui.View):
                 return
             if interaction.user.id in self.view.attempted:
                 await interaction.send(
-                    "You may only attempt to answer once", ephemeral=True
+                    "You may only attempt to answer once",
+                    ephemeral=True,
                 )
                 return
 
@@ -1145,17 +1267,17 @@ class BurgerView(ui.View):
                 await interaction.edit(view=self.view)
                 await interaction.send(
                     f"{interaction.user.mention} has claimed the burger! "
-                    "Now use it wisely."
+                    "Now use it wisely.",
                 )
                 await self.standby.pg_pool.execute(
                     f"DELETE from buttons WHERE channel_id = {interaction.channel.id} "
                     f"AND message_id = {interaction.message.id}",
                 )
 
-                await db.get_or_insert_usr(interaction.user.id, interaction.guild.id)
+                await db.get_or_insert_usr(interaction.user.id)
                 await self.standby.pg_pool.execute(
                     f"UPDATE usr SET burgers = burgers + 1 "
-                    f"WHERE usr_id = {interaction.user.id}"
+                    f"WHERE usr_id = {interaction.user.id}",
                 )
 
                 history = await db.get_note("burger history")
@@ -1188,29 +1310,35 @@ class BurgerView(ui.View):
                 )
                 self.view.attempted.append(interaction.user.id)
                 await db.update_button_params(
-                    interaction.message.id, {"attempted": self.view.attempted}
+                    interaction.message.id,
+                    {"attempted": self.view.attempted},
                 )
 
 
-class PredictionView(ui.View):
-    def __init__(self, **params):
+class PredictionView(View):
+    """Buttons for voting on whether a prediction was correct."""
+
+    def __init__(self, **params: dict) -> None:
         super().__init__(timeout=None)
         self.standby = Standby()
         self.owner_id = params["owner_id"]
         self.votes_for = params["votes_for"]
         self.votes_against = params["votes_against"]
 
-    @ui.button(emoji="🔮", style=ButtonStyle.blurple)
-    async def award_orb(self, button, interaction):  # noqa: ARG002
+    @button(emoji="🔮", style=ButtonStyle.blurple)
+    async def award_orb(self, button: Button, interaction: Interaction) -> None:  # noqa: ARG002
+        """Button to vote yes."""
         if interaction.user.id == self.owner_id:
             await interaction.send(
-                "You can not award orbs to your own prediction!", ephemeral=True
+                "You can not award orbs to your own prediction!",
+                ephemeral=True,
             )
             return
 
         if interaction.user.id in self.votes_for:
             await interaction.send(
-                "You have already voted for this prediction!", ephemeral=True
+                "You have already voted for this prediction!",
+                ephemeral=True,
             )
             return
 
@@ -1222,10 +1350,10 @@ class PredictionView(ui.View):
 
         if len(self.votes_for) >= Threshold.PREDICTIONS:
             await interaction.send(
-                f"{uf.id_to_mention(self.owner_id)} has been awarded an orb!"
+                f"{uf.id_to_mention(self.owner_id)} has been awarded an orb!",
             )
             await self.standby.pg_pool.execute(
-                f"DELETE FROM buttons WHERE message_id = {interaction.message.id}"
+                f"DELETE FROM buttons WHERE message_id = {interaction.message.id}",
             )
             new_text = re.sub(
                 "Does this prediction.*$",
@@ -1240,11 +1368,12 @@ class PredictionView(ui.View):
                 {"votes_for": self.votes_for, "votes_against": self.votes_against},
             )
 
-    @ui.button(emoji="❌", style=ButtonStyle.blurple)
-    async def deny_orb(self, button, interaction):  # noqa: ARG002
+    @button(emoji="❌", style=ButtonStyle.blurple)
+    async def deny_orb(self, button: Button, interaction: Interaction) -> None:  # noqa: ARG002
+        """Button to vote no."""
         if interaction.user.id == self.owner_id:
             await self.standby.pg_pool.execute(
-                f"DELETE FROM buttons WHERE message_id = {interaction.message.id}"
+                f"DELETE FROM buttons WHERE message_id = {interaction.message.id}",
             )
             new_text = re.sub(
                 "Does this prediction.*$",
@@ -1256,7 +1385,8 @@ class PredictionView(ui.View):
 
         if interaction.user.id in self.votes_against:
             await interaction.send(
-                "You have already voted against this prediction!", ephemeral=True
+                "You have already voted against this prediction!",
+                ephemeral=True,
             )
             return
 
@@ -1269,10 +1399,10 @@ class PredictionView(ui.View):
         if len(self.votes_against) >= Threshold.PREDICTIONS:
             await interaction.send(
                 f"{uf.id_to_mention(self.owner_id)}'s prediction has been deemed "
-                "unworthy of an 🔮!"
+                "unworthy of an 🔮!",
             )
             await self.standby.pg_pool.execute(
-                f"DELETE FROM buttons WHERE message_id = {interaction.message.id}"
+                f"DELETE FROM buttons WHERE message_id = {interaction.message.id}",
             )
             new_text = re.sub(
                 "Does this prediction.*$",
@@ -1288,5 +1418,6 @@ class PredictionView(ui.View):
             )
 
 
-def setup(bot):
+def setup(bot: Bot) -> None:
+    """Automatically called during bot setup."""
     bot.add_cog(Fun())

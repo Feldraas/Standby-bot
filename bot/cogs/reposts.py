@@ -1,7 +1,9 @@
+"""Punish users who repost memes."""
+
 import logging
 
 from nextcord import RawReactionActionEvent
-from nextcord.ext.commands import Cog
+from nextcord.ext.commands import Bot, Cog
 
 from db_integration import db_functions as db
 from domain import Duration, Emoji, RoleName, Standby, Threshold, TimerType
@@ -11,15 +13,13 @@ logger = logging.getLogger(__name__)
 
 
 class Reposts(Cog):
-    def __init__(self):
+    def __init__(self) -> None:
         self.standby = Standby()
         self.check_reposters.start()
 
-    def cog_unload(self):
-        self.check_reposters.cancel()
-
     @Cog.listener()
-    async def on_raw_reaction_add(self, payload):
+    async def on_raw_reaction_add(self, payload: RawReactionActionEvent) -> None:
+        """Trigger when users adda REEPOSTER emoji react."""
         reemoji = uf.get_emoji(Emoji.REEPOSTER)
         reeposter = uf.get_role(RoleName.REEPOSTER)
 
@@ -43,11 +43,11 @@ class Reposts(Cog):
 
         if rees >= Threshold.REEPOSTER:
             await db.ensure_guild_existence(message.guild.id)
-            await db.get_or_insert_usr(message.author.id, message.guild.id)
+            await db.get_or_insert_usr(message.author.id)
             await message.author.add_roles(reeposter)
             exists = await self.standby.pg_pool.fetch(
                 "SELECT * FROM tmers "
-                f"WHERE ttype={TimerType.REPOST} AND usr_id = {message.author.id}"
+                f"WHERE ttype={TimerType.REPOST} AND usr_id = {message.author.id}",
             )
 
             if not exists:
@@ -62,9 +62,10 @@ class Reposts(Cog):
                 )
 
     @uf.delayed_loop(seconds=60)
-    async def check_reposters(self):
+    async def check_reposters(self) -> None:
+        """Check if a user's reposter status should be removed."""
         gtable = await self.standby.pg_pool.fetch(
-            f"SELECT * FROM tmers WHERE ttype={TimerType.REPOST}"
+            f"SELECT * FROM tmers WHERE ttype={TimerType.REPOST}",
         )
         for rec in gtable:
             timenow = uf.utcnow()
@@ -76,9 +77,10 @@ class Reposts(Cog):
             reeposter = uf.get_role(RoleName.REEPOSTER)
             await user.remove_roles(reeposter)
             await self.standby.pg_pool.execute(
-                f"DELETE FROM tmers WHERE tmer_id = {rec['tmer_id']};"
+                f"DELETE FROM tmers WHERE tmer_id = {rec['tmer_id']};",
             )
 
 
-def setup(bot):
+def setup(bot: Bot) -> None:
+    """Automatically called during bot setup."""
     bot.add_cog(Reposts())

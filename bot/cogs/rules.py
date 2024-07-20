@@ -1,10 +1,21 @@
+"""Functionality for the rules channel."""
+
 import asyncio
 import logging
 import re
 from math import ceil
 
-from nextcord import ButtonStyle, Embed, SelectOption, SlashOption, slash_command, ui
-from nextcord.ext.commands import Cog
+from nextcord import (
+    ButtonStyle,
+    Embed,
+    Interaction,
+    Role,
+    SelectOption,
+    SlashOption,
+    slash_command,
+)
+from nextcord.ext.commands import Bot, Cog
+from nextcord.ui import Button, Select, View, button
 
 from db_integration import db_functions as db
 from domain import (
@@ -56,33 +67,40 @@ MAX_SELECT_MENU_SIZE = 24
 
 
 class Rules(Cog):
-    def __init__(self):
+    def __init__(self) -> None:
         self.standby = Standby()
         self.kick_inactives.start()
-
-    def cog_unload(self):
-        self.kick_inactives.cancel()
 
     @slash_command(
         description="Commands for setting up and editing "
         f"the #{ChannelName.RULES} channel",
         default_member_permissions=Permissions.MODS_ONLY,
     )
-    async def rule(self, interaction):
-        pass
+    async def rule(self, interaction: Interaction) -> None:
+        """Command group for rule channel manipulation."""
 
     @rule.subcommand(description=f"Add all posts to the #{ChannelName.RULES} channel")
     async def create(
         self,
-        interaction,
+        interaction: Interaction,
         delay: float = SlashOption(
-            description="Delay in seconds between each post", default=0.1
+            description="Delay in seconds between the sections.",
+            default=0.1,
         ),
-    ):
+    ) -> None:
+        """Setup the rules channel.
+
+        Args:
+            interaction (Interaction): Invoking interaction.
+            delay (float, optional): Delay in seconds between each post.
+                Set to 480 (8 minutes) for the different sections to be
+                separated properly.
+        """
         logger.info("Creating rules channel")
         rules_ch = uf.get_channel(ChannelName.RULES)
         await interaction.send(
-            f"Creation process starting in {rules_ch.mention}", ephemeral=True
+            f"Creation process starting in {rules_ch.mention}",
+            ephemeral=True,
         )
         await rules_ch.send(URL.GITHUB_STATIC + "/images/Ginny_Welcome.png")
         await asyncio.sleep(delay)
@@ -149,13 +167,16 @@ class Rules(Cog):
         await rules_ch.send(
             "You should now have access to all necessary channels in the server!\n"
             f"Why not pop over to {general.mention} and say hi? "
-            "You probably have a few welcomes waiting already."
+            "You probably have a few welcomes waiting already.",
         )
 
     @rule.subcommand(description="Add a new rule to the post")
     async def add(
-        self, interaction, text: str = SlashOption(description="The text of the rule")
-    ):
+        self,
+        interaction: Interaction,
+        text: str = SlashOption(description="The text of the rule"),
+    ) -> None:
+        """Add a rule."""
         logger.info("Adding rule")
         rules_ch = uf.get_channel(ChannelName.RULES)
         rules_msg = await rules_ch.fetch_message(ID.RULES_MESSAGE)
@@ -179,11 +200,18 @@ class Rules(Cog):
     @rule.subcommand(description="Removes a rule from the post")
     async def remove(
         self,
-        interaction,
+        interaction: Interaction,
         number: int = SlashOption(
-            description="Number of the rule to remove", min_value=1
+            description="Number of the rule to remove",
+            min_value=1,
         ),
-    ):
+    ) -> None:
+        """Remove a rule.
+
+        Args:
+            interaction (Interaction): Invoking
+            number (int): Number of the rule to remove
+        """
         logger.info("Removing rule")
         rules_ch = uf.get_channel(ChannelName.RULES)
         rules_msg = await rules_ch.fetch_message(ID.RULES_MESSAGE)
@@ -204,12 +232,14 @@ class Rules(Cog):
     @rule.subcommand(description="Edit a rule")
     async def edit(
         self,
-        interaction,
+        interaction: Interaction,
         number: int = SlashOption(
-            description="Number of the rule to edit", min_value=1
+            description="Number of the rule to edit",
+            min_value=1,
         ),
-        new_text=SlashOption(description="New text of the rule"),
-    ):
+        new_text: str = SlashOption(description="New text of the rule"),
+    ) -> None:
+        """Edit an existing rule."""
         rules_ch = uf.get_channel(ChannelName.RULES)
         rules_msg = await rules_ch.fetch_message(ID.RULES_MESSAGE)
         embed = rules_msg.embeds[0]
@@ -226,82 +256,94 @@ class Rules(Cog):
         await interaction.send("Rule successfully edited", ephemeral=True)
 
     @uf.delayed_loop(hours=8)
-    async def kick_inactives(self):
+    async def kick_inactives(self) -> None:
+        """Kick inactive users.
+
+        A user is considered inactive if they have been in the server
+        for more than 30 days without but do not have either the
+        "Alliance" or "Community" roles.
+        """
         logger.info("Checking for inactive members")
 
         async for member in self.standby.guild.fetch_members():
             if (
-                not member.bot
-                and uf.get_role("Alliance") not in member.roles
-                and (uf.get_role("Community") not in member.roles)
+                member.bot
+                or uf.get_role("Alliance") in member.roles
+                or (uf.get_role("Community") in member.roles)
             ):
-                time = uf.utcnow() - member.joined_at
-                if time.days >= 30:  # noqa: PLR2004
-                    discriminator = (
-                        f"#{member.discriminator}"
-                        if member.discriminator != "0"
-                        else ""
-                    )
-                    try:
-                        await member.send(
-                            "Hi! You have been automatically kicked from the Vie for "
-                            "the Void Discord as you have failed to read our rules and "
-                            "unlock the full server within 30 days. If this was "
-                            "an accident, please feel free to join us again!"
-                            f"\n{EMPTY_STRING}\n{URL.INVITE}"
-                        )
-                    except Exception:
-                        logger.exception(
-                            f"Failed to send kick DM to {member.name}{discriminator}",
-                        )
+                return
+            time = uf.utcnow() - member.joined_at
+            if time.days < 30:  # noqa: PLR2004
+                return
+            discriminator = (
+                f"#{member.discriminator}" if member.discriminator != "0" else ""
+            )
+            try:
+                await member.send(
+                    "Hi! You have been automatically kicked from the Vie for "
+                    "the Void Discord as you have failed to read our rules and "
+                    "unlock the full server within 30 days. If this was "
+                    "an accident, please feel free to join us again!"
+                    f"\n{EMPTY_STRING}\n{URL.INVITE}",
+                )
+            except Exception:
+                logger.exception(
+                    f"Failed to send kick DM to {member.name}{discriminator}",
+                )
 
-                    try:
-                        maint = await self.standby.bot.fetch_channel(ID.ERROR_CHANNEL)
-                        await maint.send(
-                            f"{member.name}{discriminator} has been kicked "
-                            "due to inactivity."
-                        )
-                    except Exception:
-                        logger.exception("Error channel not found")
+            try:
+                maint = await self.standby.bot.fetch_channel(ID.ERROR_CHANNEL)
+                await maint.send(
+                    f"{member.name}{discriminator} has been kicked "
+                    "due to inactivity.",
+                )
+            except Exception:
+                logger.exception("Error channel not found")
 
-                    try:
-                        await member.kick()
-                    except Exception:
-                        logger.exception(
-                            f"{member.name}{discriminator} couldn't be kicked",
-                        )
+            try:
+                await member.kick()
+            except Exception:
+                logger.exception(
+                    f"{member.name}{discriminator} couldn't be kicked",
+                )
 
 
-class StepOneView(ui.View):
-    def __init__(self):
+class StepOneView(View):
+    def __init__(self) -> None:
         super().__init__(timeout=None)
         self.add_item(self.WarframeButton())
         self.add_item(self.CommunityButton())
 
-    class WarframeButton(ui.Button):
-        def __init__(self):
+    class WarframeButton(Button):
+        """Button for users who are part of the Warframe alliance."""
+
+        def __init__(self) -> None:
             super().__init__(
                 label="Warframe",
                 style=ButtonStyle.blurple,
                 emoji=uf.get_emoji("Alli"),
             )
 
-        async def callback(self, interaction):
+        async def callback(self, interaction: Interaction) -> None:
+            """Trigger when the button is pressed."""
             alli = uf.get_role("Alliance")
             comm = uf.get_role("Community")
 
             await interaction.user.remove_roles(comm)
             await interaction.user.add_roles(alli)
 
-    class CommunityButton(ui.Button):
-        def __init__(self):
+    class CommunityButton(Button):
+        """Button for users who have joined through other means."""
+
+        def __init__(self) -> None:
             super().__init__(
                 label="Elsewhere",
                 style=ButtonStyle.blurple,
                 emoji=uf.get_emoji("BlobWave"),
             )
 
-        async def callback(self, interaction):
+        async def callback(self, interaction: Interaction) -> None:
+            """Trigger when the button is pressed."""
             await interaction.response.defer()
 
             alli = uf.get_role("Alliance")
@@ -309,18 +351,20 @@ class StepOneView(ui.View):
             await interaction.user.remove_roles(alli)
             await interaction.user.add_roles(comm)
 
-            all_clan_roles = uf.get_roles_by_type(interaction.guild, DELIMITERS["clan"])
+            all_clan_roles = uf.get_roles_by_type(DELIMITERS["clan"])
             await interaction.user.remove_roles(*all_clan_roles)
 
 
-class RoleChoiceView(ui.View):
-    def __init__(self, **params):
+class RoleChoiceView(View):
+    """View containing dropdown menu(s) containing choosable roles."""
+
+    def __init__(self, **params: dict) -> None:
         super().__init__(timeout=None)
         self.choice = None
         role_type = params.get("role_type", "clan")
         type_delimiter = DELIMITERS[role_type]
         all_roles = uf.get_roles_by_type(type_delimiter)
-        all_roles.sort(key=uf.role_prio)
+        all_roles.sort(key=uf.role_priority)
         num_groups = ceil(len(all_roles) / MAX_SELECT_MENU_SIZE)
         group_size = ceil(len(all_roles) / num_groups)
         groups = [
@@ -331,8 +375,19 @@ class RoleChoiceView(ui.View):
             self.add_item(self.RoleSelect(role_type, group, idx, num_groups))
         self.add_item(self.RoleConfirm(role_type))
 
-    class RoleSelect(ui.Select):
-        def __init__(self, role_type, roles, idx, total):
+    class RoleSelect(Select):
+        """Drowndown menu containing up to 25 roles.
+
+        Users can choose only one.
+        """
+
+        def __init__(
+            self,
+            role_type: str,
+            roles: list[Role],
+            idx: int,
+            total: int,
+        ) -> None:
             text = f"Select your {role_type}"
             if total > 1:
                 text += f" ({idx + 1}/{total})"
@@ -346,15 +401,19 @@ class RoleChoiceView(ui.View):
             ]
             self.options.append(SelectOption(label="None"))
 
-        async def callback(self, interaction):  # noqa: ARG002
+        async def callback(self, interaction: Interaction) -> None:  # noqa: ARG002
+            """Store choice."""
             self.view.choice = self.values[0] if self.values else None
 
-    class RoleConfirm(ui.Button):
-        def __init__(self, role_type):
+    class RoleConfirm(Button):
+        """Button to confirm role selection."""
+
+        def __init__(self, role_type: str) -> None:
             self.role_type = role_type
             super().__init__(style=ButtonStyle.blurple, label=f"Choose {role_type}")
 
-        async def callback(self, interaction):
+        async def callback(self, interaction: Interaction) -> None:
+            """Trigger when the button is pressed."""
             await interaction.response.defer()
             if self.role_type == "clan" and self.view.choice != "None":
                 alli = uf.get_role("Alliance")
@@ -366,17 +425,17 @@ class RoleChoiceView(ui.View):
                     )
                     return
 
-            all_roles_of_type = uf.get_roles_by_type(
-                interaction.guild, DELIMITERS[self.role_type]
-            )
+            all_roles_of_type = uf.get_roles_by_type(DELIMITERS[self.role_type])
             await interaction.user.remove_roles(*all_roles_of_type)
             if self.view.choice != "None":
                 role = uf.get_role(self.view.choice)
                 await interaction.user.add_roles(role)
 
 
-class OptInView(ui.View):
-    def __init__(self):
+class OptInView(View):
+    """Dropdown menu(s) for opt-in roles."""
+
+    def __init__(self) -> None:
         super().__init__(timeout=None)
         opt_in_roles = uf.get_roles_by_type(DELIMITERS["opt-in"])
         groups = [
@@ -387,9 +446,14 @@ class OptInView(ui.View):
         for index, group in enumerate(groups):
             self.add_item(self.OptInSelect(index, group))
 
-    class OptInSelect(ui.Select):
-        def __init__(self, index, roles):
-            roles.sort(key=uf.role_prio)
+    class OptInSelect(Select):
+        """Dropdown menu containing up to 25 opt-in roles.
+
+        Users can select multiple roles.
+        """
+
+        def __init__(self, index: int, roles: list[Role]) -> None:
+            roles.sort(key=uf.role_priority)
 
             super().__init__(
                 options=[
@@ -404,19 +468,28 @@ class OptInView(ui.View):
             )
             self.index = index
 
-        async def callback(self, interaction):  # noqa: ARG002
+        async def callback(self, interaction: Interaction) -> None:  # noqa: ARG002
+            """Store selected values."""
             self.view.selected_roles[self.index] = self.values
 
-    @ui.button(label="Choose selected roles", style=ButtonStyle.blurple, row=4)
-    async def choose_roles(self, button, interaction):  # noqa: ARG002
+    @button(label="Choose selected roles", style=ButtonStyle.blurple, row=4)
+    async def choose_roles(self, button: Button, interaction: Interaction) -> None:  # noqa: ARG002
+        """Trigger when the choose button is pressed.
+
+        Add selected roles to the user.
+        """
         for role_list in self.selected_roles:
             for role_name in role_list:
                 role = uf.get_role(role_name)
                 if role:
                     await interaction.user.add_roles(role)
 
-    @ui.button(label="Remove selected roles", style=ButtonStyle.red, row=4)
-    async def remove_roles(self, button, interaction):  # noqa: ARG002
+    @button(label="Remove selected roles", style=ButtonStyle.red, row=4)
+    async def remove_roles(self, button: Button, interaction: Interaction) -> None:  # noqa: ARG002
+        """Trigger when the remove button is pressed.
+
+        Remove selected roles from the user.
+        """
         for role_list in self.selected_roles:
             for role_name in role_list:
                 role = uf.get_role(role_name)
@@ -424,5 +497,6 @@ class OptInView(ui.View):
                     await interaction.user.remove_roles(role)
 
 
-def setup(bot):
+def setup(bot: Bot) -> None:
+    """Automatically called during bot setup."""
     bot.add_cog(Rules())

@@ -1,9 +1,11 @@
+"""Monitor the server for member events."""
+
 import asyncio
 import logging
 import random
 
-from nextcord import Embed
-from nextcord.ext.commands import Cog
+from nextcord import Embed, Member
+from nextcord.ext.commands import Bot, Cog
 
 from domain import URL, ChannelName, Color, Standby
 from utils import util_functions as uf
@@ -12,23 +14,31 @@ logger = logging.getLogger(__name__)
 
 
 class MemberHandler(Cog):
-    def __init__(self):
+    def __init__(self) -> None:
         self.standby = Standby()
 
     @Cog.listener()
-    async def on_member_remove(self, payload):
-        await leave_message(payload)
+    async def on_member_remove(self, member: Member) -> None:
+        """Called when a member leaves the server."""
+        await leave_message(member)
 
     @Cog.listener()
-    async def on_member_join(self, payload):
-        await welcome_message(payload)
+    async def on_member_join(self, member: Member) -> None:
+        """Called when a member joins the server."""
+        await welcome_message(member)
 
     @Cog.listener()
-    async def on_member_update(self, before, after):
+    async def on_member_update(self, before: Member, after: Member) -> None:
+        """Called when a member is updated."""
         await level3_handler(before, after)
 
 
-async def welcome_message(member):
+async def welcome_message(member: Member) -> None:
+    """Send a welcome message to #general when a user joins the server.
+
+    Args:
+        member (Member): The new member
+    """
     logger.info(f"{member} has joined the guild")
     general = uf.get_channel(ChannelName.GENERAL)
     rules_ch = uf.get_channel(ChannelName.RULES)
@@ -55,11 +65,16 @@ async def welcome_message(member):
         await general.send(
             f"Hey {member.mention} - I see you still haven't unlocked "
             f"the full server. Make sure you read {rules_ch.mention} "
-            "and use the buttons so you can access all of our channels!"
+            "and use the buttons so you can access all of our channels!",
         )
 
 
-async def leave_message(member):
+async def leave_message(member: Member) -> None:
+    """Send an message to the maintenance channel when a user leaves.
+
+    Args:
+        member (Member): The user who left
+    """
     channel = uf.get_channel(ChannelName.ERRORS)
     if not channel:
         logger.error("Could not find error channel")
@@ -90,12 +105,19 @@ async def leave_message(member):
         causes.append(f"Too much time spent in {animu.mention}")
     embed.add_field(name="Time of death", value=time)
     embed.add_field(
-        name="Cause of death", value=causes[random.randint(1, len(causes)) - 1]
+        name="Cause of death",
+        value=causes[random.randint(1, len(causes)) - 1],
     )
     await channel.send(embed=embed)
 
 
-async def level3_handler(before, after):
+async def level3_handler(before: Member, after: Member) -> None:
+    """Check if a member reached level 3.
+
+    Args:
+        before (Member): The member before the event
+        after (Member): The member after the event
+    """
     if len(after.roles) - len(before.roles) != 1:
         return
 
@@ -107,5 +129,6 @@ async def level3_handler(before, after):
         await after.add_roles(giveaways)
 
 
-def setup(bot):
+def setup(bot: Bot) -> None:
+    """Automatically called during bot setup."""
     bot.add_cog(MemberHandler())

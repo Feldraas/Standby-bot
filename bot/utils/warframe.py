@@ -1,3 +1,5 @@
+"""Fetch warframe mod data."""
+
 import requests
 
 from domain import URL
