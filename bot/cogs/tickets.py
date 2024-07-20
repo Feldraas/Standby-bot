@@ -56,7 +56,7 @@ class Tickets(Cog):
         resolved_ticket_cat = await get_or_create_resolved_cat(interaction)
         await interaction.channel.edit(category=resolved_ticket_cat)
 
-        claimable_channel = uf.get_channel(interaction.guild, ChannelName.CLAIMABLE)
+        claimable_channel = uf.get_channel(ChannelName.CLAIMABLE)
         view = ResolvedTicketView()
         await interaction.send(
             RESOLVED_MESSAGE.replace("XXX", claimable_channel.mention), view=view
@@ -107,7 +107,7 @@ async def create_claimable_channel(cat):
         name=ChannelName.CLAIMABLE, reason="Making a claimable channel."
     )
     logger.info("Creating claimable channel")
-    muted_role = uf.get_role(cat.guild, "Muted")
+    muted_role = uf.get_role("Muted")
     if muted_role:
         await chnl.set_permissions(muted_role, send_messages=True)
     view = OpenTicketView()
@@ -117,7 +117,7 @@ async def create_claimable_channel(cat):
 
 async def get_or_create_tickets_log(interaction):
     resolved_cat = await get_or_create_resolved_cat(interaction)
-    tickets_log = uf.get_channel(interaction.guild, ChannelName.TICKETS_LOG)
+    tickets_log = uf.get_channel(ChannelName.TICKETS_LOG)
     if tickets_log is None:
         overwrites = {
             interaction.guild.default_role: PermissionOverwrite(read_messages=False)
@@ -130,18 +130,17 @@ async def get_or_create_tickets_log(interaction):
             overwrites=overwrites,
         )
         for mod_role_name in RoleName.mod_role_names():
-            role = uf.get_role(interaction.guild, mod_role_name)
+            role = uf.get_role(mod_role_name)
             if role is not None:
                 await tickets_log.set_permissions(role, read_messages=True)
     return tickets_log
 
 
 async def get_or_create_claimable_cat(interaction):
-    guild = interaction.guild
-    claimable_ticket_cat = uf.get_category(guild, CategoryName.CLAIMABLE_TICKETS)
+    claimable_ticket_cat = uf.get_category(CategoryName.CLAIMABLE_TICKETS)
     if claimable_ticket_cat is None:
         logger.info("Creating claimable category")
-        claimable_ticket_cat = await guild.create_category(
+        claimable_ticket_cat = await interaction.guild.create_category(
             name=CategoryName.CLAIMABLE_TICKETS,
             reason="Making a category for claimable tickets.",
         )
@@ -149,7 +148,7 @@ async def get_or_create_claimable_cat(interaction):
 
 
 async def get_or_create_active_cat(interaction):
-    active_ticket_cat = uf.get_category(interaction.guild, CategoryName.ACTIVE_TICKETS)
+    active_ticket_cat = uf.get_category(CategoryName.ACTIVE_TICKETS)
     if active_ticket_cat is None:
         logger.info("Creating active ticket category")
         active_ticket_cat = await interaction.guild.create_category(
@@ -202,7 +201,7 @@ class OpenTicketView(ui.View):
 
     @ui.button(style=ButtonStyle.green, label="Open ticket")
     async def create(self, button, interaction):  # noqa: ARG002
-        claimable_channel = uf.get_channel(interaction.guild, ChannelName.CLAIMABLE)
+        claimable_channel = uf.get_channel(ChannelName.CLAIMABLE)
         if interaction.channel != claimable_channel:
             await interaction.send(
                 f"This command can only be used in {claimable_channel.mention}.",
@@ -224,7 +223,7 @@ class OpenTicketView(ui.View):
         )
         await ticket_chnl.set_permissions(interaction.user, read_messages=True)
         for mod_role_name in RoleName.mod_role_names():
-            role = uf.get_role(interaction.guild.roles, name=mod_role_name)
+            role = uf.get_role(name=mod_role_name)
             if role is not None:
                 await ticket_chnl.set_permissions(role, read_messages=True)
 

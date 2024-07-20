@@ -176,7 +176,7 @@ class Fun(Cog):
             await interaction.send(
                 f"{user.mention}, {interaction.user.mention} sent you a hug!"
             )
-            hug = uf.get_emoji(interaction.guild, "BlobReachAndHug")
+            hug = uf.get_emoji("BlobReachAndHug")
             if hug:
                 await interaction.channel.send(hug)
 
@@ -300,7 +300,7 @@ class Fun(Cog):
         target: Member = SlashOption(description="The person you want to burger"),
     ):
         logger.info(f"{interaction.user} is attempting to burger {target}")
-        burgered = uf.get_role(interaction.guild, "Burgered")
+        burgered = uf.get_role("Burgered")
         if burgered and burgered in interaction.user.roles:
             if target == interaction.user:
                 await interaction.send(
@@ -356,7 +356,7 @@ class Fun(Cog):
                 ephemeral=True,
             )
         else:
-            general = uf.get_channel(interaction.guild, "general")
+            general = uf.get_channel("general")
             await interaction.send(
                 "The burger is currently free for the taking - to burger others, you "
                 f"must first claim it by answering the question in {general.mention}.",
@@ -372,7 +372,7 @@ class Fun(Cog):
         logger.info(f"{interaction.user} is attempting to yoink the burger")
         await db.get_or_insert_usr(interaction.user.id, interaction.guild.id)
 
-        burgered_role = uf.get_role(interaction.guild, "Burgered")
+        burgered_role = uf.get_role("Burgered")
         holders = [
             member
             for member in interaction.guild.members
@@ -380,7 +380,7 @@ class Fun(Cog):
         ]
         current_holder = holders[0]
 
-        birthday_role = uf.get_role(interaction.guild, RoleName.BIRTHDAY)
+        birthday_role = uf.get_role(RoleName.BIRTHDAY)
         if birthday_role in current_holder.roles:
             await interaction.send(
                 f"{interaction.user.mention} has shamelessly attempted to yoink the "
@@ -452,17 +452,12 @@ class Fun(Cog):
 
             logger.info("Burger timer has expired")
 
-            guild = self.standby.bot.get_guild(ID.GUILD)
-            if not guild:
-                logger.error("Could not fetch guild - will retry in 1 minute")
-                return
-
-            general = await guild.fetch_channel(ID.GENERAL)
-            user = await guild.fetch_member(rec["usr_id"])
-            burgered = uf.get_role(guild, "Burgered")
+            general = await self.standby.guild.fetch_channel(ID.GENERAL)
+            user = await self.standby.guild.fetch_member(rec["usr_id"])
+            burgered = uf.get_role("Burgered")
             if len(burgered.members) > 1:
                 logger.warning("Multiple burgers detected.")
-                maint = await guild.fetch_channel(ID.ERROR_CHANNEL)
+                maint = await self.standby.guild.fetch_channel(ID.ERROR_CHANNEL)
                 await maint.send(
                     "Multiple burgers detected: "
                     f"{', '.join([usr.mention for usr in burgered.members])}"
@@ -693,7 +688,7 @@ class Fun(Cog):
             text = "Your vanity role has been removed."
             if view.value != "remove":
                 logger.info(f"Adding vanity role {role.name} to {interaction.user}")
-                role = uf.get_role(interaction.guild, view.value)
+                role = uf.get_role(view.value)
                 await interaction.user.add_roles(role)
                 text = f"You are now (a) {role.name}."
             msg = await interaction.original_message()
@@ -1143,7 +1138,7 @@ class BurgerView(ui.View):
 
             if self.label in self.view.correct:
                 await interaction.response.defer()
-                burgered = uf.get_role(interaction.guild, "Burgered")
+                burgered = uf.get_role("Burgered")
                 await interaction.user.add_roles(burgered)
                 for child in self.view.children:
                     child.disabled = True

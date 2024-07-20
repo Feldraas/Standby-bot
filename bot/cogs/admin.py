@@ -195,7 +195,6 @@ class Admin(Cog):
         self, interaction, user: Member = SlashOption(description="The user to punish")
     ):
         logger.info(f"{interaction.user} is punishing {user}")
-        guild = interaction.guild
         ch_list = [
             "general",
             "legs-and-cows-and-whatever",
@@ -206,7 +205,7 @@ class Admin(Cog):
         ]
         await interaction.send("Punishment in progress", ephemeral=True)
         for ch in ch_list:
-            channel = uf.get_channel(guild, ch)
+            channel = uf.get_channel(ch)
             if channel:
                 ping = await channel.send(user.mention)
                 await ping.delete()
@@ -217,7 +216,7 @@ class Admin(Cog):
         await asyncio.sleep(45)
 
         for ch in ch_list:
-            channel = uf.get_channel(guild, ch)
+            channel = uf.get_channel(ch)
             if channel:
                 ping = await channel.send(user.mention)
                 await ping.delete()
@@ -360,7 +359,7 @@ class Admin(Cog):
         interaction,
         channel: VALID_TEXT_CHANNEL = SlashOption(description="Channel to post in"),
     ):
-        maint = uf.get_channel(interaction.guild, ChannelName.ERRORS)
+        maint = uf.get_channel(ChannelName.ERRORS)
         if not maint:
             logger.error("Could not find maintenance channel")
             await interaction.send("Could not find maintenance channel", ephemeral=True)
@@ -395,9 +394,9 @@ class Admin(Cog):
             )
             return
 
-        jailed_role = uf.get_role(interaction.guild, "Jailed")
-        muted_role = uf.get_role(interaction.guild, "Muted")
-        jail_channel = uf.get_channel(interaction.guild, "jail")
+        jailed_role = uf.get_role("Jailed")
+        muted_role = uf.get_role("Muted")
+        jail_channel = uf.get_channel("jail")
         if jailed_role and muted_role:
             await offender.add_roles(jailed_role, muted_role)
             if jail_channel:
@@ -434,9 +433,9 @@ class Admin(Cog):
         interaction,
         prisoner: Member = SlashOption(description="The user to release"),
     ):
-        jailed_role = uf.get_role(interaction.guild, "Jailed")
-        muted_role = uf.get_role(interaction.guild, "Muted")
-        if jailed_role and muted_role:
+        jailed_role = uf.get_role("Jailed")
+        muted_role = uf.get_role("Muted")
+        if jailed_role and muted_role and jailed_role in prisoner.roles:
             await prisoner.remove_roles(jailed_role, muted_role)
             await interaction.send(
                 f"{prisoner.mention} has been released successfully", ephemeral=True
@@ -541,7 +540,7 @@ class Admin(Cog):
         else:
             name = emoji
 
-        if not (old_emoji := uf.get_emoji(interaction.guild, name)):
+        if not (old_emoji := uf.get_emoji(name)):
             await interaction.send("Invalid emoji", ephemeral=True)
             return
 
@@ -674,7 +673,7 @@ async def delete_emoji(interaction, emoji):
         name = match.group(1)
     else:
         name = emoji
-    emoji = uf.get_emoji(interaction.guild, name)
+    emoji = uf.get_emoji(name)
     logger.info(f"Deleting emoji {name}")
 
     try:

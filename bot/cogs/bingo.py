@@ -190,14 +190,8 @@ class Bingo(
             )
         elif (
             game.host != interaction.user
-            and (
-                uf.get_role(interaction.guild, "Moderator")
-                not in interaction.user.roles
-            )
-            and (
-                uf.get_role(interaction.guild, "Guides of the Void")
-                not in interaction.user.roles
-            )
+            and (uf.get_role("Moderator") not in interaction.user.roles)
+            and (uf.get_role("Guides of the Void") not in interaction.user.roles)
         ):
             await interaction.send(
                 "Only the person who created the lobby can start the game.",
@@ -225,11 +219,8 @@ async def stop(interaction):
         await interaction.send("No active game found.", ephemeral=True)
     elif (
         game.host != interaction.user
-        and (uf.get_role(interaction.guild, "Moderator") not in interaction.user.roles)
-        and (
-            uf.get_role(interaction.guild, "Guides of the Void")
-            not in interaction.user.roles
-        )
+        and (uf.get_role("Moderator") not in interaction.user.roles)
+        and (uf.get_role("Guides of the Void") not in interaction.user.roles)
     ):
         await interaction.send(
             "Only the person who started the game can stop it.", ephemeral=True
@@ -250,11 +241,8 @@ async def draw(interaction):
         await interaction.send("No active game found.", ephemeral=True)
     elif (
         interaction.user != game.host
-        and (uf.get_role(interaction.guild, "Moderator") not in interaction.user.roles)
-        and (
-            uf.get_role(interaction.guild, "Guides of the Void")
-            not in interaction.user.roles
-        )
+        and (uf.get_role("Moderator") not in interaction.user.roles)
+        and (uf.get_role("Guides of the Void") not in interaction.user.roles)
     ):
         await interaction.send(
             "Only the person who started the game can draw numbers.", ephemeral=True
@@ -283,11 +271,8 @@ async def autodraw(interaction):
         await interaction.send("No active game found.", ephemeral=True)
     elif (
         interaction.user != game.host
-        and (uf.get_role(interaction.guild, "Moderator") not in interaction.user.roles)
-        and (
-            uf.get_role(interaction.guild, "Guides of the Void")
-            not in interaction.user.roles
-        )
+        and (uf.get_role("Moderator") not in interaction.user.roles)
+        and (uf.get_role("Guides of the Void") not in interaction.user.roles)
     ):
         await interaction.send(
             "Only the person who started the game can draw numbers.", ephemeral=True

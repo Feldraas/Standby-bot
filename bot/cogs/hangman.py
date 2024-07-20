@@ -196,7 +196,7 @@ class Hangman(Cog, name="Void Hangman"):
             await interaction.send("No active game found.", ephemeral=True)
         elif (
             interaction.user != game.host
-            or uf.get_role(interaction.guild, "Moderator") not in interaction.user.roles
+            or uf.get_role("Moderator") not in interaction.user.roles
         ):
             await interaction.send(
                 "Only the person who started the game can stop it.", ephemeral=True

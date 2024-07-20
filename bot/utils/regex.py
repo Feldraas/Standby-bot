@@ -17,7 +17,7 @@ from utils import warframe as wf
 class RegexResponse:
     trigger: str
     response: Callable | str
-    flags: re.RegexFlag = re.M | re.I
+    flags: re.RegexFlag = re.MULTILINE | re.IGNORECASE
     prio: bool = False
     accepts: Callable = lambda x: True  # noqa: ARG005
 
@@ -44,7 +44,7 @@ async def ping_resp(message):
     if message.author.id in custom_responses:
         await message.channel.send(custom_responses[message.author.id])
     else:
-        emoji = uf.get_emoji(message.guild, "Pingsock")
+        emoji = uf.get_emoji("Pingsock")
         if emoji is not None:
             await message.channel.send(emoji)
         await message.channel.send(f"{message.author.mention}")
@@ -65,7 +65,7 @@ async def uwu_resp(message):
     ]
 
     for word in whitelist:
-        if re.search(word, msg, re.I) is not None:
+        if re.search(word, msg, re.IGNORECASE) is not None:
             return
 
     n = len(re.findall("[rRlL]", msg))
@@ -213,13 +213,13 @@ regex_responses.append(RegexResponse(trigger=r"^hans\W*$", response=hans_resp))
 
 
 async def loli_resp(message):
-    glare = uf.get_emoji(message.guild, "BlobGlare")
+    glare = uf.get_emoji("BlobGlare")
     if glare is not None:
         await message.add_reaction(glare)
     await message.channel.send(
         "https://cdn.discordapp.com/attachments/413861431906402334/731636158223614113/image0-27.jpg"
     )
-    if re.search("loli", message.content, re.I) is None:
+    if re.search("loli", message.content, re.IGNORECASE) is None:
         await message.channel.send(f"Fuck off, {message.author.mention}")
 
 
@@ -227,7 +227,7 @@ regex_responses.append(
     RegexResponse(
         trigger=r"(^|\W)[LlI|][Oo0][LlI|][Ii]",
         response=loli_resp,
-        flags=re.M,
+        flags=re.MULTILINE,
         accepts=lambda msg: msg.author.id != ID.JORM and "http" not in msg.content,
     )
 )
@@ -307,7 +307,7 @@ async def now_resp(message):
 
 
 regex_responses.append(
-    RegexResponse(trigger=r"(^|\W)NOW\W{0,4}$", response=now_resp, flags=re.M)
+    RegexResponse(trigger=r"(^|\W)NOW\W{0,4}$", response=now_resp, flags=re.MULTILINE)
 )
 
 
@@ -387,8 +387,7 @@ regex_responses.append(
 
 async def ahoy_resp(message):
     await message.channel.send("Ahoy Matey!")
-    if message.guild.id == ID.GUILD:
-        await message.add_reaction("BlobWave:382606234148143115")
+    await message.add_reaction("BlobWave:382606234148143115")
 
 
 regex_responses.append(
@@ -406,8 +405,7 @@ regex_responses.append(
 
 
 async def wait_min_resp(message):
-    if message.guild.id == ID.GUILD:
-        await message.add_reaction("Thonk:383190394457948181")
+    await message.add_reaction("Thonk:383190394457948181")
 
 
 regex_responses.append(
@@ -480,14 +478,14 @@ regex_responses.append(RegexResponse(trigger=r"^ayaya\W{0,4}$", response=ayaya_r
 async def link_resp(message):
     ids = re.search(r"\d+/\d+/\d+", message.content).group()
     guild_id, channel_id, message_id = re.split("/", ids)
-    channel = uf.get_channel(message.guild, channel_id)
+    channel = uf.get_channel(channel_id)
     source_message = None
     try:  # noqa: SIM105
         source_message = await channel.fetch_message(int(message_id))
     except Exception:
         pass
 
-    if not ((int(guild_id) == ID.GUILD) and channel and source_message):
+    if not (channel and source_message):
         return
 
     embed = uf.message_embed(source_message, "link", message.author)
@@ -508,7 +506,9 @@ regex_responses.append(
         response=link_resp,
         prio=True,
         accepts=lambda msg: not re.search(
-            rf"\|\|.*?{DISCORD_MESSAGE_LINK_PATTERN}.*?\|\|", msg.content, re.M | re.I
+            rf"\|\|.*?{DISCORD_MESSAGE_LINK_PATTERN}.*?\|\|",
+            msg.content,
+            re.MULTILINE | re.IGNORECASE,
         ),
     )
 )

@@ -5,7 +5,7 @@ from datetime import datetime as dt
 from nextcord.ext.commands import Cog
 
 from cogs.error_handler import unhandled_error_embed
-from domain import ID, VALID_TEXT_CHANNEL, ChannelName, Standby
+from domain import VALID_TEXT_CHANNEL, ChannelName, Standby
 from utils import util_functions as uf
 from utils.regex import (
     RegexResponse,
@@ -78,16 +78,13 @@ class MessageHandler(Cog):
                 logger.exception(
                     f"Error when executing regex command {response_command.__name__}()"
                 )
-                if message.guild.id == ID.GUILD:
-                    channel = uf.get_channel(message.guild, ChannelName.ERRORS)
-                    if channel is not None:
-                        await channel.send(
-                            embed=unhandled_error_embed(
-                                message.content, message.channel, e
-                            )
-                        )
-                    else:
-                        logger.warning("Could not find error channel")
+                channel = uf.get_channel(ChannelName.ERRORS)
+                if channel is not None:
+                    await channel.send(
+                        embed=unhandled_error_embed(message.content, message.channel, e)
+                    )
+                else:
+                    logger.warning("Could not find error channel")
             return
 
         if (

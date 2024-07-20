@@ -7,7 +7,7 @@ from nextcord import SlashOption, slash_command
 from nextcord.ext.commands import Cog
 
 from db_integration import db_functions as db
-from domain import ID, Standby, TimerType
+from domain import Standby, TimerType
 from utils import util_functions as uf
 
 logger = logging.getLogger(__name__)
@@ -70,8 +70,7 @@ class Timers(Cog):
                 await channel.send(message)
 
             if location == "DM":
-                guild = await self.standby.bot.fetch_guild(ID.GUILD)
-                user = await guild.fetch_member(rec["usr_id"])
+                user = await self.standby.guild.fetch_member(rec["usr_id"])
                 await user.send(message)
 
             await self.standby.pg_pool.execute(

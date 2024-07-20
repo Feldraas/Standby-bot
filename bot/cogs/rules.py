@@ -80,8 +80,7 @@ class Rules(Cog):
         ),
     ):
         logger.info("Creating rules channel")
-        vie = interaction.guild
-        rules_ch = uf.get_channel(vie, ChannelName.RULES)
+        rules_ch = uf.get_channel(ChannelName.RULES)
         await interaction.send(
             f"Creation process starting in {rules_ch.mention}", ephemeral=True
         )
@@ -106,7 +105,7 @@ class Rules(Cog):
             "button. If you're coming from anywhere else, use the 'Elsewhere' button."
         )
 
-        view = StepOneView(guild=vie)
+        view = StepOneView()
         alli_msg = await rules_ch.send(
             "__***Please carefully read the posts below "
             "or you will not gain full access to the server***__",
@@ -122,7 +121,7 @@ class Rules(Cog):
             "Step 2 - If you're part of the Warframe alliance, "
             "use the menu below to select your clan."
         )
-        view = RoleChoiceView(guild=vie, role_type="clan")
+        view = RoleChoiceView(role_type="clan")
         clan_msg = await rules_ch.send(embed=clan_embed, view=view)
         await db.log_buttons(view, rules_ch.id, clan_msg.id, {"role_type": "clan"})
         await asyncio.sleep(delay)
@@ -132,7 +131,7 @@ class Rules(Cog):
             "Step 3 - Use the menu below if you want to be notified for things like "
             "updates, events and giveaways, or to access certain opt-in channels."
         )
-        view = OptInView(guild=vie)
+        view = OptInView()
         opt_msg = await rules_ch.send(embed=opt_embed, view=view)
         await db.log_buttons(view, rules_ch.id, opt_msg.id)
 
@@ -141,12 +140,12 @@ class Rules(Cog):
             "Step 4 - Use the menu below if you want a different display color "
             "than the one provided by your clan"
         )
-        view = RoleChoiceView(guild=vie, role_type="color")
+        view = RoleChoiceView(role_type="color")
         color_msg = await rules_ch.send(embed=color_embed, view=view)
         await db.log_buttons(view, rules_ch.id, color_msg.id, {"role_type": "color"})
         await asyncio.sleep(delay)
 
-        general = uf.get_channel(vie, "general")
+        general = uf.get_channel("general")
         await rules_ch.send(
             "You should now have access to all necessary channels in the server!\n"
             f"Why not pop over to {general.mention} and say hi? "
@@ -158,7 +157,7 @@ class Rules(Cog):
         self, interaction, text: str = SlashOption(description="The text of the rule")
     ):
         logger.info("Adding rule")
-        rules_ch = uf.get_channel(interaction.guild, ChannelName.RULES)
+        rules_ch = uf.get_channel(ChannelName.RULES)
         rules_msg = await rules_ch.fetch_message(ID.RULES_MESSAGE)
         embed = rules_msg.embeds[0]
         rules = re.split(rf"\n{EMPTY_STRING}\n", embed.description)
@@ -186,7 +185,7 @@ class Rules(Cog):
         ),
     ):
         logger.info("Removing rule")
-        rules_ch = uf.get_channel(interaction.guild, ChannelName.RULES)
+        rules_ch = uf.get_channel(ChannelName.RULES)
         rules_msg = await rules_ch.fetch_message(ID.RULES_MESSAGE)
         embed = rules_msg.embeds[0]
         rules = re.split(rf"\n{EMPTY_STRING}\n", embed.description)
@@ -211,7 +210,7 @@ class Rules(Cog):
         ),
         new_text=SlashOption(description="New text of the rule"),
     ):
-        rules_ch = uf.get_channel(interaction.guild, ChannelName.RULES)
+        rules_ch = uf.get_channel(ChannelName.RULES)
         rules_msg = await rules_ch.fetch_message(ID.RULES_MESSAGE)
         embed = rules_msg.embeds[0]
         rules = re.split(rf"\n{EMPTY_STRING}\n", embed.description)
@@ -229,17 +228,12 @@ class Rules(Cog):
     @uf.delayed_loop(hours=8)
     async def kick_inactives(self):
         logger.info("Checking for inactive members")
-        try:
-            guild = await self.standby.bot.fetch_guild(ID.GUILD)
-        except Exception:
-            logger.exception("Could not fetch guild")
-            return
 
-        async for member in guild.fetch_members():
+        async for member in self.standby.guild.fetch_members():
             if (
                 not member.bot
-                and uf.get_role(member.guild, "Alliance") not in member.roles
-                and (uf.get_role(member.guild, "Community") not in member.roles)
+                and uf.get_role("Alliance") not in member.roles
+                and (uf.get_role("Community") not in member.roles)
             ):
                 time = uf.utcnow() - member.joined_at
                 if time.days >= 30:  # noqa: PLR2004
@@ -279,40 +273,39 @@ class Rules(Cog):
 
 
 class StepOneView(ui.View):
-    def __init__(self, **params):
+    def __init__(self):
         super().__init__(timeout=None)
-        guild = params["guild"]
-        self.add_item(self.WarframeButton(guild))
-        self.add_item(self.CommunityButton(guild))
+        self.add_item(self.WarframeButton())
+        self.add_item(self.CommunityButton())
 
     class WarframeButton(ui.Button):
-        def __init__(self, guild):
+        def __init__(self):
             super().__init__(
                 label="Warframe",
                 style=ButtonStyle.blurple,
-                emoji=uf.get_emoji(guild, "Alli"),
+                emoji=uf.get_emoji("Alli"),
             )
 
         async def callback(self, interaction):
-            alli = uf.get_role(interaction.guild, "Alliance")
-            comm = uf.get_role(interaction.guild, "Community")
+            alli = uf.get_role("Alliance")
+            comm = uf.get_role("Community")
 
             await interaction.user.remove_roles(comm)
             await interaction.user.add_roles(alli)
 
     class CommunityButton(ui.Button):
-        def __init__(self, guild):
+        def __init__(self):
             super().__init__(
                 label="Elsewhere",
                 style=ButtonStyle.blurple,
-                emoji=uf.get_emoji(guild, "BlobWave"),
+                emoji=uf.get_emoji("BlobWave"),
             )
 
         async def callback(self, interaction):
             await interaction.response.defer()
 
-            alli = uf.get_role(interaction.guild, "Alliance")
-            comm = uf.get_role(interaction.guild, "Community")
+            alli = uf.get_role("Alliance")
+            comm = uf.get_role("Community")
             await interaction.user.remove_roles(alli)
             await interaction.user.add_roles(comm)
 
@@ -324,10 +317,9 @@ class RoleChoiceView(ui.View):
     def __init__(self, **params):
         super().__init__(timeout=None)
         self.choice = None
-        guild = params["guild"]
         role_type = params.get("role_type", "clan")
         type_delimiter = DELIMITERS[role_type]
-        all_roles = uf.get_roles_by_type(guild, type_delimiter)
+        all_roles = uf.get_roles_by_type(type_delimiter)
         all_roles.sort(key=uf.role_prio)
         num_groups = ceil(len(all_roles) / MAX_SELECT_MENU_SIZE)
         group_size = ceil(len(all_roles) / num_groups)
@@ -365,7 +357,7 @@ class RoleChoiceView(ui.View):
         async def callback(self, interaction):
             await interaction.response.defer()
             if self.role_type == "clan" and self.view.choice != "None":
-                alli = uf.get_role(interaction.guild, "Alliance")
+                alli = uf.get_role("Alliance")
                 if alli not in interaction.user.roles:
                     await interaction.send(
                         "Please confirm you're part of the Warframe alliance in Step 1 "
@@ -379,15 +371,14 @@ class RoleChoiceView(ui.View):
             )
             await interaction.user.remove_roles(*all_roles_of_type)
             if self.view.choice != "None":
-                role = uf.get_role(interaction.guild, self.view.choice)
+                role = uf.get_role(self.view.choice)
                 await interaction.user.add_roles(role)
 
 
 class OptInView(ui.View):
-    def __init__(self, **params):
-        guild = params["guild"]
+    def __init__(self):
         super().__init__(timeout=None)
-        opt_in_roles = uf.get_roles_by_type(guild, DELIMITERS["opt-in"])
+        opt_in_roles = uf.get_roles_by_type(DELIMITERS["opt-in"])
         groups = [
             opt_in_roles[i : i + MAX_SELECT_MENU_SIZE]
             for i in range(0, len(opt_in_roles), MAX_SELECT_MENU_SIZE)
@@ -420,7 +411,7 @@ class OptInView(ui.View):
     async def choose_roles(self, button, interaction):  # noqa: ARG002
         for role_list in self.selected_roles:
             for role_name in role_list:
-                role = uf.get_role(interaction.guild, role_name)
+                role = uf.get_role(role_name)
                 if role:
                     await interaction.user.add_roles(role)
 
@@ -428,7 +419,7 @@ class OptInView(ui.View):
     async def remove_roles(self, button, interaction):  # noqa: ARG002
         for role_list in self.selected_roles:
             for role_name in role_list:
-                role = uf.get_role(interaction.guild, role_name)
+                role = uf.get_role(role_name)
                 if role:
                     await interaction.user.remove_roles(role)
 

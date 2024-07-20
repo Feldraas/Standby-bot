@@ -222,20 +222,33 @@ class Services(Cog):
             await interaction.send(message)
 
 
-async def create_leaderboard(settings, guild_id=ID.GUILD, filter_by_user=None):
+async def create_leaderboard(settings, filter_by_user=None):
     filter_condition = (
         "AND usr_id = " + str(filter_by_user.id) if filter_by_user else ""
     )
-
-    return await Standby().pg_pool.fetch(
-        f"SELECT usr_id, SUM({settings.stat_col_name}) as total "
-        f"FROM {settings.table} "
-        f"WHERE usr_id IN "
-        f"(SELECT usr_id FROM usr WHERE guild_id = {guild_id}{filter_condition}) "
-        f"GROUP BY usr_id "
-        f"HAVING SUM({settings.stat_col_name}) > 0 "
-        f"ORDER BY total DESC ;"
-    )
+    standby = Standby()
+    return await standby.pg_pool.fetch(f"""
+        SELECT
+            usr_id,
+            SUM({settings.stat_col_name}) as total
+        FROM
+            {settings.table}
+        WHERE
+            usr_id IN (
+                SELECT
+                    usr_id
+                FROM
+                    usr
+                WHERE
+                    guild_id = {standby.guild.id}{filter_condition}
+            )
+        GROUP BY
+            usr_id
+        HAVING
+            SUM({settings.stat_col_name}) > 0
+        ORDER BY
+            total DESC
+        """)
 
 
 def build_leaderboard_embed(

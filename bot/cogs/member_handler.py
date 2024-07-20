@@ -5,7 +5,7 @@ import random
 from nextcord import Embed
 from nextcord.ext.commands import Cog
 
-from domain import ID, URL, ChannelName, Color, Standby
+from domain import URL, ChannelName, Color, Standby
 from utils import util_functions as uf
 
 logger = logging.getLogger(__name__)
@@ -30,42 +30,37 @@ class MemberHandler(Cog):
 
 async def welcome_message(member):
     logger.info(f"{member} has joined the guild")
-    if member.guild.id == ID.GUILD:
-        general = uf.get_channel(member.guild, ChannelName.GENERAL)
-        rules_ch = uf.get_channel(member.guild, ChannelName.RULES)
-        rules_text = rules_ch.mention if rules_ch else f"#{ChannelName.Rules}"
-        if not general:
-            logger.error("Could not find general channel")
-            return
-        message = (
-            f"Welcome {member.mention}!\n"
-            "Wondering why the server seems so void of channels?\n"
-            f"Please read the rules in {rules_text} to unlock the full server!\n"
-            "https://www.youtube.com/watch?v=67h8GyNgEmA"
-        )
+    general = uf.get_channel(ChannelName.GENERAL)
+    rules_ch = uf.get_channel(ChannelName.RULES)
+    rules_text = rules_ch.mention if rules_ch else f"#{ChannelName.Rules}"
+    if not general:
+        logger.error("Could not find general channel")
+        return
+    message = (
+        f"Welcome {member.mention}!\n"
+        "Wondering why the server seems so void of channels?\n"
+        f"Please read the rules in {rules_text} to unlock the full server!\n"
+        "https://www.youtube.com/watch?v=67h8GyNgEmA"
+    )
 
-        await general.send(message)
-        await asyncio.sleep(30 * 60)
-        if (
-            not member.bot
-            and member.guild.get_member(member.id)
-            and (uf.get_role(member.guild, "Alliance") not in member.roles)
-            and (uf.get_role(member.guild, "Community") not in member.roles)
-        ):
-            logger.info(f"Sending reminder to {member}")
-            await general.send(
-                f"Hey {member.mention} - I see you still haven't unlocked "
-                f"the full server. Make sure you read {rules_ch.mention} "
-                "and use the buttons so you can access all of our channels!"
-            )
+    await general.send(message)
+    await asyncio.sleep(30 * 60)
+    if (
+        not member.bot
+        and member.guild.get_member(member.id)
+        and (uf.get_role("Alliance") not in member.roles)
+        and (uf.get_role("Community") not in member.roles)
+    ):
+        logger.info(f"Sending reminder to {member}")
+        await general.send(
+            f"Hey {member.mention} - I see you still haven't unlocked "
+            f"the full server. Make sure you read {rules_ch.mention} "
+            "and use the buttons so you can access all of our channels!"
+        )
 
 
 async def leave_message(member):
-    if member.guild.id != ID.GUILD:
-        logger.warning("Wrong guild?")
-        return
-
-    channel = uf.get_channel(member.guild, ChannelName.ERRORS)
+    channel = uf.get_channel(ChannelName.ERRORS)
     if not channel:
         logger.error("Could not find error channel")
         return
@@ -90,7 +85,7 @@ async def leave_message(member):
         "Critical paper cut",
         "Executed by the ICC for their numerous war crimes in Albania",
     ]
-    animu = uf.get_channel(member.guild, "animu")
+    animu = uf.get_channel("animu")
     if animu:
         causes.append(f"Too much time spent in {animu.mention}")
     embed.add_field(name="Time of death", value=time)
@@ -104,11 +99,11 @@ async def level3_handler(before, after):
     if len(after.roles) - len(before.roles) != 1:
         return
 
-    lv3 = uf.get_role(after.guild, "Level 3")
-    alliance = uf.get_role(after.guild, "Alliance")
+    lv3 = uf.get_role("Level 3")
+    alliance = uf.get_role("Alliance")
 
     if lv3 not in before.roles and lv3 in after.roles and alliance in after.roles:
-        giveaways = uf.get_role(after.guild, "Giveaways")
+        giveaways = uf.get_role("Giveaways")
         await after.add_roles(giveaways)
 
 

@@ -5,7 +5,7 @@ from nextcord import SlashOption, slash_command
 from nextcord.ext.commands import Cog
 
 from db_integration import db_functions as db
-from domain import ID, RoleName, Standby
+from domain import RoleName, Standby
 from utils import util_functions as uf
 
 logger = logging.getLogger(__name__)
@@ -116,11 +116,9 @@ class Birthdays(Cog):
         logger.info("Checking birthdays")
         await self.standby.bot.wait_until_ready()
 
-        guild = await self.standby.bot.fetch_guild(ID.GUILD)
+        bday_role = uf.get_role(RoleName.BIRTHDAY)
 
-        bday_role = uf.get_role(guild, RoleName.BIRTHDAY)
-
-        async for member in guild.fetch_members():
+        async for member in self.standby.guild.fetch_members():
             if bday_role in member.roles:
                 logger.info(f"Removing birthday role from {member}")
                 await member.remove_roles(bday_role)
@@ -136,7 +134,7 @@ class Birthdays(Cog):
         bday_havers = []
 
         for rec in gtable:
-            member = await guild.fetch_member(rec["usr_id"])
+            member = await self.guild.fetch_member(rec["usr_id"])
 
             logger.info(f"Adding birthday role to {member}")
             await member.add_roles(bday_role)

@@ -15,34 +15,38 @@ from PIL import Image, ImageDraw, ImageFont
 
 from domain import BOT_TZ, EMPTY_STRING, URL, Color, RoleName, Standby
 
-
-def get_emoji(guild, name):
-    return nextcord.utils.get(guild.emojis, name=name)
+standby = Standby()
 
 
-def get_role(guild, name):
-    return nextcord.utils.find(lambda r: r.name.lower() == name.lower(), guild.roles)
+def get_emoji(name):
+    return nextcord.utils.get(standby.guild.emojis, name=name)
 
 
-def mention_role(guild, name):
-    role = get_role(guild, name)
+def get_role(name):
+    return nextcord.utils.find(
+        lambda r: r.name.lower() == name.lower(), Standby().guild.roles
+    )
+
+
+def mention_role(name):
+    role = get_role(standby.guild, name)
     if role:
         return role.mention
     return "@" + name
 
 
-def get_channel(guild, name):
+def get_channel(name):
     match = re.search(r"(\d+)", name)
     if match:
         return nextcord.utils.get(
-            guild.text_channels + guild.threads, id=int(match.group(1))
+            standby.guild.text_channels + standby.guild.threads, id=int(match.group(1))
         )
     name = name.replace("#", "")
-    channel = nextcord.utils.get(guild.text_channels, name=name)
-    return channel if channel else nextcord.utils.get(guild.threads, name=name)
+    channel = nextcord.utils.get(standby.guild.text_channels, name=name)
+    return channel if channel else nextcord.utils.get(standby.guild.threads, name=name)
 
 
-def get_user(guild, query):
+def get_user(query):
     if re.search(r".*#\d{4}$", query):
         query, tag = re.split(" ?#", query)
     else:
@@ -51,14 +55,14 @@ def get_user(guild, query):
     if tag:
         users = [
             user
-            for user in guild.members
+            for user in standby.guild.members
             if (user.name.lower() == query.lower() and user.discriminator == tag)
         ]
     else:
         users = [
             user
-            for user in guild.members
-            if re.search(query, f"{user.name}|{user.display_name}", re.I)
+            for user in standby.guild.members
+            if re.search(query, f"{user.name}|{user.display_name}", re.IGNORECASE)
         ]
 
     if len(users) == 1:
@@ -66,8 +70,8 @@ def get_user(guild, query):
     return None
 
 
-def get_category(guild, name):
-    return nextcord.utils.get(guild.categories, name=name)
+def get_category(name):
+    return nextcord.utils.get(standby.guild.categories, name=name)
 
 
 def int_to_emoji(num):
@@ -104,21 +108,21 @@ def get_mentioned_ids(text):
     return [int(re.sub(r"\D", "", id_)) for id_ in raw_ids]
 
 
-async def get_mentioned_users(text, guild):
+async def get_mentioned_users(text):
     ids = get_mentioned_ids(text)
-    return [await guild.fetch_member(id_) for id_ in ids]
+    return [await standby.guild.fetch_member(id_) for id_ in ids]
 
 
-def get_roles_by_type(guild, type_):
+def get_roles_by_type(type_):
     try:
         start, stop = [
             i
-            for i in range(len(guild.roles))
-            if guild.roles[i].name.lower() == type_.lower()
+            for i in range(len(standby.guild.roles))
+            if standby.guild.roles[i].name.lower() == type_.lower()
         ][0:2]
     except ValueError:
         return []
-    roles = guild.roles[start + 1 : stop]
+    roles = standby.guild.roles[start + 1 : stop]
     roles.sort(key=lambda role: role.name)
     return roles
 

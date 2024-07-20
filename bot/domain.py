@@ -9,7 +9,7 @@ from pathlib import Path
 import aiohttp
 import nextcord
 from asyncpg import Pool
-from nextcord import Intents
+from nextcord import Guild, Intents
 from nextcord.ext.commands import Bot
 from pytz import timezone
 
@@ -27,6 +27,7 @@ class Standby:
 
     bot: Bot
     pg_pool: Pool
+    guild: Guild
     token: str
 
     def __new__(cls):
@@ -40,6 +41,9 @@ class Standby:
         for file in Path().glob("bot/cogs/*.py"):
             logger.info(f"Loading cog {file.stem}")
             self.bot.load_extension(f"cogs.{file.stem}")
+
+    def store_guild(self):
+        self.guild = self.bot.get_guild(ID.GUILD)
 
     async def announce(self):
         channel = self.bot.get_channel(ID.ERROR_CHANNEL)
@@ -75,7 +79,6 @@ class Standby:
 
     async def reconnect_buttons(self):
         logger.info("Checking buttons")
-        guild = self.bot.get_guild(ID.GUILD)
         buttons = await self.pg_pool.fetch("SELECT * FROM buttons")
         for button in buttons:
             try:
@@ -105,9 +108,7 @@ class Standby:
 
                 logger.info("Reconnecting button")
                 params = json.loads(button["params"]) if button["params"] else {}
-                view = self.create_view(
-                    button["type"], bot=self.bot, guild=guild, **params
-                )
+                view = self.create_view(button["type"], bot=self.bot, **params)
                 await message.edit(view=view)
 
     async def set_status(self, status):

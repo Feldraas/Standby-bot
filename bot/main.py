@@ -23,6 +23,7 @@ standby = Standby()
 
 @standby.bot.event
 async def on_ready():
+    standby.store_guild()
     await standby.set_status("Have a nice day!")
     await standby.reconnect_buttons()
     await standby.announce()

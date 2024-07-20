@@ -4,7 +4,7 @@ import logging
 from nextcord import Embed, Message
 from nextcord.ext.commands import Cog, Context, errors
 
-from domain import ID, ChannelName, Color, Standby
+from domain import ChannelName, Color, Standby
 from utils import util_functions as uf
 
 logger = logging.getLogger(__name__)
@@ -35,8 +35,8 @@ class ErrorHandler(Cog):
                     )
                 )
             )
-        elif ctx.guild.id == ID.GUILD:
-            channel = uf.get_channel(ctx.guild, ChannelName.ERRORS)
+        else:
+            channel = uf.get_channel(ChannelName.ERRORS)
             if channel is not None:
                 await channel.send(
                     embed=unhandled_error_embed(ctx.message.content, ctx.channel, e)

@@ -4,7 +4,7 @@ from nextcord import RawReactionActionEvent
 from nextcord.ext.commands import Cog
 
 from db_integration import db_functions as db
-from domain import ID, Duration, Emoji, RoleName, Standby, Threshold, TimerType
+from domain import Duration, Emoji, RoleName, Standby, Threshold, TimerType
 from utils import util_functions as uf
 
 logger = logging.getLogger(__name__)
@@ -20,9 +20,8 @@ class Reposts(Cog):
 
     @Cog.listener()
     async def on_raw_reaction_add(self, payload):
-        guild = await self.standby.bot.fetch_guild(ID.GUILD)
-        reemoji = uf.get_emoji(guild, Emoji.REEPOSTER)
-        reeposter = uf.get_role(guild, RoleName.REEPOSTER)
+        reemoji = uf.get_emoji(Emoji.REEPOSTER)
+        reeposter = uf.get_role(RoleName.REEPOSTER)
 
         if not (
             isinstance(payload, RawReactionActionEvent) and payload.emoji == reemoji
@@ -64,30 +63,21 @@ class Reposts(Cog):
 
     @uf.delayed_loop(seconds=60)
     async def check_reposters(self):
-        try:
-            gtable = await self.standby.pg_pool.fetch(
-                f"SELECT * FROM tmers WHERE ttype={TimerType.REPOST}"
-            )
-            for rec in gtable:
-                timenow = uf.utcnow()
-                if timenow.replace(tzinfo=None) <= rec["expires"]:
-                    continue
+        gtable = await self.standby.pg_pool.fetch(
+            f"SELECT * FROM tmers WHERE ttype={TimerType.REPOST}"
+        )
+        for rec in gtable:
+            timenow = uf.utcnow()
+            if timenow.replace(tzinfo=None) <= rec["expires"]:
+                continue
 
-                logger.info("Reepost timer expired")
-                guild_id = await self.standby.pg_pool.fetchval(
-                    f"SELECT guild_id FROM usr WHERE usr_id = {rec['usr_id']}"
-                )
-                guild = await self.standby.bot.fetch_guild(guild_id)
-                user = await guild.fetch_member(rec["usr_id"])
-                reeposter = uf.get_role(guild, RoleName.REEPOSTER)
-                await user.remove_roles(reeposter)
-                await self.standby.pg_pool.execute(
-                    f"DELETE FROM tmers WHERE tmer_id = {rec['tmer_id']};"
-                )
-        except AttributeError:
-            logger.exception("Bot hasn't loaded yet - pg_pool doesn't exist")
-        except Exception:
-            logger.exception("Unknown exception")
+            logger.info("Reepost timer expired")
+            user = await self.standby.guild.fetch_member(rec["usr_id"])
+            reeposter = uf.get_role(RoleName.REEPOSTER)
+            await user.remove_roles(reeposter)
+            await self.standby.pg_pool.execute(
+                f"DELETE FROM tmers WHERE tmer_id = {rec['tmer_id']};"
+            )
 
 
 def setup(bot):

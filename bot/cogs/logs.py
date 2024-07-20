@@ -30,7 +30,7 @@ class Logs(Cog):
             return
         embed, files = await deleted_embed(payload, channel)
         if embed:
-            logs = uf.get_channel(channel.guild, ChannelName.LOGS)
+            logs = uf.get_channel(ChannelName.LOGS)
             if logs:
                 main = await logs.send(embed=embed)
                 for file in files:
@@ -39,11 +39,10 @@ class Logs(Cog):
     @Cog.listener()
     async def on_raw_message_edit(self, payload):
         embed = await edited_embed(payload)
-        if embed:
-            channel = self.standby.bot.get_channel(payload.channel_id)
-            logs = uf.get_channel(channel.guild, ChannelName.LOGS)
-            if logs:
-                await logs.send(embed=embed)
+        logs = uf.get_channel(ChannelName.LOGS)
+
+        if embed and logs:
+            await logs.send(embed=embed)
 
     @Cog.listener()
     async def on_voice_state_update(self, member, before, after):
@@ -52,13 +51,13 @@ class Logs(Cog):
         logger.info(f"{member} has changed voice channels")
         embed = await voice_embed(member, before.channel, after.channel)
 
-        logs = uf.get_channel(member.guild, ChannelName.LOGS)
+        logs = uf.get_channel(ChannelName.LOGS)
         if logs:
             await logs.send(embed=embed)
 
     @Cog.listener()
     async def on_interaction(self, interaction):
-        logs = uf.get_channel(interaction.guild, ChannelName.LOGS)
+        logs = uf.get_channel(ChannelName.LOGS)
 
         if not logs:
             logger.error("Log channel not found")
@@ -143,17 +142,15 @@ async def edited_embed(payload):  # noqa: C901, PLR0912, PLR0915
     else:
         before_message = "[Message not found in cache]"
 
-        guild_id = after["guild_id"]
         author_id = after["author"]["id"]
         channel_id = after["channel_id"]
         message_id = after["id"]
 
-        bot = Standby().bot
-        guild = await bot.fetch_guild(guild_id)
-        author = await guild.fetch_member(author_id)
+        standby = Standby()
+        author = await standby.guild.fetch_member(author_id)
         if author.bot or not author:
             return None
-        channel = await bot.fetch_channel(channel_id)
+        channel = await standby.bot.fetch_channel(channel_id)
         message = await channel.fetch_message(message_id)
         jump_url = message.jump_url
         avatar_url = author.display_avatar.url

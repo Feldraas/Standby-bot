@@ -19,12 +19,12 @@ class Voice(Cog):
             return
 
         if before.channel:
-            role = uf.get_role(member.guild, before.channel.name)
+            role = uf.get_role(before.channel.name)
             if role:
                 await member.remove_roles(role)
 
         if after.channel:
-            role = uf.get_role(member.guild, after.channel.name)
+            role = uf.get_role(after.channel.name)
             if not role:
                 role = await member.guild.create_role(
                     name=after.channel.name, mentionable=True
@@ -35,7 +35,7 @@ class Voice(Cog):
     async def on_guild_channel_update(self, before, after):
         if isinstance(after, VoiceChannel):
             logger.info(f"Voice channel renamed from {before.name} to {after.name}")
-            role = uf.get_role(after.guild, before.name)
+            role = uf.get_role(before.name)
             if role:
                 logger.info("Renaming voice channel role")
                 await role.edit(name=after.name)
@@ -43,7 +43,7 @@ class Voice(Cog):
     @Cog.listener()
     async def on_guild_channel_delete(self, channel):
         logger.info(f"Channel {channel.name} deleted")
-        role = uf.get_role(channel.guild, channel.name)
+        role = uf.get_role(channel.name)
         if role:
             logger.info(f"Deleting voice channel role for {channel.name}")
             await role.delete()

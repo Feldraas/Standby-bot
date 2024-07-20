@@ -53,7 +53,7 @@ class Giveaways(Cog):
         logger.info("Starting giveaway")
         end_time = uf.utcnow() + timedelta(days=days, hours=hours, minutes=minutes)
         embed = giveaway_embed(end_time, winners, interaction.user, title)
-        giveaway_channel = uf.get_channel(interaction.guild, ChannelName.GIVEAWAYS)
+        giveaway_channel = uf.get_channel(ChannelName.GIVEAWAYS)
         giveaway = await giveaway_channel.send(embed=embed)
         await giveaway.add_reaction(TADA)
         await interaction.send(
@@ -77,7 +77,7 @@ class Giveaways(Cog):
         ),
     ):
         logger.info(f"Finishing giveaway with {message_id=}")
-        channel = uf.get_channel(interaction.guild, ChannelName.GIVEAWAYS)
+        channel = uf.get_channel(ChannelName.GIVEAWAYS)
 
         if message_id != 0:
             try:
@@ -112,7 +112,7 @@ class Giveaways(Cog):
         ),
     ):
         logger.info(f"Redrawing {number} winners for giveaway with {message_id=}")
-        channel = uf.get_channel(interaction.guild, ChannelName.GIVEAWAYS)
+        channel = uf.get_channel(ChannelName.GIVEAWAYS)
         giveaway = None
         if message_id == 0:
             async for message in channel.history():
@@ -196,7 +196,7 @@ class Giveaways(Cog):
         ),
     ):
         logger.info(f"Changing number of winners for giveway with {message_id=}")
-        channel = uf.get_channel(interaction.guild, ChannelName.GIVEAWAYS)
+        channel = uf.get_channel(ChannelName.GIVEAWAYS)
         giveaway = None
 
         if message_id != 0:
@@ -233,31 +233,24 @@ class Giveaways(Cog):
 
     @uf.delayed_loop(minutes=1)
     async def check_giveaways(self):
-        try:
-            guild = await self.standby.bot.fetch_guild(ID.GUILD)
-        except Exception:
-            logger.exception("Could not fetch guild")
+        channels = await self.standby.guild.fetch_channels()
+        giveaway_channel = nextcord.utils.get(channels, name=ChannelName.GIVEAWAYS)
+        if not giveaway_channel:
+            logger.exception("Giveaway channel not found")
             return
 
-        if guild:
-            channels = await guild.fetch_channels()
-            giveaway_channel = nextcord.utils.get(channels, name=ChannelName.GIVEAWAYS)
-            if not giveaway_channel:
-                logger.exception("Giveaway channel not found")
-                return
-
-            await GIVEAWAY_LOCK.acquire()
-            active_giveaway_field_count = 3
-            try:
-                async for message in giveaway_channel.history(limit=25):
-                    if (
-                        message.embeds
-                        and len(message.embeds[0].fields) >= active_giveaway_field_count
-                        and (message.embeds[0].fields[2].name == "Time remaining")
-                    ):
-                        await update_giveaway(message)
-            finally:
-                GIVEAWAY_LOCK.release()
+        await GIVEAWAY_LOCK.acquire()
+        active_giveaway_field_count = 3
+        try:
+            async for message in giveaway_channel.history(limit=25):
+                if (
+                    message.embeds
+                    and len(message.embeds[0].fields) >= active_giveaway_field_count
+                    and (message.embeds[0].fields[2].name == "Time remaining")
+                ):
+                    await update_giveaway(message)
+        finally:
+            GIVEAWAY_LOCK.release()
 
 
 async def who_reacted(message, emoji):
