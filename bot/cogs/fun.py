@@ -9,6 +9,7 @@ from datetime import datetime as dt
 from datetime import timedelta
 from itertools import permutations
 from pathlib import Path
+from urllib.parse import quote
 
 import nextcord
 import requests
@@ -259,17 +260,13 @@ class Fun(Cog):
 
         if "horny" in meme.lower() and interaction.user.id == ID.JORM:
             link = URL.GITHUB_STATIC + "/images/memes/Horny [DD].png"
-            await interaction.response.send_message(link)
+            await interaction.response.send_message(quote(link, safe=":/"))
         elif meme in ALL_MEMES:
             meme_dir = Path(URL.LOCAL_STATIC) / "images/memes"
             matches = list(meme_dir.glob(f"{meme}*"))
             file = random.choice(matches)
-            link = (
-                URL.GITHUB_STATIC
-                + "/images/memes/"
-                + file.with_stem(file.stem.replace(", ", "%20")).name
-            )
-            await interaction.response.send_message(link)
+            link = URL.GITHUB_STATIC + "/images/memes/" + file.name
+            await interaction.response.send_message(quote(link, safe=":/"))
         else:
             await interaction.response.send_message(
                 f"No match found for '{meme}' - use `/meme list` "
