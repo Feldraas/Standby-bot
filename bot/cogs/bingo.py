@@ -1,18 +1,23 @@
+"""Play Bingo in a channel (legacy)."""
+
 import asyncio
 import random
+from typing import Literal
 
-from nextcord import SlashOption, slash_command
-from nextcord.ext.commands import Cog
+from nextcord import Interaction, Member, SlashOption, slash_command
+from nextcord.ext.commands import Bot, Cog
 
+from domain import Standby, ValidTextChannel
 from utils import util_functions as uf
 
 
 class BingoCard:
-    def __init__(self):
+    def __init__(self) -> None:
         self.grid = [random.sample(range(i, i + 15), 5) for i in range(1, 76, 15)]
         self.grid[2][2] = "Free"
 
-    def __str__(self):
+    def __str__(self) -> str:
+        """Human readable representation of the bingo numbers."""
         printout = "```\n" + 16 * "_" + "\n\n"
         for i in range(5):
             for j in range(5):
@@ -24,7 +29,8 @@ class BingoCard:
         printout += "```"
         return printout
 
-    def mark(self, number):
+    def mark(self, number: int) -> Literal["Hit", "Miss"]:
+        """Mark off a number on the card."""
         col = int((number - 1) / 15)
         if number in self.grid[col]:
             res = "Hit"
@@ -33,7 +39,8 @@ class BingoCard:
             res = "Miss"
         return res
 
-    def check(self):
+    def check(self) -> bool:
+        """Check whether the card has Bingo."""
         patterns = []
         for i in range(5):
             row = []
@@ -60,7 +67,7 @@ class BingoCard:
 
 
 class BingoGame:
-    def __init__(self):
+    def __init__(self) -> None:
         self.status = "Inactive"
         self.players = []
         self.cards = {}
@@ -72,15 +79,17 @@ class BingoGame:
         self.channel = None
         self.draws = []
 
-    def setup(self, host, channel):
+    def setup(self, host: Member, channel: ValidTextChannel) -> None:
+        """Setup the lobby."""
         self.status = "Lobby open"
         self.host = host
         self.channel = channel
 
-    async def draw(self):
+    async def draw(self) -> None:
+        """Draw a number for this card."""
         if len(self.draws) == 0:
             await self.channel.send(
-                "All numbers have been drawn - please check your cards."
+                "All numbers have been drawn - please check your cards.",
             )
             self.autodraw = False
         else:
@@ -92,7 +101,8 @@ class BingoGame:
                     await player.send(f"{num} is a hit! Your card has been updated.")
                     await self.messages[player].edit(content=self.cards[player])
 
-    async def start(self):
+    async def start(self) -> None:
+        """Start the game."""
         for player in self.players:
             self.cards[player] = BingoCard()
             await player.send("Welcome to Void Bingo! Here is your card.")
@@ -102,13 +112,14 @@ class BingoGame:
         self.draws = list(range(1, 76))
         random.shuffle(game.draws)
 
-    async def bingo(self, winner):
+    async def bingo(self, winner: Member) -> None:
+        """Declare a winner."""
         await self.lock.acquire()
         if len(self.winners) == 0:
             self.winners.append(winner.mention)
             self.lock.release()
             await self.channel.send(
-                "Check your cards one last time - the game will finish in 30 seconds."
+                "Check your cards one last time - the game will finish in 30 seconds.",
             )
             await asyncio.sleep(15)
             await self.channel.send("15 seconds remaining.")
@@ -119,7 +130,7 @@ class BingoGame:
             else:
                 await self.channel.send(
                     f"The winners are {', '.join(self.winners[:-1])} "
-                    f"and {self.winners[-1]}"
+                    f"and {self.winners[-1]}",
                 )
         else:
             self.winners.append(winner.mention)
@@ -135,13 +146,15 @@ class Bingo(
     description="Embrace your inner boomer and play some Void Bingo - win by "
     "completing a row, column or diagonal (middle square is free).",
 ):
-    def __init__(self, bot):
-        self.bot = bot
+    def __init__(self) -> None:
+        self.standby = Standby()
 
-    async def create(self, interaction):
+    async def create(self, interaction: Interaction) -> None:
+        """Create the lobby."""
         if game.status == "Lobby open":
             await interaction.send(
-                "A lobby is already open, use `/bingo` to join.", ephemeral=True
+                "A lobby is already open, use `/bingo` to join.",
+                ephemeral=True,
             )
         elif game.status == "Active":
             await interaction.send(
@@ -152,10 +165,12 @@ class Bingo(
             game.setup(host=interaction.user, channel=interaction.channel)
             await interaction.send("Lobby created, use `/bingo` to join.")
 
-    async def join(self, interaction):
+    async def join(self, interaction: Interaction) -> None:
+        """Join the game."""
         if game.status == "Inactive":
             await interaction.send(
-                "No open lobby found - use `/bingo` to create one.", ephemeral=True
+                "No open lobby found - use `/bingo` to create one.",
+                ephemeral=True,
             )
         elif game.status == "Active":
             await interaction.send(
@@ -174,13 +189,15 @@ class Bingo(
             await interaction.send(
                 f"Welcome {interaction.user.display_name}. Players currently in "
                 f"lobby: {len(game.players)}. The game host can use `/bingo` "
-                "to start the game."
+                "to start the game.",
             )
 
-    async def start(self, interaction):
+    async def start(self, interaction: Interaction) -> None:
+        """Start a game instance."""
         if game.status == "Inactive":
             await interaction.send(
-                "No open lobby found - use `/bingo` to create one.", ephemeral=True
+                "No open lobby found - use `/bingo` to create one.",
+                ephemeral=True,
             )
         elif game.status == "Active":
             await interaction.send(
@@ -189,14 +206,8 @@ class Bingo(
             )
         elif (
             game.host != interaction.user
-            and (
-                uf.get_role(interaction.guild, "Moderator")
-                not in interaction.user.roles
-            )
-            and (
-                uf.get_role(interaction.guild, "Guides of the Void")
-                not in interaction.user.roles
-            )
+            and (uf.get_role("Moderator") not in interaction.user.roles)
+            and (uf.get_role("Guides of the Void") not in interaction.user.roles)
         ):
             await interaction.send(
                 "Only the person who created the lobby can start the game.",
@@ -213,157 +224,161 @@ class Bingo(
             await game.start()
             await interaction.send(
                 "Void Bingo has begun! "
-                "Use `/bingo` to draw a number (or toggle the autodraw)."
+                "Use `/bingo` to draw a number (or toggle the autodraw).",
             )
 
+    async def stop(self, interaction: Interaction) -> None:
+        """Abort a running game."""
+        global game  # noqa: PLW0603
 
-async def stop(interaction):
-    global game  # noqa: PLW0603
-
-    if game.status != "Active":
-        await interaction.send("No active game found.", ephemeral=True)
-    elif (
-        game.host != interaction.user
-        and (uf.get_role(interaction.guild, "Moderator") not in interaction.user.roles)
-        and (
-            uf.get_role(interaction.guild, "Guides of the Void")
-            not in interaction.user.roles
-        )
-    ):
-        await interaction.send(
-            "Only the person who started the game can stop it.", ephemeral=True
-        )
-    elif len(game.winners) > 0:
-        await interaction.send(
-            "One or more players have Void Bingo - "
-            "the game will automatically finish soon.",
-            ephemeral=True,
-        )
-    else:
-        game = BingoGame()
-        await interaction.send("Game stopped. Use `/bingo` to start a new one")
-
-
-async def draw(interaction):
-    if game.status != "Active":
-        await interaction.send("No active game found.", ephemeral=True)
-    elif (
-        interaction.user != game.host
-        and (uf.get_role(interaction.guild, "Moderator") not in interaction.user.roles)
-        and (
-            uf.get_role(interaction.guild, "Guides of the Void")
-            not in interaction.user.roles
-        )
-    ):
-        await interaction.send(
-            "Only the person who started the game can draw numbers.", ephemeral=True
-        )
-    elif game.channel != interaction.channel:
-        await interaction.send(
-            f"Numbers may only be drawn in the current game's channel, "
-            f"please head over to {game.channel.mention}.",
-            ephemeral=True,
-        )
-    elif len(game.winners) > 0:
-        await interaction.send(
-            "One or more players have Bingo, no more numbers may be drawn.",
-            ephemeral=True,
-        )
-    elif len(game.draws) == 0:
-        await interaction.send(
-            "All numbers have already been drawn - please check your cards."
-        )
-    else:
-        await game.draw()
-
-
-async def autodraw(interaction):
-    if game.status != "Active":
-        await interaction.send("No active game found.", ephemeral=True)
-    elif (
-        interaction.user != game.host
-        and (uf.get_role(interaction.guild, "Moderator") not in interaction.user.roles)
-        and (
-            uf.get_role(interaction.guild, "Guides of the Void")
-            not in interaction.user.roles
-        )
-    ):
-        await interaction.send(
-            "Only the person who started the game can draw numbers.", ephemeral=True
-        )
-    elif game.channel != interaction.channel:
-        await interaction.send(
-            f"Numbers may only be drawn in the current game's channel, "
-            f"please head over to {game.channel.mention}.",
-            ephemeral=True,
-        )
-    elif len(game.winners) > 0:
-        await interaction.send(
-            "One or more players have Bingo, no more numbers may be drawn.",
-            ephemeral=True,
-        )
-    elif len(game.draws) == 0:
-        await interaction.send(
-            "All numbers have already been drawn - please check your cards."
-        )
-    else:
-        game.autodraw = not game.autodraw
-        if game.autodraw:
-            await interaction.send("Automatic drawing started.")
+        if game.status != "Active":
+            await interaction.send("No active game found.", ephemeral=True)
+        elif (
+            game.host != interaction.user
+            and (uf.get_role("Moderator") not in interaction.user.roles)
+            and (uf.get_role("Guides of the Void") not in interaction.user.roles)
+        ):
+            await interaction.send(
+                "Only the person who started the game can stop it.",
+                ephemeral=True,
+            )
+        elif len(game.winners) > 0:
+            await interaction.send(
+                "One or more players have Void Bingo - "
+                "the game will automatically finish soon.",
+                ephemeral=True,
+            )
         else:
-            await interaction.send("Automatic drawing stopped.")
-        while game.autodraw:
+            game = BingoGame()
+            await interaction.send("Game stopped. Use `/bingo` to start a new one")
+
+    async def draw(self, interaction: Interaction) -> None:
+        """Draw a number."""
+        if game.status != "Active":
+            await interaction.send("No active game found.", ephemeral=True)
+        elif (
+            interaction.user != game.host
+            and (uf.get_role("Moderator") not in interaction.user.roles)
+            and (uf.get_role("Guides of the Void") not in interaction.user.roles)
+        ):
+            await interaction.send(
+                "Only the person who started the game can draw numbers.",
+                ephemeral=True,
+            )
+        elif game.channel != interaction.channel:
+            await interaction.send(
+                f"Numbers may only be drawn in the current game's channel, "
+                f"please head over to {game.channel.mention}.",
+                ephemeral=True,
+            )
+        elif len(game.winners) > 0:
+            await interaction.send(
+                "One or more players have Bingo, no more numbers may be drawn.",
+                ephemeral=True,
+            )
+        elif len(game.draws) == 0:
+            await interaction.send(
+                "All numbers have already been drawn - please check your cards.",
+            )
+        else:
             await game.draw()
-            await asyncio.sleep(15)
+
+    async def autodraw(self, interaction: Interaction) -> None:
+        """Start autodrawing numbers."""
+        if game.status != "Active":
+            await interaction.send("No active game found.", ephemeral=True)
+        elif (
+            interaction.user != game.host
+            and (uf.get_role("Moderator") not in interaction.user.roles)
+            and (uf.get_role("Guides of the Void") not in interaction.user.roles)
+        ):
+            await interaction.send(
+                "Only the person who started the game can draw numbers.",
+                ephemeral=True,
+            )
+        elif game.channel != interaction.channel:
+            await interaction.send(
+                f"Numbers may only be drawn in the current game's channel, "
+                f"please head over to {game.channel.mention}.",
+                ephemeral=True,
+            )
+        elif len(game.winners) > 0:
+            await interaction.send(
+                "One or more players have Bingo, no more numbers may be drawn.",
+                ephemeral=True,
+            )
+        elif len(game.draws) == 0:
+            await interaction.send(
+                "All numbers have already been drawn - please check your cards.",
+            )
+        else:
+            game.autodraw = not game.autodraw
+            if game.autodraw:
+                await interaction.send("Automatic drawing started.")
+            else:
+                await interaction.send("Automatic drawing stopped.")
+            while game.autodraw:
+                await game.draw()
+                await asyncio.sleep(15)
+
+    async def declare(self, interaction: Interaction) -> None:
+        """Declare Bingo."""
+        global game  # noqa: PLW0603
+
+        if game.status != "Active" or interaction.user not in game.players:
+            await interaction.send("You are not currently in a game.", ephemeral=True)
+        elif not game.cards[interaction.user].check():
+            await interaction.send(
+                "You don't have Void Bingo - check your card again.",
+                ephemeral=True,
+            )
+        elif interaction.user.mention in game.winners:
+            await interaction.send(
+                "You have already declared Void Bingo.",
+                ephemeral=True,
+            )
+        else:
+            await interaction.send("VOID BINGO!")
+            await game.bingo(winner=interaction.user)
+            game = BingoGame()
+
+    @slash_command(description="Play Void Bingo")
+    async def bingo(
+        self,
+        interaction: Interaction,
+        action: str = SlashOption(
+            choices={
+                "Create a lobby": "create",
+                "Join the lobby": "join",
+                "Start the game": "start",
+                "Stop the game": "stop",
+                "Draw a number": "draw",
+                "Toggle autodraw": "autodraw",
+                "Declare Void Bingo!": "declare",
+            },
+            description="Choose the action you want to take",
+            name="action",
+        ),
+    ) -> None:
+        """Control hub for Bingo games.
+
+        Args:
+            interaction (Interaction): Invoking interaction
+            action (str): Action to take.
+        """
+        cmd_dict = {
+            "create": self.create,
+            "join": self.join,
+            "start": self.start,
+            "stop": self.stop,
+            "draw": self.draw,
+            "autodraw": self.autodraw,
+            "declare": self.declare,
+        }
+        cmd = cmd_dict[action]
+        await cmd(interaction)
 
 
-async def declare(interaction):
-    global game  # noqa: PLW0603
-
-    if game.status != "Active" or interaction.user not in game.players:
-        await interaction.send("You are not currently in a game.", ephemeral=True)
-    elif not game.cards[interaction.user].check():
-        await interaction.send(
-            "You don't have Void Bingo - check your card again.", ephemeral=True
-        )
-    elif interaction.user.mention in game.winners:
-        await interaction.send("You have already declared Void Bingo.", ephemeral=True)
-    else:
-        await interaction.send("VOID BINGO!")
-        await game.bingo(winner=interaction.user)
-        game = BingoGame()
-
-
-@slash_command(description="Play Void Bingo")
-async def bingo(
-    self,
-    interaction,
-    action: str = SlashOption(
-        choices={
-            "Create a lobby": "create",
-            "Join the lobby": "join",
-            "Start the game": "start",
-            "Stop the game": "stop",
-            "Draw a number": "draw",
-            "Toggle autodraw": "autodraw",
-            "Declare Void Bingo!": "declare",
-        },
-        description="Choose the action you want to take",
-        name="action",
-    ),
-):
-    cmd_dict = {
-        "create": self.create,
-        "join": self.join,
-        "start": self.start,
-        "stop": self.stop,
-        "draw": self.draw,
-        "autodraw": self.autodraw,
-        "declare": self.declare,
-    }
-    cmd = cmd_dict[action]
-    await cmd(interaction)
-
-
-def setup(bot):
-    bot.add_cog(Bingo(bot))
+def setup(bot: Bot) -> None:
+    """Automatically called during bot setup."""
+    bot.add_cog(Bingo())

@@ -1,4 +1,8 @@
+"""SQL queries for creating all necessary tables."""
+
 import logging
+
+from asyncpg import Pool
 
 logger = logging.getLogger(__name__)
 
@@ -180,7 +184,12 @@ CREATE TABLE IF NOT EXISTS "movies" (
 ALTER_USER_ADD_YOINK = 'ALTER TABLE "usr" ADD IF NOT EXISTS "last_yoink" timestamp'
 
 
-async def create_tables(con):
+async def create_tables(con: Pool) -> None:  # noqa: PLR0915
+    """Create all tables.
+
+    Args:
+        con (Pool): asyncpg connection pool
+    """
     no_errors = True
     try:
         await con.execute(CREATE_USER)

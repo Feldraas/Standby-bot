@@ -1,16 +1,25 @@
+"""Log server events."""
+
 import logging
 
 from nextcord import (
     ApplicationCommandOptionType,
     ApplicationCommandType,
     Embed,
+    File,
+    Interaction,
     InteractionType,
+    Member,
     MessageType,
+    RawMessageDeleteEvent,
+    RawMessageUpdateEvent,
+    VoiceChannel,
+    VoiceState,
 )
 from nextcord.errors import NotFound
-from nextcord.ext.commands import Cog
+from nextcord.ext.commands import Bot, Cog
 
-from config.constants import EMPTY_STRING, ChannelName, Color
+from domain import EMPTY_STRING, ChannelName, Color, Standby
 from utils import util_functions as uf
 
 EMBED_DESCRIPTION_LIMIT = 950
@@ -19,46 +28,70 @@ logger = logging.getLogger(__name__)
 
 
 class Logs(Cog):
-    def __init__(self, bot):
-        self.bot = bot
+    def __init__(self) -> None:
+        self.standby = Standby()
 
     @Cog.listener()
-    async def on_raw_message_delete(self, payload):
-        channel = self.bot.get_channel(payload.channel_id)
+    async def on_raw_message_delete(self, payload: RawMessageDeleteEvent) -> None:
+        """Log the text and any attachments of the deleted message.
+
+        Called any time a user deletes a message.
+        """
+        channel = self.standby.bot.get_channel(payload.channel_id)
         logger.info(f"Message deleted in {channel.name}")
         if channel.name == ChannelName.LOGS:
             return
-        embed, files = await deleted_embed(payload, channel)
+        embed, files = await deleted_embed(payload)
         if embed:
-            logs = uf.get_channel(channel.guild, ChannelName.LOGS)
+            logs = uf.get_channel(ChannelName.LOGS)
             if logs:
                 main = await logs.send(embed=embed)
                 for file in files:
                     await logs.send(file=file, reference=main)
 
     @Cog.listener()
-    async def on_raw_message_edit(self, payload):
-        embed = await edited_embed(self.bot, payload)
-        if embed:
-            channel = self.bot.get_channel(payload.channel_id)
-            logs = uf.get_channel(channel.guild, ChannelName.LOGS)
-            if logs:
-                await logs.send(embed=embed)
+    async def on_raw_message_edit(self, payload: RawMessageUpdateEvent) -> None:
+        """Log the text before and after the edit.
+
+        Called any time a user edits a message.
+        """
+        embed = await edited_embed(payload)
+        logs = uf.get_channel(ChannelName.LOGS)
+
+        if embed and logs:
+            await logs.send(embed=embed)
 
     @Cog.listener()
-    async def on_voice_state_update(self, member, before, after):
+    async def on_voice_state_update(
+        self,
+        member: Member,
+        before: VoiceState,
+        after: VoiceState,
+    ) -> None:
+        """Log when a users enters or leaves a voice channel.
+
+        Called anytime a user's voice state changes.
+        """
         if before.channel == after.channel:
             return
         logger.info(f"{member} has changed voice channels")
         embed = await voice_embed(member, before.channel, after.channel)
 
-        logs = uf.get_channel(member.guild, ChannelName.LOGS)
+        logs = uf.get_channel(ChannelName.LOGS)
         if logs:
             await logs.send(embed=embed)
 
     @Cog.listener()
-    async def on_interaction(self, interaction):
-        logs = uf.get_channel(interaction.guild, ChannelName.LOGS)
+    async def on_interaction(self, interaction: Interaction) -> None:
+        """Log user interactions.
+
+        Currently logged interactions:
+            - Slash command usage
+            - Component usage (buttons, dropdowns etc)
+
+        Called any time a user interaction is detected.
+        """
+        logs = uf.get_channel(ChannelName.LOGS)
 
         if not logs:
             logger.error("Log channel not found")
@@ -80,7 +113,16 @@ class Logs(Cog):
             await logs.send(f"Unknown interaction in {interaction.channel.mention}.")
 
 
-async def deleted_embed(payload, channel):
+async def deleted_embed(payload: RawMessageDeleteEvent) -> tuple[Embed, list[File]]:
+    """Create an embed for a deleted message.
+
+    Args:
+        payload (RawMessageDeleteEvent): The deleted message
+
+    Returns:
+        tuple[Embed, list[File]]: Embed containing the message details,
+            and any attachments the message had
+    """
     embed = Embed(color=Color.SOFT_RED)
     embed.title = "Message deleted"
     files = []
@@ -108,12 +150,23 @@ async def deleted_embed(payload, channel):
             embed.add_field(name="Attachments", value=attachment_text, inline=False)
     else:
         embed.description = "[Message not found in cache]"
-        embed.add_field(name="Channel", value=channel.mention)
+        embed.add_field(
+            name="Channel",
+            value=Standby().bot.fetch_channel(payload.channel_id).mention,
+        )
     embed.timestamp = uf.utcnow()
     return embed, files
 
 
-async def edited_embed(bot, payload):  # noqa: C901, PLR0912, PLR0915
+async def edited_embed(payload: RawMessageUpdateEvent) -> Embed:  # noqa: C901, PLR0912, PLR0915
+    """Create an embed for an edited message.
+
+    Args:
+        payload (RawMessageUpdateEvent): The edited message
+
+    Returns:
+        Embed: Embed containing the message details
+    """
     before = payload.cached_message
     after = payload.data
     if "content" in after:
@@ -143,16 +196,15 @@ async def edited_embed(bot, payload):  # noqa: C901, PLR0912, PLR0915
     else:
         before_message = "[Message not found in cache]"
 
-        guild_id = after["guild_id"]
         author_id = after["author"]["id"]
         channel_id = after["channel_id"]
         message_id = after["id"]
 
-        guild = await bot.fetch_guild(guild_id)
-        author = await guild.fetch_member(author_id)
+        standby = Standby()
+        author = await standby.guild.fetch_member(author_id)
         if author.bot or not author:
             return None
-        channel = await bot.fetch_channel(channel_id)
+        channel = await standby.bot.fetch_channel(channel_id)
         message = await channel.fetch_message(message_id)
         jump_url = message.jump_url
         avatar_url = author.display_avatar.url
@@ -189,7 +241,21 @@ async def edited_embed(bot, payload):  # noqa: C901, PLR0912, PLR0915
     return embed
 
 
-async def voice_embed(member, before, after):
+async def voice_embed(
+    member: Member,
+    before: VoiceChannel | None,
+    after: VoiceChannel | None,
+) -> Embed:
+    """Create an embed for a user leaving/joining a voice channel.
+
+    Args:
+        member (Member): User
+        before (VoiceChannel | None): Channel before user action
+        after (VoiceChannel | None): Channel after user action
+
+    Returns:
+        Embed: Embed containing channel details
+    """
     embed = Embed(color=Color.PALE_BLUE)
     embed.title = "Voice channel update"
 
@@ -214,7 +280,17 @@ async def voice_embed(member, before, after):
     return embed
 
 
-async def command_embed(interaction):  # noqa: C901, PLR0912, PLR0915
+async def command_embed(interaction: Interaction) -> Embed:  # noqa: C901, PLR0912, PLR0915
+    """Create an embed for when a user triggers a command.
+
+    Can be a slash (subcommand), user command or message command
+
+    Args:
+        interaction (Interaction): The interaction
+
+    Returns:
+        Embed: Embed with interaction details
+    """
     if interaction.application_command.type == ApplicationCommandType.chat_input:
         cmd_type = "Slash command"
         cmd_prefix = "/"
@@ -250,7 +326,8 @@ async def command_embed(interaction):  # noqa: C901, PLR0912, PLR0915
 
     if cmd_type == "User command":
         embed.add_field(
-            name="Target user", value=uf.id_to_mention(interaction.data["target_id"])
+            name="Target user",
+            value=uf.id_to_mention(interaction.data["target_id"]),
         )
 
     elif cmd_type == "Message command":
@@ -258,7 +335,8 @@ async def command_embed(interaction):  # noqa: C901, PLR0912, PLR0915
         message = await interaction.channel.fetch_message(message_id)
 
         embed.add_field(
-            name="Target messsage", value=f"[Click here]({message.jump_url})"
+            name="Target messsage",
+            value=f"[Click here]({message.jump_url})",
         )
 
     elif "options" in interaction.data:  # Slash
@@ -294,7 +372,15 @@ async def command_embed(interaction):  # noqa: C901, PLR0912, PLR0915
     return embed
 
 
-async def component_embed(interaction):
+async def component_embed(interaction: Interaction) -> Embed:
+    """Create an embed for when a user interacts with a component.
+
+    Args:
+        interaction (Interaction): The interaction
+
+    Returns:
+        Embed: Embed containing interaction details
+    """
     logger.info("Creating component embed")
     embed = Embed(color=Color.VIE_PURPLE)
 
@@ -317,7 +403,8 @@ async def component_embed(interaction):
                 elif child.emoji:
                     labels.append(child.emoji)
         embed.add_field(
-            name="Button", value=labels[0] if len(labels) == 1 else "Unknown"
+            name="Button",
+            value=labels[0] if len(labels) == 1 else "Unknown",
         )
         embed.add_field(name="Pressed by", value=interaction.user.mention)
         embed.add_field(name="In channel", value=interaction.channel.mention)
@@ -346,5 +433,6 @@ async def component_embed(interaction):
     return embed
 
 
-def setup(bot):
-    bot.add_cog(Logs(bot))
+def setup(bot: Bot) -> None:
+    """Automatically called during bot setup."""
+    bot.add_cog(Logs())

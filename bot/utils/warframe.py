@@ -1,6 +1,8 @@
+"""Fetch warframe mod data."""
+
 import requests
 
-from config.constants import URL
+from domain import URL
 
 mod_list = {}
 

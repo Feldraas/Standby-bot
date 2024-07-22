@@ -1,33 +1,56 @@
+"""Starboard functionality."""
+
 import asyncio
 import logging
 
 from nextcord import (
     Embed,
+    Message,
     RawReactionActionEvent,
     RawReactionClearEmojiEvent,
     RawReactionClearEvent,
 )
 
-from config.constants import ID, Color, Threshold
 from db_integration import db_functions as db
+from domain import ID, ChannelName, Color, Standby, Threshold
+from utils import util_functions as uf
 
 logger = logging.getLogger(__name__)
+
+ReactionEvent = (
+    RawReactionActionEvent | RawReactionClearEmojiEvent | RawReactionClearEvent
+)
 starboard_lock = asyncio.Lock()
+standby = Standby()
 
 
-async def get_starboard_msg(bot, msg_id):
-    return await bot.pg_pool.fetchrow(
-        f"SELECT * FROM starboard WHERE msg_id = {msg_id};"
+async def get_starboard_message(message_id: int) -> Message:
+    """Get a starboard message.
+
+    Args:
+        message_id (int): ID of the message that was added to
+            the starboard
+
+    Returns:
+        Message: The corresponding starboard message.
+    """
+    record = await standby.pg_pool.fetchrow(
+        f"SELECT * FROM starboard WHERE msg_id = {message_id};",
     )
+    starboard_channel = uf.get_channel(ChannelName.STARBOARD)
+    return await starboard_channel.fetch_message(record["sb_id"])
 
 
-async def get_starboard_sbid(bot, msg_id):
-    return await bot.pg_pool.fetchrow(
-        f"SELECT sb_id FROM starboard WHERE msg_id = {msg_id};"
-    )
+def starboard_embed(message: Message, stars: int) -> Embed:
+    """Create an Embed for the starboard.
 
+    Args:
+        message (Message): Message to create Embed from
+        stars (int): Number of stars currently on the message
 
-def starboard_embed(message, stars) -> Embed:
+    Returns:
+        Embed: Embed containing relevant data fields.
+    """
     embed = Embed(color=Color.STARBOARD)
     if message.attachments:
         embed.set_image(url=message.attachments[0].url)
@@ -47,82 +70,97 @@ def starboard_embed(message, stars) -> Embed:
     return embed
 
 
-async def edit_stars(message, stars):
-    return await message.edit(
-        embed=message.embeds[0].set_field_at(1, name="Stars", value=stars)
+async def edit_stars(message: Message, stars: int) -> None:
+    """Edit a starboard Embed with a new number of stars.
+
+    Args:
+        message (Message): Starboard message to edit
+        stars (int): New number of stars
+    """
+    await message.edit(
+        embed=message.embeds[0].set_field_at(1, name="Stars", value=stars),
     )
 
 
-async def starboard_handler(bot, payload):  # noqa: C901, PLR0912, PLR0915
-    if isinstance(payload, RawReactionActionEvent) and payload.emoji.name == "⭐":
-        logger.info("Star react added")
-        chnl = bot.get_channel(payload.channel_id)
-        msg = await chnl.fetch_message(payload.message_id)
-        await db.get_or_insert_usr(bot, msg.author.id, payload.guild_id)
-        stars = 0
-        sb_channel = bot.get_channel(ID.STARBOARD)
-        for emoji in msg.reactions:
-            if emoji.emoji == "⭐":
-                stars = emoji.count
+async def handle_added_star(event: RawReactionActionEvent) -> None:
+    """Handler for when a star emoji is added to a message.
 
-        await starboard_lock.acquire()
-        try:
-            existcheck = await bot.pg_pool.fetchrow(
-                f"SELECT sb_id FROM starboard WHERE msg_id = {payload.message_id};"
-            )
+    Args:
+        event (RawReactionActionEvent): Triggering event
+    """
+    logger.info("Star react added")
+    chnl = standby.bot.get_channel(event.channel_id)
+    msg = await chnl.fetch_message(event.message_id)
+    await db.get_or_insert_usr(msg.author.id)
+    stars = 0
+    for emoji in msg.reactions:
+        if emoji.emoji == "⭐":
+            stars = emoji.count
 
-            if stars >= Threshold.STARBOARD:  # add to SB
-                if existcheck is None:
-                    sb_msg = await sb_channel.send(embed=starboard_embed(msg, stars))
-                    await bot.pg_pool.execute(
-                        "INSERT INTO starboard (msg_id, sb_id, stars, usr_id) VALUES "
-                        f"({payload.message_id},{sb_msg.id},{stars},{msg.author.id});"
-                    )
-                else:
-                    sb_msg = await sb_channel.fetch_message(existcheck["sb_id"])
-                    await edit_stars(sb_msg, stars)
-                    await bot.pg_pool.execute(
-                        f"UPDATE starboard SET stars = {stars} "
-                        f"WHERE msg_id = {payload.message_id};"
-                    )
-            elif existcheck is not None:
+    await starboard_lock.acquire()
+    try:
+        existcheck = await standby.pg_pool.fetchrow(
+            f"SELECT sb_id FROM starboard WHERE msg_id = {event.message_id};",
+        )
+        sb_channel = standby.bot.get_channel(ID.STARBOARD)
+
+        if stars >= Threshold.STARBOARD:  # add to SB
+            if existcheck is None:
+                sb_msg = await sb_channel.send(embed=starboard_embed(msg, stars))
+                await standby.pg_pool.execute(
+                    "INSERT INTO starboard (msg_id, sb_id, stars, usr_id) VALUES "
+                    f"({event.message_id},{sb_msg.id},{stars},{msg.author.id});",
+                )
+            else:
                 sb_msg = await sb_channel.fetch_message(existcheck["sb_id"])
-                await sb_msg.delete()
-                await bot.pg_pool.execute(
-                    f"DELETE FROM starboard WHERE msg_id = {payload.message_id};"
+                await edit_stars(sb_msg, stars)
+                await standby.pg_pool.execute(
+                    f"UPDATE starboard SET stars = {stars} "
+                    f"WHERE msg_id = {event.message_id};",
                 )
-        except Exception:
-            logger.exception("Unexpected error")
-        finally:
-            starboard_lock.release()
+        elif existcheck is not None:
+            sb_msg = await sb_channel.fetch_message(existcheck["sb_id"])
+            await sb_msg.delete()
+            await standby.pg_pool.execute(
+                f"DELETE FROM starboard WHERE msg_id = {event.message_id};",
+            )
+    except Exception:
+        logger.exception("Unexpected error")
+    finally:
+        starboard_lock.release()
 
-    elif isinstance(payload, RawReactionClearEvent):
-        # if exists in starboard, do something about it, otherwise don't care
-        msg = await get_starboard_msg(bot, payload.message_id)
-        if msg is not None:
-            await starboard_lock.acquire()
-            try:
-                await msg.delete()
-                await bot.pg_pool.execute(
-                    f"DELETE FROM starboard WHERE msg_id = {payload.message_id};"
-                )
-            except Exception as e:
-                await db.log(bot, f"Unexpected error: {e}")
-            finally:
-                starboard_lock.release()
 
-    elif isinstance(payload, RawReactionClearEmojiEvent):
-        if payload.emoji.name == "⭐":
-            # if exists in starboard, do something about it, otherwise don't care
-            msg = await get_starboard_msg(bot, payload.message_id)
-            if msg is not None:
-                await starboard_lock.acquire()
-                try:
-                    await msg.delete()
-                    await bot.pg_pool.execute(
-                        f"DELETE FROM starboard WHERE msg_id = {payload.message_id};"
-                    )
-                except Exception:
-                    logger.exception("Unexpected error")
-                finally:
-                    starboard_lock.release()
+async def handle_cleared_stars(event: RawReactionClearEvent) -> None:
+    """Handler for when all star emojis are removed from a message.
+
+    Args:
+        event (RawReactionActionEvent): Triggering event
+    """
+    msg = await get_starboard_message(event.message_id)
+    if msg is None:
+        return
+    await starboard_lock.acquire()
+    try:
+        await msg.delete()
+        await standby.pg_pool.execute(
+            f"DELETE FROM starboard WHERE msg_id = {event.message_id};",
+        )
+    except Exception:
+        logger.exception("Unexpected error")
+    finally:
+        starboard_lock.release()
+
+
+async def starboard_handler(event: ReactionEvent) -> None:
+    """Dispatch star reaction events.
+
+    Args:
+        event (ReactionEvent): Triggering event
+    """
+    if isinstance(event, RawReactionActionEvent) and event.emoji.name == "⭐":
+        await handle_added_star(event)
+
+    elif isinstance(event, RawReactionClearEvent) or (
+        isinstance(event, RawReactionClearEmojiEvent) and event.emoji.name == "⭐"
+    ):
+        await handle_cleared_stars(event)

@@ -1,39 +1,38 @@
+"""Activate the bot."""
+
 import logging
 import os
 
-from nextcord import Intents
-from nextcord.ext.commands import Bot
-
-from config import startup
-from config.constants import Token
 from db_integration import db_functions as db
+from domain import Format, Standby
 
-bot = Bot(intents=Intents.all(), case_insensitive=True)
+ENV = os.getenv("ENV")
 
-startup.setup_logging()
+logging.basicConfig(
+    level=logging.DEBUG if ENV == "dev" else logging.INFO,
+    format=Format.LOGGING_DEV if ENV == "dev" else Format.LOGGING,
+    datefmt=Format.YYYYMMDD_HHMMSS,
+)
+logging.getLogger("nextcord").setLevel(logging.WARNING)
+logging.getLogger("urllib3").setLevel(logging.WARNING)
+
 logger = logging.getLogger("main")
+logger.info(f"Running in {ENV}")
+
+standby = Standby()
 
 
-DEBUG = os.getenv("DEBUG", default=False)
-if DEBUG:
-    logger.info("Running in debug")
-else:
-    logger.info("Running in prod")
-
-
-@bot.event
-async def on_ready():
-    await startup.set_status(bot, "Have a nice day!")
-
-    await startup.reconnect_buttons(bot)
-
-    await startup.announce(bot)
+@standby.bot.event
+async def on_ready() -> None:
+    """Startup preparations."""
+    standby.store_guild()
+    await standby.set_status("Have a nice day!")
+    await standby.reconnect_buttons()
+    await standby.announce()
 
     logger.info("Bot ready!")
 
 
-startup.load_cogs(bot)
-
-bot.loop.run_until_complete(db.init_connection(bot))
-
-bot.run(Token.BOT)
+standby.load_cogs()
+standby.bot.loop.run_until_complete(db.init_connection())
+standby.bot.run(standby.token)

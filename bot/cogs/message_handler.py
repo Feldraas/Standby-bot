@@ -1,11 +1,15 @@
+"""Monitor messages sent in the server."""
+
 import logging
 import re
+from collections.abc import Callable
 from datetime import datetime as dt
 
-from nextcord.ext.commands import Cog
+from nextcord import Message
+from nextcord.ext.commands import Bot, Cog
 
 from cogs.error_handler import unhandled_error_embed
-from config.constants import ID, VALID_TEXT_CHANNEL, ChannelName
+from domain import ChannelName, Standby, ValidTextChannel
 from utils import util_functions as uf
 from utils.regex import (
     RegexResponse,
@@ -18,7 +22,15 @@ logger = logging.getLogger(__name__)
 last_messages = {}
 
 
-def get_response_command(message):  # noqa: C901
+def get_response_command(message: Message) -> Callable:  # noqa: C901
+    """Check if the message should trigger a response.
+
+    Args:
+        message (Message): Message to check
+
+    Returns:
+        Callable: Function to trigger in response.
+    """
     for resp in regex_responses + wednesday_responses:
         if (
             message.channel.name in ChannelName.no_response_channel_names()
@@ -35,7 +47,11 @@ def get_response_command(message):  # noqa: C901
 
         if type(resp) is WednesdayResponse:
 
-            async def resp_command(bot, msg, resp=resp):  # noqa: ARG001
+            async def resp_command(
+                msg: Message,
+                resp: WednesdayResponse = resp,
+            ) -> None:
+                """Respond to a wednesday message."""
                 if dt.now().weekday() == resp.trigger_day:
                     await msg.channel.send(resp.response)
                     scream = 10 * resp.a
@@ -53,14 +69,16 @@ def get_response_command(message):  # noqa: C901
 
 
 class MessageHandler(Cog):
-    def __init__(self, bot):
-        self.bot = bot
+    def __init__(self) -> None:
+        self.standby = Standby()
 
     @Cog.listener()
-    async def on_message(self, message):
+    async def on_message(self, message: Message) -> None:
+        """Called when a message is sent in the server."""
+        # Skip bot messages and empty messages
         if message.author.bot:
             return
-        if not isinstance(message.channel, VALID_TEXT_CHANNEL):
+        if not isinstance(message.channel, ValidTextChannel):
             await logger.warning(
                 f"Unexpected message in channel {message.channel} "
                 f"of type {message.channel.type}",
@@ -70,26 +88,29 @@ class MessageHandler(Cog):
         if message.content == "":
             return
 
+        # Check for regex responses
         response_command = get_response_command(message)
         if response_command:
             try:
-                await response_command(self.bot, message)
+                await response_command(message)
             except Exception as e:
                 logger.exception(
-                    f"Error when executing regex command {response_command.__name__}()"
+                    f"Error when executing regex command {response_command.__name__}()",
                 )
-                if message.guild.id == ID.GUILD:
-                    channel = uf.get_channel(message.guild, ChannelName.ERRORS)
-                    if channel is not None:
-                        await channel.send(
-                            embed=unhandled_error_embed(
-                                message.content, message.channel, e
-                            )
-                        )
-                    else:
-                        logger.warning("Could not find error channel")
+                channel = uf.get_channel(ChannelName.ERRORS)
+                if channel is not None:
+                    await channel.send(
+                        embed=unhandled_error_embed(
+                            message.content,
+                            message.channel,
+                            e,
+                        ),
+                    )
+                else:
+                    logger.warning("Could not find error channel")
             return
 
+        # Check for repeated messages
         if (
             last_messages.get(message.channel, (None, None))[0]
             == message.content.lower()
@@ -104,5 +125,6 @@ class MessageHandler(Cog):
             last_messages[message.channel] = (message.content, message.author)
 
 
-def setup(bot):
-    bot.add_cog(MessageHandler(bot))
+def setup(bot: Bot) -> None:
+    """Automatically called during bot setup."""
+    bot.add_cog(MessageHandler())

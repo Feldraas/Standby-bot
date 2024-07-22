@@ -1,22 +1,26 @@
+"""Service type commands - server statistics etc."""
+
 import json
 import logging
 import re
 from dataclasses import dataclass
 
 import aiohttp
+from asyncpg import Record
 from nextcord import (
     Embed,
+    Interaction,
     Member,
     RawReactionActionEvent,
     SlashOption,
     slash_command,
     user_command,
 )
-from nextcord.ext.commands import Cog
+from nextcord.ext.commands import Bot, Cog
 
 import utils.util_functions as uf
-from config.constants import ID, Color
 from db_integration import db_functions as db
+from domain import ID, Color, Standby
 
 logger = logging.getLogger(__name__)
 
@@ -89,25 +93,32 @@ ALL_LEADERBOARDS = {
 
 
 class Services(Cog):
-    def __init__(self, bot):
-        self.bot = bot
+    def __init__(self) -> None:
+        self.standby = Standby()
 
     @slash_command(description="Displays a user's profile picture.")
     async def avatar(
-        self, interaction, user: Member = SlashOption(description="The target user")
-    ):
+        self,
+        interaction: Interaction,
+        user: Member = SlashOption(description="The target user"),
+    ) -> None:
+        """Send a full version of the user's avatar."""
         await interaction.send(embed=avatar_embed(user))
 
     @user_command(name="Avatar")
-    async def avatar_context(self, interaction, user):
+    async def avatar_context(self, interaction: Interaction, user: Member) -> None:
+        """Invoke the avatar command through the user context menu."""
         await uf.invoke_slash_command("avatar", self, interaction, user)
 
     @slash_command(
-        description="Returns the Urban Dictionary definition of a word or phrase"
+        description="Returns the Urban Dictionary definition of a word or phrase",
     )
     async def urban(
-        self, interaction, query=SlashOption(description="The word or phase to look up")
-    ):
+        self,
+        interaction: Interaction,
+        query: str = SlashOption(description="The word or phase to look up"),
+    ) -> None:
+        """Look up a word or phrase in Urban Dictionary."""
         response = await urban_embed(query, 1)
         if isinstance(response, Embed):
             await interaction.send(embed=response)
@@ -121,15 +132,21 @@ class Services(Cog):
     @slash_command(description="Displays the leaderboards")
     async def leaderboard(
         self,
-        interaction,
-        stat=SlashOption(
+        interaction: Interaction,
+        stat: str = SlashOption(
             name="leaderboard",
             description="The leaderboard to display",
             choices=sorted(["Burger history", *ALL_LEADERBOARDS]),
         ),
-    ):
+    ) -> None:
+        """Return the leaderboard for a certain statistic.
+
+        Args:
+            interaction (Interaction): Invoking interaction.
+            stat (str): The leaderboard to display
+        """
         if stat == "Burger history":
-            history = await db.get_note(self.bot, "burger history")
+            history = await db.get_note("burger history")
             if history:
                 history = json.loads(history)
                 mentions = [f"<@{user_id}>" for user_id in history]
@@ -147,7 +164,7 @@ class Services(Cog):
 
         settings = ALL_LEADERBOARDS[stat]
 
-        leaderboard = await create_leaderboard(self.bot, settings, interaction.guild.id)
+        leaderboard = await create_leaderboard(settings)
 
         embed = build_leaderboard_embed(interaction, leaderboard, settings)
 
@@ -156,9 +173,17 @@ class Services(Cog):
     @slash_command(description="Award a skull.")
     async def skull(
         self,
-        interaction,
+        interaction: Interaction,
         recipient: Member = SlashOption(description="The user to award a skull to"),
-    ):
+    ) -> None:
+        """Award a skull to a user.
+
+        Can only be used by Jorm.
+
+        Args:
+            interaction (Interaction): Invoking interaction
+            recipient (Member): The user to award a skull to
+        """
         if interaction.user.id != ID.JORM:
             await interaction.send(
                 file=uf.simpsons_error_image(
@@ -166,30 +191,39 @@ class Services(Cog):
                     son=interaction.user,
                     text="You're not Jorm!",
                     filename="jormonly.png",
-                )
+                ),
             )
             return
 
-        await db.get_or_insert_usr(self.bot, recipient.id, recipient.guild.id)
+        await db.get_or_insert_usr(recipient.id)
 
-        await self.bot.pg_pool.execute(
-            f"UPDATE usr SET skulls = skulls + 1 WHERE usr_id = {recipient.id}"
+        await self.standby.pg_pool.execute(
+            f"UPDATE usr SET skulls = skulls + 1 WHERE usr_id = {recipient.id}",
         )
         await interaction.send(f"Gave a 💀 to {recipient.mention}")
 
     @user_command(name="Give skull", guild_ids=[ID.GUILD])
-    async def skull_context(self, interaction, user):
+    async def skull_context(self, interaction: Interaction, user: Member) -> None:
+        """Invoke the skull command through the user context menu."""
         await uf.invoke_slash_command("skull", self, interaction, user)
 
     @slash_command(description="Look up a user's stats")
     async def stats(
         self,
-        interaction,
+        interaction: Interaction,
         user: Member = SlashOption(description="User to look up"),
-        stat=SlashOption(
-            description="Stat to look up", choices=["Everything", *ALL_LEADERBOARDS]
+        stat: str = SlashOption(
+            description="Stat to look up",
+            choices=["Everything", *ALL_LEADERBOARDS],
         ),
-    ):
+    ) -> None:
+        """Look up a user's recorded statistics.
+
+        Args:
+            interaction (Interaction): Invoking interaction
+            user (Member, optional): Target user
+            stat (str, optional): Stat to look up
+        """
         if user == interaction.user:
             subject, possessive, has = "You", "Your", "have"
         else:
@@ -197,57 +231,98 @@ class Services(Cog):
 
         if stat != "Everything":
             settings = ALL_LEADERBOARDS[stat]
-            stats = await create_leaderboard(self.bot, settings, filter_by_user=user)
+            stats = await create_leaderboard(settings, filter_by_user=user)
             if not stats:
                 await interaction.send(
-                    f"{subject} currently {has} no {settings.stat_name.lower()}."
+                    f"{subject} currently {has} no {settings.stat_name.lower()}.",
                 )
             elif "Roulette" in stat:
                 await interaction.send(
                     f"{possessive} {settings.stat_name.lower()} "
-                    f"is {stats[0]['total']} rounds."
+                    f"is {stats[0]['total']} rounds.",
                 )
             else:
                 await interaction.send(
                     f"{subject} currently {has} "
-                    f"{stats[0]['total']} {settings.stat_name.lower()}."
+                    f"{stats[0]['total']} {settings.stat_name.lower()}.",
                 )
         else:
             message = f"{possessive} current stats are:\n"
             for settings in ALL_LEADERBOARDS.values():
-                stats = await create_leaderboard(
-                    self.bot, settings, filter_by_user=user
-                )
+                stats = await create_leaderboard(settings, filter_by_user=user)
                 message += (
                     f"{settings.stat_name}: {stats[0]['total'] if stats else 0}\n"
                 )
             await interaction.send(message)
 
 
-async def create_leaderboard(bot, settings, guild_id=ID.GUILD, filter_by_user=None):
+async def create_leaderboard(
+    settings: LeaderboardSettings,
+    filter_by_user: Member | None = None,
+) -> list[Record]:
+    """Get recorded statistics from the database.
+
+    Args:
+        settings (LeaderboardSettings): Type of leaderboard to get
+            data for
+        filter_by_user (Member | None, optional): If provided, get only
+            the user's statistics. Otherwise, get everyone's.
+
+    Returns:
+        list[Record]: _description_
+    """
     filter_condition = (
         "AND usr_id = " + str(filter_by_user.id) if filter_by_user else ""
     )
-
-    return await bot.pg_pool.fetch(
-        f"SELECT usr_id, SUM({settings.stat_col_name}) as total "
-        f"FROM {settings.table} "
-        f"WHERE usr_id IN "
-        f"(SELECT usr_id FROM usr WHERE guild_id = {guild_id}{filter_condition}) "
-        f"GROUP BY usr_id "
-        f"HAVING SUM({settings.stat_col_name}) > 0"
-        f"ORDER BY total DESC ;"
-    )
+    standby = Standby()
+    return await standby.pg_pool.fetch(f"""
+        SELECT
+            usr_id,
+            SUM({settings.stat_col_name}) as total
+        FROM
+            {settings.table}
+        WHERE
+            usr_id IN (
+                SELECT
+                    usr_id
+                FROM
+                    usr
+                WHERE
+                    guild_id = {standby.guild.id}{filter_condition}
+            )
+        GROUP BY
+            usr_id
+        HAVING
+            SUM({settings.stat_col_name}) > 0
+        ORDER BY
+            total DESC
+        """)
 
 
 def build_leaderboard_embed(
-    interaction,
-    leaderboard,
-    settings,
-    count_col_name="total",
-    usr_col_name="usr_id",
-    max_print=12,
-):
+    interaction: Interaction,
+    leaderboard: list[Record],
+    settings: LeaderboardSettings,
+    count_col_name: str = "total",
+    usr_col_name: str = "usr_id",
+    max_print: int = 12,
+) -> Embed:
+    """Create a leaderboard embed.
+
+    Args:
+        interaction (Interaction): Invoking interaction
+        leaderboard (list[Record]): User statistics
+        settings (LeaderboardSettings): Type of leaderboard
+        count_col_name (str, optional): Name for the count column.
+            Defaults to "total".
+        usr_col_name (str, optional): Name for the user column.
+            Defaults to "usr_id".
+        max_print (int, optional): Maximum number of entries to print.
+            Defaults to 12.
+
+    Returns:
+        Embed: Embed containing top users.
+    """
     if not leaderboard:
         return Embed(
             color=settings.color,
@@ -273,11 +348,9 @@ def build_leaderboard_embed(
     return embed
 
 
-async def urban_handler(bot, payload):
-    if not isinstance(payload, RawReactionActionEvent):
-        return
-
-    channel = bot.get_channel(payload.channel_id)
+async def urban_handler(payload: RawReactionActionEvent) -> None:
+    """Manipulate Urban Dictionary embeds using reactions."""
+    channel = Standby().bot.get_channel(payload.channel_id)
     try:
         message = await channel.fetch_message(payload.message_id)
         if (
@@ -310,6 +383,7 @@ async def urban_handler(bot, payload):
 
 
 def avatar_embed(user: Member) -> Embed:
+    """Create an embed holding a user avatar."""
     embed = Embed(color=Color.PALE_GREEN)
     link = user.display_avatar.url
     embed.set_image(url=link)
@@ -319,7 +393,17 @@ def avatar_embed(user: Member) -> Embed:
     return embed
 
 
-async def urban_embed(query, page):
+async def urban_embed(query: str, page: int) -> Embed | str:
+    """Create an embed for an Urban Dictionary definition.
+
+    Args:
+        query (str): Phrase to look up
+        page (int): Page to display
+
+    Returns:
+        Embed | str: Embed containing the definition (if found).
+            Otherwise, an error message.
+    """
     async with aiohttp.ClientSession() as cs:
         api_link = f"https://api.urbandictionary.com/v0/define?term={query}"
         async with cs.get(api_link) as r:
@@ -336,7 +420,9 @@ async def urban_embed(query, page):
                 web_link = f"https://www.urbandictionary.com/define.php?term={word}"
                 web_link = re.sub(" ", "%20", web_link)
                 embed.add_field(
-                    name="Word", value=f"[{word}]({web_link})", inline=False
+                    name="Word",
+                    value=f"[{word}]({web_link})",
+                    inline=False,
                 )
                 embed.add_field(
                     name="Definition",
@@ -355,5 +441,6 @@ async def urban_embed(query, page):
             return "No definition found."
 
 
-def setup(bot):
-    bot.add_cog(Services(bot))
+def setup(bot: Bot) -> None:
+    """Automatically called during bot setup."""
+    bot.add_cog(Services())
