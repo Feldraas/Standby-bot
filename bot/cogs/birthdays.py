@@ -159,7 +159,7 @@ class Birthdays(Cog):
         bday_havers = []
 
         for rec in gtable:
-            member = await self.guild.fetch_member(rec["usr_id"])
+            member = await self.standby.guild.fetch_member(rec["usr_id"])
 
             logger.info(f"Adding birthday role to {member}")
             await member.add_roles(bday_role)
