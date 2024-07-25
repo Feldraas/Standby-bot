@@ -8,6 +8,7 @@ from nextcord.ui import View
 
 from db_integration.create_scripts import create_tables
 from domain import URL, Standby
+from postgres.architecture import setup_database
 
 bot_start_time = dt.now()
 
@@ -19,6 +20,7 @@ async def init_connection() -> None:
     standby.pg_pool = await create_pool(URL.DATABASE, ssl="prefer")
     async with standby.pg_pool.acquire() as con:
         await create_tables(con)
+        await setup_database(con)
 
 
 async def ensure_guild_existence(guild_id: int) -> None:
