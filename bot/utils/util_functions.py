@@ -10,8 +10,17 @@ from typing import Literal
 
 import nextcord
 import requests
-from discord import CategoryChannel
-from nextcord import Embed, Emoji, File, Guild, Interaction, Member, Message, Role
+from nextcord import (
+    CategoryChannel,
+    Embed,
+    Emoji,
+    File,
+    Guild,
+    Interaction,
+    Member,
+    Message,
+    Role,
+)
 from nextcord.ext.commands import Cog
 from nextcord.ext.tasks import LF, Loop
 from nextcord.utils import MISSING

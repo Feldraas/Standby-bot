@@ -5,17 +5,15 @@ import os
 
 from asyncpg import Pool
 
-logger = logging.getLogger(__name__)
+from domain import Standby
 
-# Database structure
-# Format:
+logger = logging.getLogger(__name__)
 
 STRUCTURE = {
     "birthday": {
         "columns": {
             "user_id": "BIGINT",
-            "month": "INTEGER",
-            "day": "INTEGER",
+            "birth_date": "DATE",
         },
         "constraints": {
             "birthday_pk": "PRIMARY KEY (user_id)",
@@ -111,6 +109,8 @@ async def setup_database(con: Pool) -> None:
         con (Pool): PostgreSQL connection
     """
     schema = os.getenv("DB_SCHEMA", "dev")
+    Standby().schema = schema
+
     await con.execute(f"CREATE SCHEMA IF NOT EXISTS {schema}")
 
     for table, table_spec in STRUCTURE.items():

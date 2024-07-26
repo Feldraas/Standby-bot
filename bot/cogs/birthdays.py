@@ -1,14 +1,14 @@
 """Congratulate users on their birthdays."""
 
 import logging
-from datetime import datetime
+from datetime import date, datetime
+from enum import Enum, auto
 
-import nextcord.utils
-from nextcord import Interaction, SlashOption, slash_command
+from asyncpg.exceptions import UniqueViolationError
+from nextcord import Interaction, Member, SlashOption, slash_command
 from nextcord.ext.commands import Bot, Cog
 
-from db_integration import db_functions as db
-from domain import RoleName, Standby
+from domain import ChannelName, RoleName, Standby
 from utils import util_functions as uf
 
 logger = logging.getLogger(__name__)
@@ -27,8 +27,7 @@ class Birthdays(Cog):
     async def set(
         self,
         interaction: Interaction,
-        month_name: str = SlashOption(
-            name="month",
+        month: str = SlashOption(
             description="Your birth month",
             choices=[
                 "January",
@@ -55,39 +54,31 @@ class Birthdays(Cog):
 
         Args:
             interaction (Interaction): Invoking interaction
-            month_name (str): Birth month.
+            month (str): Birth month.
             day (int): Birth day
         """
-        month = uf.month_to_int(month_name)
+        birthday_string = f"{day} {month} 2000"  # Leap year
         try:
-            datetime(2000, month, day)
+            birthday = datetime.strptime(birthday_string, "%d %B %Y")
         except ValueError:
             await interaction.send("Invalid date - please try again.", ephemeral=True)
             return
 
-        await db.ensure_guild_existence(interaction.guild.id)
-        await db.get_or_insert_usr(interaction.user.id)
+        status = await set_user_birthday(interaction.user, birthday)
 
-        exists = await self.standby.pg_pool.fetch(
-            f"SELECT * FROM bdays WHERE usr_id = {interaction.user.id}",
-        )
+        if status == SQLStatus.INSERT:
+            logger.info(f"Setting {interaction.user}'s birthday to {month} {day}")
+            await interaction.send("Your birthday has been set.", ephemeral=True)
 
-        if exists:
-            logger.info(f"Updating {interaction.user}'s birthday to {day} {month_name}")
-            await self.standby.pg_pool.execute(
-                f"UPDATE bdays SET month = {month}, day = {day} "
-                f"WHERE usr_id = {interaction.user.id}",
-            )
+        elif status == SQLStatus.UPDATE:
+            logger.info(f"Updating {interaction.user}'s birthday to {month} {day}")
+            await interaction.send("Your birthday has been updated.", ephemeral=True)
+
         else:
-            logger.info(f"Setting {interaction.user}'s birthday to {day} {month_name}")
-            await self.standby.pg_pool.execute(
-                "INSERT INTO bdays (usr_id, month, day) VALUES ($1, $2, $3);",
-                interaction.user.id,
-                month,
-                day,
+            await interaction.send(
+                "There was an error setting your birthday",
+                ephemeral=True,
             )
-
-        await interaction.send("Your birthday has been set.", ephemeral=True)
 
     @birthday.subcommand(description="Remove your birthday")
     async def remove(self, interaction: Interaction) -> None:
@@ -96,17 +87,12 @@ class Birthdays(Cog):
         Args:
             interaction (Interaction): Invoking interaction
         """
-        exists = await self.standby.pg_pool.fetch(
-            f"SELECT * FROM bdays WHERE usr_id = {interaction.user.id}",
-        )
-        if not exists:
-            await interaction.send("You have not set your birthday.", ephemeral=True)
-        else:
+        status = await remove_user_birthday(interaction.user)
+        if status == SQLStatus.DELETE:
             logger.info(f"Removing {interaction.user}'s birthday")
-            await self.standby.pg_pool.execute(
-                f"DELETE FROM bdays WHERE usr_id = {interaction.user.id};",
-            )
             await interaction.send("Birthday removed.", ephemeral=True)
+        else:
+            await interaction.send("You have not set your birthday.", ephemeral=True)
 
     @birthday.subcommand(description="Check your birthday (only visible to you)")
     async def check(self, interaction: Interaction) -> None:
@@ -115,15 +101,12 @@ class Birthdays(Cog):
         Args:
             interaction (Interaction): Invoking interaction
         """
-        exists = await self.standby.pg_pool.fetch(
-            f"SELECT * FROM bdays WHERE usr_id = {interaction.user.id}",
-        )
-        if not exists:
+        birthday = await get_user_birthday(interaction.user)
+        if birthday is None:
             await interaction.send("You have not set your birthday.", ephemeral=True)
         else:
             await interaction.send(
-                "Your birthday is set to "
-                f"{uf.int_to_month(exists[0]['month'])} {exists[0]['day']}.",
+                f"Your birthday is set to {birthday.strftime('%B %-d')}",
                 ephemeral=True,
             )
 
@@ -139,40 +122,117 @@ class Birthdays(Cog):
             return
 
         logger.info("Checking birthdays")
-        await self.standby.bot.wait_until_ready()
-
-        bday_role = uf.get_role(RoleName.BIRTHDAY)
+        birthday_role = uf.get_role(RoleName.BIRTHDAY)
 
         async for member in self.standby.guild.fetch_members():
-            if bday_role in member.roles:
+            if birthday_role in member.roles:
                 logger.info(f"Removing birthday role from {member}")
-                await member.remove_roles(bday_role)
+                await member.remove_roles(birthday_role)
 
-        gtable = await self.standby.pg_pool.fetch(
-            f"SELECT * FROM bdays WHERE month = {now.month} AND day = {now.day}",
-        )
+        birthday_haver_ids = await get_birthday_havers()
 
-        if not gtable:
+        if not birthday_haver_ids:
             logger.info("No birthdays today")
             return
 
-        bday_havers = []
-
-        for rec in gtable:
-            member = await self.standby.guild.fetch_member(rec["usr_id"])
+        mentions = []
+        for user_id in birthday_haver_ids:
+            member = await self.standby.guild.fetch_member(user_id)
 
             logger.info(f"Adding birthday role to {member}")
-            await member.add_roles(bday_role)
+            await member.add_roles(birthday_role)
 
-            bday_havers.append(member.mention)
+            mentions.append(member.mention)
 
-        if len(bday_havers) > 1:
-            bday_havers = ", ".join(bday_havers[:-1]) + " and " + str(bday_havers[-1])
+        if len(mentions) > 1:
+            mentions = ", ".join(mentions[:-1]) + " and " + str(mentions[-1])
         else:
-            bday_havers = bday_havers[0]
-        general = nextcord.utils.get(self.bot.get_all_channels(), name="general")
+            mentions = mentions[0]
+
+        general = uf.get_channel(ChannelName.GENERAL)
         await general.send("🎂🎂🎂")
-        await general.send(f"Happy Birthday {bday_havers}!")
+        await general.send(f"Happy Birthday {mentions}!")
+
+
+class SQLStatus(Enum):
+    INSERT = auto()
+    UPDATE = auto()
+    DELETE = auto()
+    NONE = auto()
+
+
+async def set_user_birthday(user: Member, birthday: date) -> SQLStatus:
+    """Set or update birthday."""
+    pg_pool = Standby().pg_pool
+    schema = Standby().schema
+    try:
+        await pg_pool.execute(f"""
+            INSERT INTO
+                {schema}.birthday (user_id, birth_date)
+            VALUES
+                ({user.id}, '{birthday}')
+            """)
+        return SQLStatus.INSERT
+    except UniqueViolationError:
+        await pg_pool.execute(f"""
+            UPDATE {schema}.birthday
+            SET
+                birth_date = '{birthday}'
+            WHERE
+                user_id = {user.id}
+            """)
+        return SQLStatus.UPDATE
+    except Exception:
+        logger.exception("Unknown exception when setting birthday")
+
+
+async def remove_user_birthday(user: Member) -> SQLStatus:
+    """Remove birthday."""
+    pg_pool = Standby().pg_pool
+    schema = Standby().schema
+    status = await pg_pool.execute(f"""
+        DELETE FROM {schema}.birthday
+        WHERE
+            user_id = {user.id}
+        """)
+    if status == "DELETE 0":
+        return SQLStatus.NONE
+    return SQLStatus.DELETE
+
+
+async def get_user_birthday(user: Member) -> datetime | None:
+    """Get birthday (if set)."""
+    pg_pool = Standby().pg_pool
+    schema = Standby().schema
+    record = await pg_pool.fetchrow(f"""
+        SELECT
+            birth_date
+        FROM
+            {schema}.birthday
+        WHERE
+            user_id = {user.id}
+        """)
+    if record:
+        return record["birth_date"]
+    return None
+
+
+async def get_birthday_havers() -> list[int]:
+    """Get today's birthday havers."""
+    pg_pool = Standby().pg_pool
+    schema = Standby().schema
+    today_2000 = datetime.today().date().replace(year=2000)
+    records = await pg_pool.fetch(f"""
+        SELECT
+            user_id
+        FROM
+            {schema}.birthday
+        WHERE
+            birth_date = '{today_2000}'
+        """)
+    if records:
+        return [record["user_id"] for record in records]
+    return []
 
 
 def setup(bot: Bot) -> None:

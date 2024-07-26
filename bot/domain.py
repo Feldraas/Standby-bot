@@ -40,6 +40,7 @@ class Standby:
     pg_pool: Pool
     guild: Guild
     token: str
+    schema: str
 
     def __new__(cls) -> Self:
         """Instantiate the Bot object."""
