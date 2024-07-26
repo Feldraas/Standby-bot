@@ -1,4 +1,4 @@
-"""Burger."""
+"""Burger features."""
 
 import json
 import logging
@@ -41,12 +41,7 @@ class Burger(Cog):
         interaction: Interaction,
         target: Member = SlashOption(description="The person you want to burger"),
     ) -> None:
-        """Burger another user.
-
-        Args:
-            interaction (Interaction): Invoking interaction
-            target (Member): The user to burger
-        """
+        """Burger another user."""
         user = interaction.user
         logger.info(f"{user} is attempting to burger {target}")
         burgered = uf.get_role("Burgered") or interaction.guild.create_role("Burgered")

@@ -571,7 +571,7 @@ async def record_view(
     channel_id: int,
     message_id: int,
 ) -> None:
-    """Record created views in the database so they can be recreated.
+    """Record a view in the database so it can be recreated.
 
     Args:
         view (View): View object containing the buttons
@@ -600,7 +600,11 @@ async def record_view(
 
 
 async def delete_view_record(message_id: int) -> None:
-    """Delete a recorded view from the database."""
+    """Delete a recorded view from the database.
+
+    Args:
+        message_id (int): ID of the message containing the view.
+    """
     await standby.pg_pool.execute(f"""
         DELETE FROM {standby.schema}.view
         WHERE

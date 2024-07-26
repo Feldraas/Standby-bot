@@ -1,9 +1,6 @@
 """PostgreSQL database interactions."""
 
-import json
-
-from asyncpg import Record, create_pool
-from nextcord.ui import View
+from asyncpg import create_pool
 
 from db_integration.create_scripts import create_tables
 from domain import URL, Standby
