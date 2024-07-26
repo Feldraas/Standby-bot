@@ -74,7 +74,7 @@ class Logs(Cog):
         """
         if before.channel == after.channel:
             return
-        logger.info(f"{member} has changed voice channels")
+        logger.debug(f"{member} has changed voice channels")
         embed = await voice_embed(member, before.channel, after.channel)
 
         logs = uf.get_channel(ChannelName.LOGS)
@@ -145,14 +145,15 @@ async def deleted_embed(payload: RawMessageDeleteEvent) -> tuple[Embed, list[Fil
                     file = await attachment.to_file()
                     files.append(file)
                 except NotFound:
-                    logger.info("Attachment not found in cache")
+                    logger.debug("Attachment not found in cache")
             attachment_text = "[See below]" if files else "[Not found in cache]"
             embed.add_field(name="Attachments", value=attachment_text, inline=False)
     else:
         embed.description = "[Message not found in cache]"
+        channel = await Standby().bot.fetch_channel(payload.channel_id)
         embed.add_field(
             name="Channel",
-            value=Standby().bot.fetch_channel(payload.channel_id).mention,
+            value=channel.mention,
         )
     embed.timestamp = uf.utcnow()
     return embed, files
@@ -172,21 +173,21 @@ async def edited_embed(payload: RawMessageUpdateEvent) -> Embed:  # noqa: C901, 
     if "content" in after:
         after_message = after["content"]
     else:
-        logger.info("Message has no content - ignoring")
+        logger.debug("Message has no content - ignoring")
         return None
 
     if before:
         author = before.author
         if author.bot:
-            logger.info("Message is a bot message - ignoring")
+            logger.debug("Message is a bot message - ignoring")
             return None
 
         before_message = before.content
         if before_message == after_message:
-            logger.info("Message content is unchanged - ignoring")
+            logger.debug("Message content is unchanged - ignoring")
             return None
 
-        logger.info("Message edit detected")
+        logger.debug("Message edit detected")
         channel = before.channel
         jump_url = before.jump_url
         avatar_url = before.author.display_avatar.url
@@ -210,7 +211,6 @@ async def edited_embed(payload: RawMessageUpdateEvent) -> Embed:  # noqa: C901, 
         avatar_url = author.display_avatar.url
         attachment_url = message.attachments[0].url if message.attachments else None
 
-    logger.info("Creating embed")
     embed = Embed(color=Color.LIGHT_BLUE)
     embed.title = "Message edited"
 
@@ -381,7 +381,6 @@ async def component_embed(interaction: Interaction) -> Embed:
     Returns:
         Embed: Embed containing interaction details
     """
-    logger.info("Creating component embed")
     embed = Embed(color=Color.VIE_PURPLE)
 
     avatar_url = interaction.user.display_avatar.url

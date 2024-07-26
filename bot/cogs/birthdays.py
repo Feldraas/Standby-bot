@@ -121,12 +121,11 @@ class Birthdays(Cog):
         if now.hour != 8:  # noqa: PLR2004
             return
 
-        logger.info("Checking birthdays")
+        logger.debug("Checking birthdays")
         birthday_role = uf.get_role(RoleName.BIRTHDAY)
 
         async for member in self.standby.guild.fetch_members():
             if birthday_role in member.roles:
-                logger.info(f"Removing birthday role from {member}")
                 await member.remove_roles(birthday_role)
 
         birthday_haver_ids = await get_birthday_havers()

@@ -778,7 +778,7 @@ class Admin(Cog):
             before (Role): The role before the change
             after (Role): The role after the change
         """
-        logger.info("Roles updated")
+        logger.debug("Roles updated")
         await self.standby.reconnect_buttons()
 
 
@@ -861,11 +861,11 @@ async def add_external_emoji(
         emoji_id = emoji
         link = f"https://cdn.discordapp.com/emojis/{emoji_id}.png"
 
-    logger.info(f"Fetching emoji from {link}")
+    logger.debug(f"Fetching emoji from {link}")
     try:
         request = urllib.request.Request(link, headers={"User-Agent": "Mozilla/5.0"})
         response = urllib.request.urlopen(request)
-        logger.info("Emoji successfully fetched")
+        logger.debug("Emoji successfully fetched")
     except:
         return None
     else:

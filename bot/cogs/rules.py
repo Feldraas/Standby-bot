@@ -263,7 +263,7 @@ class Rules(Cog):
         for more than 30 days without but do not have either the
         "Alliance" or "Community" roles.
         """
-        logger.info("Checking for inactive members")
+        logger.debug("Checking for inactive members")
 
         async for member in self.standby.guild.fetch_members():
             if (
