@@ -19,15 +19,16 @@ STRUCTURE = {
             "birthday_pk": "PRIMARY KEY (user_id)",
         },
     },
-    "button": {
+    "view": {
         "columns": {
             "channel_id": "BIGINT",
             "message_id": "BIGINT",
+            "module": "TEXT",
             "class": "TEXT",
             "params": "JSON",
         },
         "constraints": {
-            "button_pk": "PRIMARY KEY (message_id)",
+            "view_pk": "PRIMARY KEY (message_id)",
         },
     },
     "movie": {
@@ -56,7 +57,7 @@ STRUCTURE = {
             "giver_id": "BIGINT",
             "recipient_id": "BIGINT",
             "transferred_at": "TIMESTAMPTZ",
-            "method": "TEXT",
+            "reason": "TEXT",
         },
     },
     "reminder": {

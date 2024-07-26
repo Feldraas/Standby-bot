@@ -27,7 +27,7 @@ async def on_ready() -> None:
     """Startup preparations."""
     standby.store_guild()
     await standby.set_status("Have a nice day!")
-    await standby.reconnect_buttons()
+    await standby.recreate_views()
     await standby.announce()
 
     logger.info("Bot ready!")

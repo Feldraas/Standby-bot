@@ -12,7 +12,8 @@ from typing import Self
 import aiohttp
 import nextcord
 from asyncpg import Pool
-from nextcord import Guild, Intents, Message
+from nextcord import Guild, Intents
+from nextcord.errors import NotFound
 from nextcord.ext.commands import Bot
 from nextcord.ui import View
 from pytz import timezone
@@ -93,50 +94,33 @@ class Standby:
         reboot_message = f"Reboot complete. Caused by {reason}"
         await channel.send(reboot_message)
 
-    def create_view(self, view_type: str, **params: dict) -> View:
-        """Create a View from provided parameters.
+    async def recreate_views(self) -> None:
+        """Recreate all views.
 
-        Args:
-            view_type (str): String specifying the module containing the
-                View subclass as well as the class name.
-            params (dict): Other params to pass to the View constructor
-
-        Returns:
-            View: Requested View object
-        """
-        package_name, view_class_name = view_type.split(" ")
-        package = importlib.import_module(package_name)
-        view_class: type[View] = getattr(package, view_class_name)
-        return view_class(**params)
-
-    async def reconnect_buttons(self) -> None:
-        """Reconnect all buttons.
-
-        When the bot restarts, all previously created buttons stop
-        functioning. Any button that needs to persist for longer than
+        When the bot restarts, all previously created views stop
+        functioning. Any view that needs to persist for longer than
         the bot's ~24-hour life cycle needs to be stored in the database
         and recreated on restart.
         """
-        logger.info("Checking buttons")
-        buttons = await self.pg_pool.fetch("SELECT * FROM buttons")
-        for button in buttons:
+        logger.debug("Checking views")
+        records = await self.pg_pool.fetch(f"""SELECT * FROM {self.schema}.view""")
+
+        from utils import util_functions as uf
+
+        for record in records:
             try:
                 channel: ValidTextChannel = await self.bot.fetch_channel(
-                    button["channel_id"],
+                    record["channel_id"],
                 )
-                message: Message = await channel.fetch_message(button["message_id"])
+                message = await channel.fetch_message(record["message_id"])
                 if len(message.components) == 0:
-                    raise nextcord.errors.NotFound  # noqa: TRY301
-            except nextcord.errors.NotFound:
-                logger.info("Deleting record for deleted message button")
-                await self.pg_pool.execute(
-                    f"DELETE from buttons WHERE channel_id = {button['channel_id']} "
-                    f"AND message_id = {button['message_id']}",
-                )
+                    await uf.delete_view_record(record["message_id"])
+            except NotFound:
+                await uf.delete_view_record(record["message_id"])
             else:
-                logger.info(
-                    f"Processing button for message {button['message_id']} "
-                    f"in channel {button['channel_id']}",
+                logger.debug(
+                    f"Processing button for message {record['message_id']} "
+                    f"in channel {record['channel_id']}",
                 )
                 disabled = [
                     child.disabled
@@ -144,13 +128,16 @@ class Standby:
                     for child in component.children
                 ]
                 if all(disabled):
-                    logger.info("All buttons disabled - ignoring")
+                    logger.debug("All buttons disabled - ignoring")
                     continue
 
-                logger.info("Reconnecting button")
-                params = json.loads(button["params"]) if button["params"] else {}
-                view = self.create_view(button["type"], **params)
-                await message.edit(view=view)
+                logger.debug("Recreating view")
+                params = json.loads(record["params"])
+
+                module = importlib.import_module(record["module"])
+                view_class: type[View] = getattr(module, record["class"])
+
+                await message.edit(view=view_class(params))
 
     async def set_status(self, status: str) -> None:
         """Set the bot's status message.

@@ -23,6 +23,7 @@ from nextcord import (
 )
 from nextcord.ext.commands import Cog
 from nextcord.ext.tasks import LF, Loop
+from nextcord.ui import View
 from nextcord.utils import MISSING
 from PIL import Image, ImageDraw, ImageFont
 
@@ -83,7 +84,7 @@ def get_channel(name: str) -> ValidTextChannel:
     )
 
 
-def get_user(guild: Guild, query: str) -> Member | None:
+def get_user(query: str) -> Member | None:
     """Get a user from a uniquely identifying query."""
     if re.search(r".*#\d{4}$", query):
         query, tag = re.split(" ?#", query)
@@ -99,7 +100,7 @@ def get_user(guild: Guild, query: str) -> Member | None:
     else:
         users = [
             user
-            for user in guild.members
+            for user in standby.guild.members
             if re.search(query, f"{user.name}|{user.display_name}", re.IGNORECASE)
         ]
 
@@ -563,3 +564,45 @@ def titlecase(s: str) -> str:
         if char == "'":
             as_list[index] = "'"
     return "".join(as_list)
+
+
+async def record_view(
+    view: View,
+    channel_id: int,
+    message_id: int,
+) -> None:
+    """Record created views in the database so they can be recreated.
+
+    Args:
+        view (View): View object containing the buttons
+        channel_id (int): ID of the channel
+        message_id (int): ID of the message
+    """
+    try:
+        params = view.params
+    except AttributeError:
+        params = None
+
+    params_string = json.dumps(params or {}).replace("'", "''")
+
+    await standby.pg_pool.execute(f"""
+        INSERT INTO
+            {standby.schema}.view (module, class, channel_id, message_id, params)
+        VALUES
+            (
+                '{view.__class__.__module__}',
+                '{view.__class__.__name__}',
+                {channel_id},
+                {message_id},
+                '{params_string}'
+            )
+        """)
+
+
+async def delete_view_record(message_id: int) -> None:
+    """Delete a recorded view from the database."""
+    await standby.pg_pool.execute(f"""
+        DELETE FROM {standby.schema}.view
+        WHERE
+            message_id = {message_id}
+        """)
