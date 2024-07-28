@@ -309,7 +309,7 @@ async def command_embed(interaction: Interaction) -> Embed:  # noqa: C901, PLR09
         cmd_type = "Unknown command type"
         cmd_prefix = "?"
 
-    logger.info(f"Creating {cmd_type.lower()} embed")
+    logger.debug(f"Creating {cmd_type.lower()} embed")
 
     embed = Embed(color=Color.VIE_PURPLE)
     embed.title = f"{cmd_type} triggered"
