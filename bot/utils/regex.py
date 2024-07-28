@@ -507,7 +507,7 @@ async def link_resp(message: Message) -> None:
         await message.channel.send(embed=source_message.embeds[0])
 
 
-# TODO: Better regex # noqa: FIX002
+# TODO: Better regex
 DISCORD_MESSAGE_LINK_PATTERN = (
     r"https:\/\/(\w+\.)?discord(app)?\.com\/channels\/\d+\/\d+\/\d+"
 )
