@@ -10,6 +10,7 @@ from nextcord import (
     Embed,
     Interaction,
     Member,
+    Message,
     RawReactionActionEvent,
     SlashOption,
     slash_command,
@@ -22,7 +23,6 @@ from domain import (
     URL,
     ChannelName,
     Color,
-    Message,
     Permissions,
     Standby,
 )
