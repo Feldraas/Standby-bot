@@ -3,6 +3,7 @@
 import asyncio
 import io
 import json
+import logging
 import re
 from collections.abc import Callable, Sequence
 from datetime import datetime, time, timedelta
@@ -21,6 +22,7 @@ from nextcord import (
     Message,
     Role,
 )
+from nextcord.errors import NotFound
 from nextcord.ext.commands import Cog
 from nextcord.ext.tasks import LF, Loop
 from nextcord.ui import View
@@ -37,6 +39,7 @@ from domain import (
     ValidTextChannel,
 )
 
+logger = logging.getLogger(__name__)
 standby = Standby()
 
 
@@ -531,7 +534,7 @@ async def update_user_predictions(user: Member, predictions: dict[str, str]) -> 
     """
     sql_string = json.dumps(predictions).replace("'", "''")
     query = f"UPDATE usr SET predictions = '{sql_string}' WHERE usr_id = {user.id}"
-    await Standby().pg_pool.execute(query)
+    await standby.pg_pool.execute(query)
 
 
 def ordinal_suffix(n: int) -> Literal["st", "nd", "rd", "th"]:
@@ -573,6 +576,8 @@ async def record_view(
 ) -> None:
     """Record a view in the database so it can be recreated.
 
+    If the view has already been recorded, update its parameters.
+
     Args:
         view (View): View object containing the buttons
         channel_id (int): ID of the channel
@@ -596,6 +601,11 @@ async def record_view(
                 {message_id},
                 '{params_string}'
             )
+        ON CONFLICT (message_id) DO UPDATE
+        SET
+            module = '{view.__class__.__module__}',
+            class = '{view.__class__.__name__}',
+            params = '{params_string}'
         """)
 
 
@@ -610,3 +620,17 @@ async def delete_view_record(message_id: int) -> None:
         WHERE
             message_id = {message_id}
         """)
+
+
+async def clean_view_table() -> None:
+    """C."""
+    logger.debug("Cleaning view table")
+    records = await standby.pg_pool.fetch(f"""SELECT * FROM {standby.schema}.view""")
+    for record in records:
+        try:
+            channel = await standby.bot.fetch_channel(record["channel_id"])
+            message = await channel.fetch_message(record["message_id"])
+            if len(message.components) == 0:
+                await delete_view_record(record["message_id"])
+        except NotFound:
+            await delete_view_record(record["message_id"])

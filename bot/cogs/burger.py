@@ -138,14 +138,23 @@ class Burger(Cog):
             reason=TransferReason.YOINK,
         )
 
-    @uf.delayed_loop(seconds=5)
+    @slash_command(
+        name="burger-history",
+        description="See who previously held the burger",
+    )
+    async def history(self, interaction: Interaction) -> None:
+        """H."""
+        holders = await get_last_holders(n=10)
+        holder_string = " -> ".join(holder.mention for holder in reversed(holders))
+        await interaction.send(
+            f"The last people to hold the burger are {holder_string}",
+            ephemeral=True,
+        )
+
+    @uf.delayed_loop(minutes=1)
     async def check_burger(self) -> None:
         """Check whether the burger holding period has expired."""
         logger.debug("Checking burger")
-
-        already_sent = await check_if_already_sent()
-        if already_sent:
-            return
 
         last_transfer = await get_last_transfer_time()
         if last_transfer is None:
@@ -157,6 +166,10 @@ class Burger(Cog):
             return
 
         logger.info("Burger has expired")
+
+        already_sent = await check_if_already_sent()
+        if already_sent:
+            return
 
         burgered = uf.get_role("Burgered")
         holder = None
@@ -318,22 +331,22 @@ async def get_last_transfer_time(
     pg_pool = Standby().pg_pool
     schema = Standby().schema
 
-    filters = []
-    if from_:
-        filters.append(f"giver_id = {from_.id}")
-    if to:
-        filters.append(f"recipient_id = {to.id}")
-    if reason:
-        filters.append(f"reason = '{reason}'")
-
-    where_clause = "WHERE " + " AND ".join(filters) if filters else ""
-    return await pg_pool.fetchval(f"""
+    query = f"""
         SELECT
             MAX(transferred_at)
         FROM
             {schema}.burger
-        {where_clause}
-        """)
+        WHERE recipient_id != 0
+        """
+
+    if from_:
+        query += f" AND giver_id = {from_.id}"
+    if to:
+        query += f" AND recipient_id = {to.id}"
+    if reason:
+        query += f" AND reason = '{reason}'"
+
+    return await pg_pool.fetchval(query)
 
 
 async def get_mold_count(user: Member) -> int:
@@ -406,7 +419,7 @@ async def check_if_already_sent() -> bool:
     """C."""
     pg_pool = Standby().pg_pool
     schema = Standby().schema
-    await Standby().recreate_views()
+    await uf.clean_view_table()
     view = await pg_pool.fetchval(f"""
         SELECT
             *
@@ -416,6 +429,29 @@ async def check_if_already_sent() -> bool:
             class = 'BurgerView'
         """)
     return view is not None
+
+
+async def get_last_holders(n: int = 10) -> list[Member]:
+    """G."""
+    standby = Standby()
+    records = await standby.pg_pool.fetch(f"""
+        SELECT
+            recipient_id
+        FROM
+            {standby.schema}.burger
+        WHERE
+            recipient_id != 0
+        ORDER BY
+            transferred_at DESC
+        LIMIT
+            {n}
+        """)
+
+    users = []
+    for record in records:
+        user = await standby.bot.fetch_user(record["recipient_id"])
+        users.append(user)
+    return users
 
 
 def setup(bot: Bot) -> None:

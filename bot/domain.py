@@ -13,7 +13,6 @@ import aiohttp
 import nextcord
 from asyncpg import Pool
 from nextcord import Guild, Intents
-from nextcord.errors import NotFound
 from nextcord.ext.commands import Bot
 from nextcord.ui import View
 from pytz import timezone
@@ -103,41 +102,35 @@ class Standby:
         and recreated on restart.
         """
         logger.debug("Checking views")
-        records = await self.pg_pool.fetch(f"""SELECT * FROM {self.schema}.view""")
 
         from utils import util_functions as uf
 
+        await uf.clean_view_table()
+
+        records = await self.pg_pool.fetch(f"""SELECT * FROM {self.schema}.view""")
         for record in records:
-            try:
-                channel: ValidTextChannel = await self.bot.fetch_channel(
-                    record["channel_id"],
-                )
-                message = await channel.fetch_message(record["message_id"])
-                if len(message.components) == 0:
-                    await uf.delete_view_record(record["message_id"])
-            except NotFound:
-                await uf.delete_view_record(record["message_id"])
-            else:
-                logger.debug(
-                    f"Processing button for message {record['message_id']} "
-                    f"in channel {record['channel_id']}",
-                )
-                disabled = [
-                    child.disabled
-                    for component in message.components
-                    for child in component.children
-                ]
-                if all(disabled):
-                    logger.debug("All buttons disabled - ignoring")
-                    continue
+            logger.debug(
+                f"Processing button for message {record['message_id']} "
+                f"in channel {record['channel_id']}",
+            )
+            channel = await self.bot.fetch_channel(record["channel_id"])
+            message = await channel.fetch_message(record["message_id"])
+            disabled = [
+                child.disabled
+                for component in message.components
+                for child in component.children
+            ]
+            if all(disabled):
+                logger.debug("All buttons disabled - ignoring")
+                continue
 
-                logger.debug("Recreating view")
-                params = json.loads(record["params"])
+            logger.debug("Recreating view")
+            params = json.loads(record["params"])
 
-                module = importlib.import_module(record["module"])
-                view_class: type[View] = getattr(module, record["class"])
+            module = importlib.import_module(record["module"])
+            view_class: type[View] = getattr(module, record["class"])
 
-                await message.edit(view=view_class(params))
+            await message.edit(view=view_class(params))
 
     async def set_status(self, status: str) -> None:
         """Set the bot's status message.
