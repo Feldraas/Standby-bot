@@ -255,6 +255,40 @@ class Services(Cog):
                 )
             await interaction.send(message)
 
+    @Cog.listener()
+    async def on_raw_reaction_add(self, event: RawReactionActionEvent) -> None:
+        """Manipulate Urban Dictionary embeds using reactions."""
+        channel = Standby().bot.get_channel(event.channel_id)
+        try:
+            message = await channel.fetch_message(event.message_id)
+            if (
+                event.user_id != ID.BOT
+                and not event.member.bot
+                and message.embeds
+                and message.embeds[0]
+                and str(message.embeds[0].title).startswith("Page")
+                and event.emoji.name in ["⬅️", "➡️", "🇽"]
+            ):
+                if event.emoji.name == "🇽":
+                    await message.clear_reaction("⬅️")
+                    await message.clear_reaction("➡️")
+                    await message.clear_reaction("🇽")
+                else:
+                    embed = message.embeds[0]
+                    title = embed.title
+                    match = re.search(r"Page (\d+)/(\d+)", title)
+                    page, pages = int(match.group(1)), int(match.group(2))
+                    query = re.search(r"\[(.*)\]", embed.fields[0].value).group(1)
+                    user = message.guild.get_member(event.user_id)
+                    if event.emoji.name == "⬅️" and page > 1:
+                        embed = await urban_embed(query, page - 1)
+                    elif event.emoji.name == "➡️" and page < pages:
+                        embed = await urban_embed(query, page + 1)
+                    await message.remove_reaction(event.emoji, user)
+                    await message.edit(embed=embed)
+        except Exception:
+            logger.exception("Unexpected error")
+
 
 async def create_leaderboard(
     settings: LeaderboardSettings,
@@ -346,40 +380,6 @@ def build_leaderboard_embed(
     embed.add_field(name=settings.user_name, value="\n".join(users))
     embed.title = settings.title
     return embed
-
-
-async def urban_handler(payload: RawReactionActionEvent) -> None:
-    """Manipulate Urban Dictionary embeds using reactions."""
-    channel = Standby().bot.get_channel(payload.channel_id)
-    try:
-        message = await channel.fetch_message(payload.message_id)
-        if (
-            payload.user_id != ID.BOT
-            and not payload.member.bot
-            and message.embeds
-            and message.embeds[0]
-            and str(message.embeds[0].title).startswith("Page")
-            and payload.emoji.name in ["⬅️", "➡️", "🇽"]
-        ):
-            if payload.emoji.name == "🇽":
-                await message.clear_reaction("⬅️")
-                await message.clear_reaction("➡️")
-                await message.clear_reaction("🇽")
-            else:
-                embed = message.embeds[0]
-                title = embed.title
-                match = re.search(r"Page (\d+)/(\d+)", title)
-                page, pages = int(match.group(1)), int(match.group(2))
-                query = re.search(r"\[(.*)\]", embed.fields[0].value).group(1)
-                user = message.guild.get_member(payload.user_id)
-                if payload.emoji.name == "⬅️" and page > 1:
-                    embed = await urban_embed(query, page - 1)
-                elif payload.emoji.name == "➡️" and page < pages:
-                    embed = await urban_embed(query, page + 1)
-                await message.remove_reaction(payload.emoji, user)
-                await message.edit(embed=embed)
-    except Exception:
-        logger.exception("Unexpected error")
 
 
 def avatar_embed(user: Member) -> Embed:
