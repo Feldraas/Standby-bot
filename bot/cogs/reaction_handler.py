@@ -7,7 +7,6 @@ from nextcord import (
 )
 from nextcord.ext.commands import Bot, Cog
 
-from cogs.giveaways import giveaway_handler
 from cogs.services import urban_handler
 from domain import Standby
 from utils.starboard import starboard_handler
@@ -21,7 +20,6 @@ class ReactionHandler(Cog):
     async def on_raw_reaction_add(self, payload: RawReactionActionEvent) -> None:
         """Called when a user adds a reaction."""
         await starboard_handler(payload)
-        await giveaway_handler(payload)
         await urban_handler(payload)
 
     @Cog.listener()
