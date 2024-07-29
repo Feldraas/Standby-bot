@@ -5,7 +5,7 @@ import json
 import logging
 import os
 from datetime import datetime, timedelta
-from enum import IntEnum, StrEnum
+from enum import Enum, IntEnum, StrEnum, auto
 from pathlib import Path
 from typing import Self
 
@@ -303,7 +303,6 @@ class Duration:
     """Durations for different events."""
 
     ROULETTE_TIMEOUT = timedelta(minutes=30)
-    BURGER_TIMEOUT = timedelta(weeks=1)
     REPOSTER = timedelta(days=1)
 
 
@@ -312,7 +311,6 @@ class Threshold(IntEnum):
 
     STARBOARD = 4
     REEPOSTER = 4
-    PREDICTIONS = 5
 
 
 class Format(StrEnum):
@@ -329,3 +327,12 @@ class Emoji(StrEnum):
     """Special emoji names."""
 
     REEPOSTER = "FEELSREEE"
+
+
+class SQLResult(Enum):
+    """Result of executing an SQL query."""
+
+    INSERT = auto()
+    UPDATE = auto()
+    DELETE = auto()
+    NONE = auto()

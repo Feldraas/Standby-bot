@@ -21,13 +21,15 @@ from nextcord.ui import Button, View
 from domain import (
     ID,
     URL,
-    Duration,
     RoleName,
     Standby,
 )
 from utils import util_functions as uf
 
 logger = logging.getLogger(__name__)
+
+BURGER_TIMEOUT = timedelta(weeks=1)
+YOINK_COOLDOWN = timedelta(days=30)
 
 
 class Burger(Cog):
@@ -123,11 +125,11 @@ class Burger(Cog):
             to=interaction.user,
             reason=TransferReason.YOINK,
         )
-        if last_yoink and uf.now() - last_yoink < timedelta(days=30):
+        if last_yoink and uf.now() - last_yoink < YOINK_COOLDOWN:
             logger.info("Not enough time has passed since last yoink - disallowing")
             await interaction.send(
                 "You have yoinked the burger too recently and cannot do so again until "
-                f"{uf.dynamic_timestamp(last_yoink + timedelta(days=30))}",
+                f"{uf.dynamic_timestamp(last_yoink + YOINK_COOLDOWN)}",
                 ephemeral=True,
             )
             return
@@ -160,7 +162,7 @@ class Burger(Cog):
         if last_transfer is None:
             return
 
-        expiration = last_transfer + Duration.BURGER_TIMEOUT
+        expiration = last_transfer + BURGER_TIMEOUT
 
         if expiration > uf.now():
             return

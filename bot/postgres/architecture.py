@@ -72,9 +72,10 @@ STRUCTURE = {
     "prediction": {
         "columns": {
             "user_id": "BIGINT",
+            "predicted_at": "TIMESTAMPTZ",
             "label": "TEXT",
             "text": "TEXT",
-            "confirmed": "BOOLEAN DEFAULT FALSE",
+            "status": "TEXT",
         },
         "constraints": {
             "prediction_pk": "PRIMARY KEY (user_id, label)",

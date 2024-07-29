@@ -510,33 +510,6 @@ def delayed_loop(
     return decorator
 
 
-async def get_user_predictions(user: Member) -> dict[str, str]:
-    """Fetch all predictions made by a user from the database.
-
-    Args:
-        user (Member): Target user
-
-    Returns:
-        dict: Prediction labels and their full texts
-    """
-    query = f"SELECT predictions FROM usr WHERE usr_id = {user.id}"
-    recs = await standby.pg_pool.fetch(query)
-    predictions = recs[0]["predictions"]
-    return json.loads(predictions) if predictions else {}
-
-
-async def update_user_predictions(user: Member, predictions: dict[str, str]) -> None:
-    """Sets a user's predictions in the database to the provided values.
-
-    Args:
-        user (Member): _description_
-        predictions (dict[str, str]): _description_
-    """
-    sql_string = json.dumps(predictions).replace("'", "''")
-    query = f"UPDATE usr SET predictions = '{sql_string}' WHERE usr_id = {user.id}"
-    await standby.pg_pool.execute(query)
-
-
 def ordinal_suffix(n: int) -> Literal["st", "nd", "rd", "th"]:
     """Generate the suffix for an ordinal number.
 
@@ -601,7 +574,7 @@ async def record_view(
                 {message_id},
                 '{params_string}'
             )
-        ON CONFLICT (message_id) DO UPDATE
+        ON CONFLICT ON CONSTRAINT view_pk DO UPDATE
         SET
             module = '{view.__class__.__module__}',
             class = '{view.__class__.__name__}',

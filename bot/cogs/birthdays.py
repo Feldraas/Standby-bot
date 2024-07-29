@@ -2,13 +2,12 @@
 
 import logging
 from datetime import date, datetime
-from enum import Enum, auto
 
 from asyncpg.exceptions import UniqueViolationError
 from nextcord import Interaction, Member, SlashOption, slash_command
 from nextcord.ext.commands import Bot, Cog
 
-from domain import ChannelName, RoleName, Standby
+from domain import ChannelName, RoleName, SQLResult, Standby
 from utils import util_functions as uf
 
 logger = logging.getLogger(__name__)
@@ -64,13 +63,13 @@ class Birthdays(Cog):
             await interaction.send("Invalid date - please try again.", ephemeral=True)
             return
 
-        status = await set_user_birthday(interaction.user, birthday)
+        result = await set_user_birthday(interaction.user, birthday)
 
-        if status == SQLStatus.INSERT:
+        if result == SQLResult.INSERT:
             logger.info(f"Setting {interaction.user}'s birthday to {month} {day}")
             await interaction.send("Your birthday has been set.", ephemeral=True)
 
-        elif status == SQLStatus.UPDATE:
+        elif result == SQLResult.UPDATE:
             logger.info(f"Updating {interaction.user}'s birthday to {month} {day}")
             await interaction.send("Your birthday has been updated.", ephemeral=True)
 
@@ -88,7 +87,7 @@ class Birthdays(Cog):
             interaction (Interaction): Invoking interaction
         """
         status = await remove_user_birthday(interaction.user)
-        if status == SQLStatus.DELETE:
+        if status == SQLResult.DELETE:
             logger.info(f"Removing {interaction.user}'s birthday")
             await interaction.send("Birthday removed.", ephemeral=True)
         else:
@@ -153,14 +152,7 @@ class Birthdays(Cog):
         await general.send(f"Happy Birthday {mentions}!")
 
 
-class SQLStatus(Enum):
-    INSERT = auto()
-    UPDATE = auto()
-    DELETE = auto()
-    NONE = auto()
-
-
-async def set_user_birthday(user: Member, birthday: date) -> SQLStatus:
+async def set_user_birthday(user: Member, birthday: date) -> SQLResult:
     """Set or update birthday."""
     pg_pool = Standby().pg_pool
     schema = Standby().schema
@@ -171,7 +163,7 @@ async def set_user_birthday(user: Member, birthday: date) -> SQLStatus:
             VALUES
                 ({user.id}, '{birthday}')
             """)
-        return SQLStatus.INSERT
+        return SQLResult.INSERT
     except UniqueViolationError:
         await pg_pool.execute(f"""
             UPDATE {schema}.birthday
@@ -180,12 +172,12 @@ async def set_user_birthday(user: Member, birthday: date) -> SQLStatus:
             WHERE
                 user_id = {user.id}
             """)
-        return SQLStatus.UPDATE
+        return SQLResult.UPDATE
     except Exception:
         logger.exception("Unknown exception when setting birthday")
 
 
-async def remove_user_birthday(user: Member) -> SQLStatus:
+async def remove_user_birthday(user: Member) -> SQLResult:
     """Remove birthday."""
     pg_pool = Standby().pg_pool
     schema = Standby().schema
@@ -195,8 +187,8 @@ async def remove_user_birthday(user: Member) -> SQLStatus:
             user_id = {user.id}
         """)
     if status == "DELETE 0":
-        return SQLStatus.NONE
-    return SQLStatus.DELETE
+        return SQLResult.NONE
+    return SQLResult.DELETE
 
 
 async def get_user_birthday(user: Member) -> datetime | None:
