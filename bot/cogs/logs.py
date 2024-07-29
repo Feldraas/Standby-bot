@@ -155,7 +155,7 @@ async def deleted_embed(payload: RawMessageDeleteEvent) -> tuple[Embed, list[Fil
             name="Channel",
             value=channel.mention,
         )
-    embed.timestamp = uf.utcnow()
+    embed.timestamp = uf.now()
     return embed, files
 
 
@@ -236,7 +236,7 @@ async def edited_embed(payload: RawMessageUpdateEvent) -> Embed:  # noqa: C901, 
     if attachment_url:
         embed.add_field(name="Attachment", value=f"[Click here]({attachment_url})")
 
-    embed.timestamp = uf.utcnow()
+    embed.timestamp = uf.now()
 
     return embed
 
@@ -276,7 +276,7 @@ async def voice_embed(
             f"{member.mention} ({member.name}{discriminator}) joined"
             f" voice channel {after.mention}"
         )
-    embed.timestamp = uf.utcnow()
+    embed.timestamp = uf.now()
     return embed
 
 
@@ -367,7 +367,7 @@ async def command_embed(interaction: Interaction) -> Embed:  # noqa: C901, PLR09
     if avatar_url:
         embed.set_thumbnail(url=avatar_url)
 
-    embed.timestamp = uf.utcnow()
+    embed.timestamp = uf.now()
 
     return embed
 

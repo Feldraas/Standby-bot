@@ -272,7 +272,7 @@ class Rules(Cog):
                 or (uf.get_role("Community") in member.roles)
             ):
                 return
-            time = uf.utcnow() - member.joined_at
+            time = uf.now() - member.joined_at
             if time.days < 30:  # noqa: PLR2004
                 return
             discriminator = (

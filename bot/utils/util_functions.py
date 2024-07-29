@@ -379,12 +379,12 @@ async def invoke_slash_command(
 
 def utcnow() -> datetime:
     """Wrapper for the built-in utcnow function."""
-    return nextcord.utils.utcnow()
+    return nextcord.utils.utcnow().replace(microsecond=0)
 
 
 def now() -> datetime:
     """Get the current timestamp in the bot's time zone."""
-    return datetime.now(tz=BOT_TZ)
+    return datetime.now(tz=BOT_TZ).replace(microsecond=0)
 
 
 def role_priority(role: Role) -> str:
@@ -443,7 +443,7 @@ def message_embed(
     embed.description = message.content
     embed.add_field(name="Channel", value=message.channel.mention)
     timestamp = message.created_at + timedelta(hours=2)
-    if (utcnow() - timestamp).days > 11 * 30:
+    if (now() - timestamp).days > 11 * 30:
         timestamp = timestamp.strftime("%b %d, %Y")
     else:
         timestamp = timestamp.strftime("%b %d, %H:%M")

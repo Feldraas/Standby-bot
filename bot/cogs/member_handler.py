@@ -82,7 +82,7 @@ async def leave_message(member: Member) -> None:
 
     logger.info(f"Sending obit message for {member}")
     name = member.name
-    time = uf.utcnow()
+    time = uf.now()
     time = time.strftime("%b %d, %H:%M")
     embed = Embed(color=Color.GREY)
     embed.title = "The void grows smaller..."
