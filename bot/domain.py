@@ -309,7 +309,6 @@ class Duration:
 class Threshold(IntEnum):
     """Thresholds for different events."""
 
-    STARBOARD = 4
     REEPOSTER = 4
 
 

@@ -186,7 +186,7 @@ async def record_prediction(user: Member, label: str, text: str) -> SQLResult:
     standby = Standby()
     result = await standby.pg_pool.execute(f"""
         INSERT INTO
-            dev.prediction (user_id, predicted_at, label, text, status)
+            {standby.schema}.prediction (user_id, predicted_at, label, text, status)
         VALUES
             ({user.id}, '{uf.now()}', '{label}', '{text}', '{PredictionStatus.ACTIVE}')
         ON CONFLICT ON CONSTRAINT prediction_pk DO NOTHING

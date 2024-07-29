@@ -8,9 +8,7 @@ from datetime import datetime as dt
 from nextcord import Message
 from nextcord.ext.commands import Bot, Cog
 
-from cogs.error_handler import unhandled_error_embed
 from domain import ChannelName, Standby, ValidTextChannel
-from utils import util_functions as uf
 from utils.regex import (
     RegexResponse,
     WednesdayResponse,
@@ -93,21 +91,10 @@ class MessageHandler(Cog):
         if response_command:
             try:
                 await response_command(message)
-            except Exception as e:
+            except Exception:
                 logger.exception(
                     f"Error when executing regex command {response_command.__name__}()",
                 )
-                channel = uf.get_channel(ChannelName.ERRORS)
-                if channel is not None:
-                    await channel.send(
-                        embed=unhandled_error_embed(
-                            message.content,
-                            message.channel,
-                            e,
-                        ),
-                    )
-                else:
-                    logger.warning("Could not find error channel")
             return
 
         # Check for repeated messages
