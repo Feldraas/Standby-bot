@@ -1,82 +1,29 @@
 """Create and manage timers."""
 
-import json
 import logging
 from datetime import datetime, timedelta
+from enum import IntFlag, auto
 
+from asyncpg import Record
 from nextcord import Interaction, SlashOption, slash_command
 from nextcord.ext.commands import Bot, Cog
 
-from db_integration import db_functions as db
-from domain import Standby, TimerType
+from domain import Standby
 from utils import util_functions as uf
 
 logger = logging.getLogger(__name__)
+
+
+class ReminderLocation(IntFlag):
+    CHANNEL = auto()
+    DM = auto()
+    BOTH = CHANNEL & DM
 
 
 class Timers(Cog):
     def __init__(self) -> None:
         self.standby = Standby()
         self.check_reminders.start()
-
-    @uf.delayed_loop(seconds=10)
-    async def check_reminders(self) -> None:
-        """Check if any reminder timers have expired."""
-        try:
-            gtable = await self.standby.pg_pool.fetch(
-                f"SELECT * FROM tmers WHERE ttype={TimerType.REMINDER}",
-            )
-        except AttributeError:
-            logger.exception("Bot hasn't loaded yet - pg_pool doesn't exist")
-            return
-        except Exception:
-            logger.exception("Unexpected error")
-            return
-
-        for rec in gtable:
-            timenow = datetime.now()
-            if timenow <= rec["expires"]:
-                continue
-
-            logger.info("Reminder timer expired")
-
-            params_dict = json.loads(rec["params"])
-            if "msg" not in params_dict or "channel" not in params_dict:
-                logger.warning(f"Deleting invalid json: {params_dict}")
-                await self.standby.pg_pool.execute(
-                    "DELETE FROM tmers WHERE tmer_id = $1;",
-                    rec["tmer_id"],
-                )
-                continue
-
-            channel = self.standby.bot.get_channel(params_dict["channel"])
-            if not channel:
-                logger.warning(f"Could not find {channel=}")
-
-            location = params_dict.get("location", "This channel")
-            message = (
-                f"<@{rec['usr_id']}> "
-                f"{uf.dynamic_timestamp(rec['expires'], 'date and time')}: "
-                f"{params_dict['msg']}"
-            )
-            try:
-                confirmation_id = params_dict["confirmation_id"]
-                confirmation = await channel.fetch_message(confirmation_id)
-                message += " " + confirmation.jump_url
-            except Exception:
-                logger.exception("Could not find confirmation mesage id")
-
-            if location in ["This channel", "Both"]:
-                await channel.send(message)
-
-            if location == "DM":
-                user = await self.standby.guild.fetch_member(rec["usr_id"])
-                await user.send(message)
-
-            await self.standby.pg_pool.execute(
-                "DELETE FROM tmers WHERE tmer_id = $1;",
-                rec["tmer_id"],
-            )
 
     @slash_command(description="Commands for setting reminders")
     async def remindme(self, interaction: Interaction) -> None:
@@ -93,10 +40,14 @@ class Timers(Cog):
             min_value=0,
         ),
         message: str = SlashOption(description="A message for the reminder"),
-        location: str = SlashOption(
+        location: int = SlashOption(
             description="Where to send the reminder",
-            choices=["This channel", "DM", "Both"],
-            default="This channel",
+            choices={
+                "This channel": ReminderLocation.CHANNEL,
+                "DM": ReminderLocation.DM,
+                "Both": ReminderLocation.BOTH,
+            },
+            default=ReminderLocation.CHANNEL,
         ),
     ) -> None:
         """Create a reminder that triggers after the specified delay.
@@ -107,8 +58,9 @@ class Timers(Cog):
             hours (int): Hours until the reminder
             minutes (int): Minutes until the reminder
             message (str): A message for the reminder
-            location (str, optional): Where to send the reminder. Can be
-                in the interaction channel, as a DM, or both.
+            location (ReminderLocation, optional): Where to send the
+                reminder. Can be in the interaction channel, as a DM,
+                or both.
         """
         if days + hours + minutes == 0:
             await interaction.send(
@@ -121,23 +73,14 @@ class Timers(Cog):
             )
             return
 
-        logger.info(f"Creating reminder for {interaction.user}")
-        now = datetime.now()
-        delta = timedelta(days=days, hours=hours, minutes=minutes)
-        expires = now + delta
-        expires = expires.replace(microsecond=0)
+        logger.debug(f"Creating reminder for {interaction.user}")
+        now = uf.now()
+        expires = now + timedelta(days=days, hours=hours, minutes=minutes)
 
-        confirmation = await interaction.send(
-            f"{uf.dynamic_timestamp(now, 'short time')}: Your reminder has been "
-            "registered and you will be reminded "
-            f"on {uf.dynamic_timestamp(expires, 'date and time')}.",
-        )
-        full_confirmation = await confirmation.fetch()
         await create_reminder(
             interaction,
             expires,
             message,
-            full_confirmation.id,
             location,
         )
 
@@ -154,10 +97,14 @@ class Timers(Cog):
         hour: int = SlashOption(description="Hour of the reminder"),
         minute: int = SlashOption(description="Minute of the reminder"),
         message: str = SlashOption(description="A message for the reminder"),
-        location: str = SlashOption(
+        location: int = SlashOption(
             description="Where to send the reminder",
-            choices=["This channel", "DM", "Both"],
-            default="This channel",
+            choices={
+                "This channel": ReminderLocation.CHANNEL,
+                "DM": ReminderLocation.DM,
+                "Both": ReminderLocation.BOTH,
+            },
+            default=ReminderLocation.CHANNEL,
         ),
     ) -> None:
         """Create a reminder that triggers at a specified point in time.
@@ -173,7 +120,7 @@ class Timers(Cog):
             location (str, optional): Where to send the reminder. Can be
                 in the interaction channel, as a DM, or both.
         """
-        now = datetime.now()
+        now = uf.now()
         try:
             expires = datetime(
                 year=year,
@@ -198,57 +145,127 @@ class Timers(Cog):
             )
             return
 
-        logger.info(f"Creating reminder for {interaction.user}")
-        confirmation = await interaction.send(
-            f"{uf.dynamic_timestamp(now, 'short time')}: Your reminder has been "
-            "registered and you will be reminded "
-            f"on {uf.dynamic_timestamp(expires, 'date and time')}.",
-        )
-        full_confirmation = await confirmation.fetch()
+        logger.debug(f"Creating reminder for {interaction.user}")
         await create_reminder(
             interaction,
             expires,
             message,
-            full_confirmation.id,
             location,
         )
+
+    @uf.delayed_loop(seconds=10)
+    async def check_reminders(self) -> None:
+        """Check if any reminder timers have expired."""
+        expired_reminders = await get_expired_reminders()
+
+        for reminder in expired_reminders:
+            logger.info("Reminder timer expired")
+
+            creation_time = uf.dynamic_timestamp(
+                reminder["created_at"],
+                "date and time",
+            )
+            if reminder["channel_id"]:
+                channel = self.standby.bot.get_channel(reminder["channel_id"])
+                original_message = await channel.fetch_message(reminder["message_id"])
+
+                mention = uf.id_to_mention(reminder["user_id"])
+                await channel.send(
+                    f"Reminder for {mention}, created at {creation_time}:\n"
+                    f"{reminder['message']}\n",
+                    reference=original_message,
+                )
+
+            if reminder["send_dm"]:
+                user = await self.standby.guild.fetch_member(reminder["user_id"])
+                await user.send(
+                    f"Your reminder, created at {creation_time}, "
+                    f"has expired:\n{reminder['message']}",
+                )
+
+            await delete_reminder(reminder["reminder_id"])
 
 
 async def create_reminder(
     interaction: Interaction,
-    tfuture: datetime,
+    expires: datetime,
     message: str,
-    confirmation_id: int,
-    location: str,
+    location: ReminderLocation,
 ) -> None:
     """Store the reminder in the database.
 
     Args:
         interaction (Interaction): Invoking interaction
-        tfuture (datetime): Reminder time
+        expires (datetime): Reminder expiration time
         message (str): Reminder message
-        confirmation_id (int): ID of the confirmation message.
-            Used to send the reminder as a reply
         location (str): Where to send the reminder
     """
-    await db.ensure_guild_existence(interaction.guild.id)
-    await db.get_or_insert_usr(interaction.user.id)
-
-    params_dict = {
-        "msg": message,
-        "channel": interaction.channel.id,
-        "confirmation_id": confirmation_id,
-        "location": location,
-    }
-    params_json = json.dumps(params_dict)
-
-    await Standby().pg_pool.execute(
-        "INSERT INTO tmers (usr_id, expires, ttype, params) VALUES ($1, $2, $3, $4);",
-        interaction.user.id,
-        tfuture,
-        TimerType.REMINDER,
-        params_json,
+    expire_string = uf.dynamic_timestamp(expires, "date and time")
+    response = await interaction.send(
+        "Your reminder has been registered "
+        f"and you will be reminded on {expire_string}",
+        ephemeral=location == ReminderLocation.DM,
     )
+
+    location = ReminderLocation(location)  # Discord returns it as an int
+
+    if location in ReminderLocation.CHANNEL:
+        response = await response.fetch()
+        channel_id = response.channel.id
+        message_id = response.id
+    else:
+        channel_id = message_id = None
+
+    send_dm = location in ReminderLocation.DM
+
+    standby = Standby()
+    await standby.pg_pool.execute(
+        f"""
+        INSERT INTO
+            {standby.schema}.reminder (
+                user_id,
+                created_at,
+                expires_at,
+                message,
+                channel_id,
+                message_id,
+                send_dm
+            )
+        VALUES
+            ($1, $2, $3, $4, $5, $6, $7)
+        """,
+        interaction.user.id,
+        uf.now(),
+        expires,
+        message,
+        channel_id,
+        message_id,
+        send_dm,
+    )
+
+
+async def get_expired_reminders() -> list[Record]:
+    """Fetch expired reminders from database."""
+    standby = Standby()
+    return await standby.pg_pool.fetch(f"""
+        SELECT
+            *
+        FROM
+            {standby.schema}.reminder
+        WHERE
+            expires_at < '{uf.now()}'
+        """)
+
+
+async def delete_reminder(reminder_id: int) -> None:
+    """Delete a reminder from the database."""
+    standby = Standby()
+    return await standby.pg_pool.execute(f"""
+        DELETE FROM
+            {standby.schema}.reminder
+        WHERE
+            reminder_id = {reminder_id}
+        """)
 
 
 def setup(bot: Bot) -> None:

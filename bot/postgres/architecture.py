@@ -12,23 +12,17 @@ logger = logging.getLogger(__name__)
 STRUCTURE = {
     "birthday": {
         "columns": {
-            "user_id": "BIGINT",
+            "user_id": "BIGINT PRIMARY KEY",
             "birth_date": "DATE",
-        },
-        "constraints": {
-            "birthday_pk": "PRIMARY KEY (user_id)",
         },
     },
     "view": {
         "columns": {
             "channel_id": "BIGINT",
-            "message_id": "BIGINT",
+            "message_id": "BIGINT PRIMARY KEY",
             "module": "TEXT",
             "class": "TEXT",
             "params": "JSON",
-        },
-        "constraints": {
-            "view_pk": "PRIMARY KEY (message_id)",
         },
     },
     "movie": {
@@ -44,12 +38,9 @@ STRUCTURE = {
     },
     "starboard": {
         "columns": {
-            "message_id": "BIGINT",
+            "message_id": "BIGINT PRIMARY KEY",
             "starboard_id": "BIGINT",
             "stars": "INTEGER",
-        },
-        "constraints": {
-            "starboard_pk": "PRIMARY KEY (message_id)",
         },
     },
     "burger": {
@@ -62,11 +53,14 @@ STRUCTURE = {
     },
     "reminder": {
         "columns": {
+            "reminder_id": "SERIAL PRIMARY KEY",
             "user_id": "BIGINT",
-            "channel_id": "BIGINT",
             "created_at": "TIMESTAMPTZ",
             "expires_at": "TIMESTAMPTZ",
             "message": "TEXT",
+            "channel_id": "BIGINT",
+            "message_id": "BIGINT",
+            "send_dm": "BOOLEAN",
         },
     },
     "prediction": {
@@ -90,7 +84,7 @@ STRUCTURE = {
     },
     "awards": {
         "columns": {
-            "user_id": "BIGINT",
+            "user_id": "BIGINT PRIMARY KEY",
             "thanks": "INTEGER",
             "skulls": "INTEGER",
         },
