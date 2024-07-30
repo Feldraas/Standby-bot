@@ -228,7 +228,7 @@ def id_to_mention(
     """Convert an ID to a mention string.
 
     Args:
-        id_ (_type_): ID to convert
+        id_ (int): ID to convert
         id_type ({"user", "channel", "role"}, optional): ID Type.
             Defaults to "user".
 
