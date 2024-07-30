@@ -203,7 +203,7 @@ class Burger(Cog):
                 view=view,
             )
         else:
-            params["last_owner_id"] = 0
+            params["last_owner_id"] = None
 
             view = BurgerView(params)
 
@@ -310,14 +310,20 @@ async def record_burger_transfer(
     """
     pg_pool = Standby().pg_pool
     schema = Standby().schema
-    giver_id = from_.id if from_ else 0
-    recipient_id = to.id if to else 0
-    await pg_pool.execute(f"""
+    giver_id = from_.id if from_ else None
+    recipient_id = to.id if to else None
+    await pg_pool.execute(
+        f"""
         INSERT INTO
             {schema}.burger (giver_id, recipient_id, transferred_at, reason)
         VALUES
-            ({giver_id}, {recipient_id}, '{uf.now()}', '{reason}')
-        """)
+            ($1, $2, $3, $4)
+        """,
+        giver_id,
+        recipient_id,
+        uf.now(),
+        reason,
+    )
 
 
 async def get_last_transfer_time(
@@ -338,7 +344,7 @@ async def get_last_transfer_time(
             MAX(transferred_at)
         FROM
             {schema}.burger
-        WHERE recipient_id != 0
+        WHERE recipient_id IS NOT NULL
         """
 
     if from_:
@@ -442,7 +448,7 @@ async def get_last_holders(n: int = 10) -> list[Member]:
         FROM
             {standby.schema}.burger
         WHERE
-            recipient_id != 0
+            recipient_id IS NOT NULL
         ORDER BY
             transferred_at DESC
         LIMIT
