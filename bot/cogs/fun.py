@@ -4,7 +4,6 @@ import io
 import logging
 import random
 import re
-from datetime import datetime as dt
 from itertools import permutations
 from pathlib import Path
 from urllib.parse import quote
@@ -30,9 +29,7 @@ from db_integration import db_functions as db
 from domain import (
     ID,
     URL,
-    Duration,
     Standby,
-    TimerType,
 )
 from utils import util_functions as uf
 
@@ -495,117 +492,6 @@ class Fun(Cog):
     async def praise(self, interaction: Interaction) -> None:
         """Send Toucan ASCII art."""
         await interaction.send(TOUCAN_PRAISE)
-
-    @slash_command(description="Do you feel lucky?")
-    async def roulette(self, interaction: Interaction) -> None:
-        """Play Void roulette.
-
-        Losing results in a timeout. Winning streaks are recorded.
-
-        Args:
-            interaction (Interaction): Invoking interaction
-        """
-        logger.info(f"{interaction.user} is feeling lucky")
-        cooldown = await self.standby.pg_pool.fetch(
-            "SELECT * FROM tmers "
-            f"WHERE usr_id = {interaction.user.id} AND ttype = {TimerType.ROULETTE}",
-        )
-
-        if cooldown:
-            expires = cooldown[0]["expires"]
-            if dt.now() >= expires:
-                logger.info("Cooldown expired, removing timer")
-                await self.standby.pg_pool.execute(
-                    f"DELETE FROM tmers WHERE usr_id = {interaction.user.id} "
-                    f"AND ttype = {TimerType.ROULETTE}",
-                )
-            else:
-                logger.info("User is timed out")
-                await interaction.send(
-                    "You have been timed out from using this command. "
-                    "You will be able to use it again "
-                    f"{uf.dynamic_timestamp(expires, 'relative')}",
-                    ephemeral=True,
-                )
-                return
-
-        await interaction.response.defer()
-
-        stats = await db.ensured_get_usr(interaction.user.id)
-        lose = random.randint(1, 6) == 6  # noqa: PLR2004
-
-        if lose:
-            logger.info(f"{interaction.user} has lost.")
-            await self.standby.pg_pool.execute(
-                "UPDATE usr SET current_roulette_streak = 0 "
-                f"WHERE usr_id = {interaction.user.id}",
-            )
-
-            message = (
-                f"Not all risks pay off, {interaction.user.mention}. "
-                "Your streak has been reset."
-            )
-            try:
-                logger.info(f"Setting full timeout for {interaction.user}")
-                await interaction.user.timeout(Duration.ROULETTE_TIMEOUT)
-                message = message[:-1] + " and you have been timed out."
-            except nextcord.errors.Forbidden:
-                logger.info(
-                    f"Setting roulette timeout for privileged user {interaction.user}",
-                )
-                expires = dt.now() + Duration.ROULETTE_TIMEOUT
-                await self.standby.pg_pool.execute(
-                    "INSERT INTO tmers (usr_id, expires, ttype) VALUES ($1, $2, $3);",
-                    interaction.user.id,
-                    expires,
-                    TimerType.ROULETTE,
-                )
-            await interaction.send(message)
-
-        else:
-            logger.info(f"{interaction.user} has won")
-            current_streak = stats["current_roulette_streak"]
-            max_streak = stats["max_roulette_streak"]
-
-            server_current_max = await self.standby.pg_pool.fetch(
-                "SELECT MAX(current_roulette_streak) from usr",
-            )
-            server_current_max = server_current_max[0]["max"]
-
-            server_alltime_max = await self.standby.pg_pool.fetch(
-                "SELECT MAX(max_roulette_streak) from usr",
-            )
-            server_alltime_max = server_alltime_max[0]["max"]
-
-            await self.standby.pg_pool.execute(
-                "UPDATE usr SET current_roulette_streak = current_roulette_streak + 1,"
-                "max_roulette_streak = "
-                "GREATEST(current_roulette_streak + 1, max_roulette_streak) "
-                f"WHERE usr_id = {interaction.user.id}",
-            )
-            current_streak += 1
-
-            plural_suffix = "s" if current_streak > 1 else ""
-
-            message = (
-                "Luck is on your side! You have now survived for "
-                f"{current_streak} round{plural_suffix} in a row"
-            )
-
-            if current_streak > server_alltime_max:
-                message += ", a new all-time record for the server!"
-            elif current_streak > server_current_max and current_streak > max_streak:
-                message += (
-                    ", the highest currently active streak and a new personal best!"
-                )
-            elif current_streak > server_current_max:
-                message += ", the highest currently active streak!"
-            elif current_streak > max_streak:
-                message += ", a new personal best!"
-            else:
-                message += "."
-
-            await interaction.send(message)
 
     @slash_command(
         description="Calculates how to 'math' a target number from given digits",

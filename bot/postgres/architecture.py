@@ -79,7 +79,7 @@ STRUCTURE = {
         "columns": {
             "user_id": "BIGINT",
             "played_at": "TIMESTAMPTZ",
-            "lucky": "BOOLEAN",
+            "win": "BOOLEAN",
         },
     },
     "awards": {

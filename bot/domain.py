@@ -302,7 +302,6 @@ class Color(IntEnum):
 class Duration:
     """Durations for different events."""
 
-    ROULETTE_TIMEOUT = timedelta(minutes=30)
     REPOSTER = timedelta(days=1)
 
 
