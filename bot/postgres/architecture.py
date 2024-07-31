@@ -82,11 +82,11 @@ STRUCTURE = {
             "win": "BOOLEAN",
         },
     },
-    "awards": {
+    "award": {
         "columns": {
             "user_id": "BIGINT PRIMARY KEY",
-            "thanks": "INTEGER",
-            "skulls": "INTEGER",
+            "thanks": "INTEGER DEFAULT 0",
+            "skulls": "INTEGER DEFAULT 0",
         },
     },
     "repost": {

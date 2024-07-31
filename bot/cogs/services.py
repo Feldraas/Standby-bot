@@ -170,43 +170,6 @@ class Services(Cog):
 
         await interaction.send(embed=embed)
 
-    @slash_command(description="Award a skull.")
-    async def skull(
-        self,
-        interaction: Interaction,
-        recipient: Member = SlashOption(description="The user to award a skull to"),
-    ) -> None:
-        """Award a skull to a user.
-
-        Can only be used by Jorm.
-
-        Args:
-            interaction (Interaction): Invoking interaction
-            recipient (Member): The user to award a skull to
-        """
-        if interaction.user.id != ID.JORM:
-            await interaction.send(
-                file=uf.simpsons_error_image(
-                    dad=interaction.guild.me,
-                    son=interaction.user,
-                    text="You're not Jorm!",
-                    filename="jormonly.png",
-                ),
-            )
-            return
-
-        await db.get_or_insert_usr(recipient.id)
-
-        await self.standby.pg_pool.execute(
-            f"UPDATE usr SET skulls = skulls + 1 WHERE usr_id = {recipient.id}",
-        )
-        await interaction.send(f"Gave a 💀 to {recipient.mention}")
-
-    @user_command(name="Give skull", guild_ids=[ID.GUILD])
-    async def skull_context(self, interaction: Interaction, user: Member) -> None:
-        """Invoke the skull command through the user context menu."""
-        await uf.invoke_slash_command("skull", self, interaction, user)
-
     @slash_command(description="Look up a user's stats")
     async def stats(
         self,

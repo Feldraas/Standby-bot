@@ -9,8 +9,8 @@ from dataclasses import dataclass
 import requests
 from nextcord import File, Message
 
-from db_integration import db_functions as db
-from domain import ID, URL, ChannelName, Standby
+from cogs.awards import Award, give_award
+from domain import ID, URL, ChannelName
 from utils import util_functions as uf
 from utils import warframe as wf
 
@@ -1085,14 +1085,12 @@ regex_responses.append(
 
 async def reputation_resp(message: Message) -> None:
     for mentioned_user in message.mentions:
-        if message.author.id == mentioned_user.id:
-            await message.channel.send("Thanking yourself gives no reputation.")
-            continue
-        await db.get_or_insert_usr(mentioned_user.id)
-        await Standby().pg_pool.execute(
-            f"UPDATE usr SET thanks = thanks + 1 WHERE usr_id = {mentioned_user.id}",
+        await give_award(
+            giver=message.author,
+            recipient=mentioned_user,
+            award=Award.THANKS,
+            channel=message.channel,
         )
-        await message.channel.send(f"Gave +1 Void to {mentioned_user.mention}")
 
 
 regex_responses.append(

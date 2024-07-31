@@ -25,7 +25,6 @@ from PIL import Image, ImageDraw, ImageFont
 from transliterate import translit
 from transliterate.base import TranslitLanguagePack, registry
 
-from db_integration import db_functions as db
 from domain import (
     ID,
     URL,
@@ -556,22 +555,6 @@ class Fun(Cog):
             await interaction.send(
                 f"Nothing found in {num_digit_combinations} combinations",
             )
-
-    @user_command(name="Thank", guild_ids=[ID.GUILD])
-    async def thank_context(self, interaction: Interaction, user: Member) -> None:
-        """Thank a user through the user context menu."""
-        if user == interaction.user:
-            await interaction.send(
-                "Thanking yourself gives no reputation.",
-                ephemeral=True,
-            )
-            return
-
-        await db.get_or_insert_usr(user.id)
-        await self.standby.pg_pool.execute(
-            f"UPDATE usr SET thanks = thanks + 1 WHERE usr_id = {user.id}",
-        )
-        await interaction.send(f"Gave +1 Void to {user.mention}")
 
     @slash_command(description="Movie rating features")
     async def movie(self, interaction: Interaction) -> None:
