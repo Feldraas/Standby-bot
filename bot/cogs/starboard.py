@@ -182,7 +182,7 @@ async def record_starboard_message(
             {standby.schema}.starboard (message_id, starboard_id, stars)
         VALUES
             ({original_message.id}, {starboard_message.id}, {stars})
-        ON CONFLICT ON CONSTRAINT starboard_pk DO UPDATE
+        ON CONFLICT ON CONSTRAINT starboard_pkey DO UPDATE
         SET
             stars = {stars}
         """)

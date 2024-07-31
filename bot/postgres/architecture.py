@@ -33,7 +33,7 @@ STRUCTURE = {
             "review": "TEXT",
         },
         "constraints": {
-            "movie_pk": "PRIMARY KEY (user_id, title)",
+            "movie_pkey": "PRIMARY KEY (user_id, title)",
         },
     },
     "starboard": {

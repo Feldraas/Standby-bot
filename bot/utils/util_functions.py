@@ -574,7 +574,7 @@ async def record_view(
                 {message_id},
                 '{params_string}'
             )
-        ON CONFLICT ON CONSTRAINT view_pk DO UPDATE
+        ON CONFLICT ON CONSTRAINT view_pkey DO UPDATE
         SET
             module = '{view.__class__.__module__}',
             class = '{view.__class__.__name__}',
