@@ -189,7 +189,7 @@ class URL(StrEnum):
     GINNY_WHITE = os.getenv("GINNY_WHITE_URL")
     INVITE = "https://discord.gg/x7nsqEj"
     GITHUB_STATIC = (
-        "https://raw.githubusercontent.com/Feldraas/Standby-bot/main/static/"
+        "https://raw.githubusercontent.com/Feldraas/Standby-bot/main/static"
     )
     GITHUB_COMMITS = "https://api.github.com/repos/Feldraas/Standby-bot/commits/main"
     LOCAL_STATIC = str(Path(__file__).parent.parent / "static")
