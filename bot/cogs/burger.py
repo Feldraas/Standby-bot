@@ -139,6 +139,12 @@ class Burger(Cog):
             to=interaction.user,
             reason=TransferReason.YOINK,
         )
+        await current_holder.remove_roles(burgered_role)
+        await interaction.user.add_roles(burgered_role)
+        await interaction.send(
+            f"{interaction.user.mention} has yoinked the burger "
+            f"from {current_holder.mention}!",
+        )
 
     @slash_command(
         name="burger-history",
