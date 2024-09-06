@@ -268,6 +268,7 @@ class PredictionView(View):
     def __init__(self, params: dict) -> None:
         super().__init__(timeout=None)
         self.standby = Standby()
+        self.params = params
         self.label = params["label"]
         self.owner_id = params["owner_id"]
         self.votes_for = params["votes_for"]

@@ -73,7 +73,7 @@ STRUCTURE = {
             "status": "TEXT",
         },
         "constraints": {
-            "prediction_pk": "PRIMARY KEY (user_id, label)",
+            "prediction_pkey": "PRIMARY KEY (user_id, label)",
         },
     },
     "roulette": {
