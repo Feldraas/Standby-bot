@@ -121,7 +121,7 @@ class Burger(Cog):
             await uf.invoke_slash_command("jail", self, interaction, interaction.user)
             return
 
-        last_yoink = get_last_transfer_time(
+        last_yoink = await get_last_transfer_time(
             to=interaction.user,
             reason=TransferReason.YOINK,
         )
