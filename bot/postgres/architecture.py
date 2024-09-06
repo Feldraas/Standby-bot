@@ -25,15 +25,16 @@ STRUCTURE = {
             "params": "JSON",
         },
     },
-    "movie": {
+    "rating": {
         "columns": {
             "user_id": "BIGINT",
+            "category": "TEXT",
             "title": "TEXT",
-            "rating": "INTEGER",
+            "score": "INTEGER",
             "review": "TEXT",
         },
         "constraints": {
-            "movie_pkey": "PRIMARY KEY (user_id, title)",
+            "rating_pkey": "PRIMARY KEY (user_id, category, title)",
         },
     },
     "starboard": {
