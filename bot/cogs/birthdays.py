@@ -170,7 +170,7 @@ class Birthdays(Cog):
             bday_havers = ", ".join(bday_havers[:-1]) + " and " + str(bday_havers[-1])
         else:
             bday_havers = bday_havers[0]
-        general = nextcord.utils.get(self.bot.get_all_channels(), name="general")
+        general = uf.get_channel("general")
         await general.send("🎂🎂🎂")
         await general.send(f"Happy Birthday {bday_havers}!")
 
