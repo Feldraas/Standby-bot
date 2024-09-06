@@ -145,9 +145,8 @@ class Birthdays(Cog):
         if len(mentions) > 1:
             mentions = ", ".join(mentions[:-1]) + " and " + str(mentions[-1])
         else:
-            mentions = mentions[0]
-
-        general = uf.get_channel(ChannelName.GENERAL)
+            bday_havers = bday_havers[0]
+        general = uf.get_channel("general")
         await general.send("🎂🎂🎂")
         await general.send(f"Happy Birthday {mentions}!")
 
