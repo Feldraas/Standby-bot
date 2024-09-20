@@ -125,12 +125,13 @@ class Standby:
                 continue
 
             logger.debug("Recreating view")
-            params = json.loads(record["params"])
+            params = json.loads(record["params"] or "{}")
 
             module = importlib.import_module(record["module"])
             view_class: type[View] = getattr(module, record["class"])
+            view = view_class(params) if params else view_class()
 
-            await message.edit(view=view_class(params))
+            await message.edit(view=view)
 
     async def set_status(self, status: str) -> None:
         """Set the bot's status message.
@@ -169,9 +170,7 @@ class URL(StrEnum):
     GINNY_TRANSPARENT = os.getenv("GINNY_TRANSPARENT_URL")
     GINNY_WHITE = os.getenv("GINNY_WHITE_URL")
     INVITE = "https://discord.gg/x7nsqEj"
-    GITHUB_STATIC = (
-        "https://raw.githubusercontent.com/Feldraas/Standby-bot/main/static"
-    )
+    GITHUB_STATIC = "https://raw.githubusercontent.com/Feldraas/Standby-bot/main/static"
     GITHUB_COMMITS = "https://api.github.com/repos/Feldraas/Standby-bot/commits/main"
     LOCAL_STATIC = str(Path(__file__).parent.parent / "static")
     WARFRAME_MODS = (

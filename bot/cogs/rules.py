@@ -358,7 +358,9 @@ class StepOneView(View):
 class RoleChoiceView(View):
     """View containing dropdown menu(s) containing choosable roles."""
 
-    def __init__(self, **params: dict) -> None:
+    def __init__(self, params: dict | None = None) -> None:
+        if params is None:
+            params = {}
         super().__init__(timeout=None)
         self.choice = None
         role_type = params.get("role_type", "clan")
