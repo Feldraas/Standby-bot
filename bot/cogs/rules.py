@@ -17,7 +17,6 @@ from nextcord import (
 from nextcord.ext.commands import Bot, Cog
 from nextcord.ui import Button, Select, View, button
 
-from db_integration import db_functions as db
 from domain import (
     EMPTY_STRING,
     ID,
@@ -66,6 +65,7 @@ DELIMITERS = {"clan": "Clans", "opt-in": "Opt-in", "color": "Colors"}
 MAX_SELECT_MENU_SIZE = 24
 
 
+# TODO: Check if this still works?
 class Rules(Cog):
     def __init__(self) -> None:
         self.standby = Standby()
@@ -130,7 +130,7 @@ class Rules(Cog):
             embed=alli_embed,
             view=view,
         )
-        await db.log_buttons(view, rules_ch.id, alli_msg.id)
+        # await db.log_buttons(view, rules_ch.id, alli_msg.id)
 
         await asyncio.sleep(delay)
 
@@ -141,7 +141,7 @@ class Rules(Cog):
         )
         view = RoleChoiceView(role_type="clan")
         clan_msg = await rules_ch.send(embed=clan_embed, view=view)
-        await db.log_buttons(view, rules_ch.id, clan_msg.id, {"role_type": "clan"})
+        # await db.log_buttons(view, rules_ch.id, clan_msg.id, {"role_type": "clan"})
         await asyncio.sleep(delay)
 
         opt_embed = Embed(color=Color.VIE_PURPLE)
@@ -151,7 +151,7 @@ class Rules(Cog):
         )
         view = OptInView()
         opt_msg = await rules_ch.send(embed=opt_embed, view=view)
-        await db.log_buttons(view, rules_ch.id, opt_msg.id)
+        # await db.log_buttons(view, rules_ch.id, opt_msg.id)
 
         color_embed = Embed(color=Color.VIE_PURPLE)
         color_embed.title = (
@@ -160,7 +160,7 @@ class Rules(Cog):
         )
         view = RoleChoiceView(role_type="color")
         color_msg = await rules_ch.send(embed=color_embed, view=view)
-        await db.log_buttons(view, rules_ch.id, color_msg.id, {"role_type": "color"})
+        # await db.log_buttons(view, rules_ch.id, color_msg.id, {"role_type": "color"})
         await asyncio.sleep(delay)
 
         general = uf.get_channel("general")

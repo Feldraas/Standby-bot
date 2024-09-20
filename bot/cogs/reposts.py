@@ -5,7 +5,6 @@ import logging
 from nextcord import RawReactionActionEvent
 from nextcord.ext.commands import Bot, Cog
 
-from db_integration import db_functions as db
 from domain import Duration, Emoji, RoleName, Standby, Threshold, TimerType
 from utils import util_functions as uf
 
@@ -42,8 +41,6 @@ class Reposts(Cog):
                 rees = emoji.count
 
         if rees >= Threshold.REEPOSTER:
-            await db.ensure_guild_existence(message.guild.id)
-            await db.get_or_insert_usr(message.author.id)
             await message.author.add_roles(reeposter)
             exists = await self.standby.pg_pool.fetch(
                 "SELECT * FROM tmers "

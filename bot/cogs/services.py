@@ -19,10 +19,12 @@ from nextcord import (
 from nextcord.ext.commands import Bot, Cog
 
 import utils.util_functions as uf
-from db_integration import db_functions as db
 from domain import ID, Color, Standby
 
 logger = logging.getLogger(__name__)
+
+
+# TODO: Rework
 
 
 @dataclass
@@ -136,7 +138,7 @@ class Services(Cog):
         stat: str = SlashOption(
             name="leaderboard",
             description="The leaderboard to display",
-            choices=sorted(["Burger history", *ALL_LEADERBOARDS]),
+            choices=sorted(ALL_LEADERBOARDS),
         ),
     ) -> None:
         """Return the leaderboard for a certain statistic.
@@ -145,23 +147,6 @@ class Services(Cog):
             interaction (Interaction): Invoking interaction.
             stat (str): The leaderboard to display
         """
-        if stat == "Burger history":
-            history = await db.get_note("burger history")
-            if history:
-                history = json.loads(history)
-                mentions = [f"<@{user_id}>" for user_id in history]
-                if len(mentions) == 1:
-                    msg = f"The last person to hold the burger is {mentions[0]}"
-                else:
-                    msg = (
-                        f"The last people to hold the burger are "
-                        f"{','.join(mentions[:-1]) + ' and ' + mentions[-1]}"
-                    )
-            else:
-                msg = "Burger history has not yet been recorded."
-            await interaction.send(msg, ephemeral=True)
-            return
-
         settings = ALL_LEADERBOARDS[stat]
 
         leaderboard = await create_leaderboard(settings)

@@ -15,7 +15,6 @@ from nextcord import (
 from nextcord.ext.commands import Bot, Cog
 from nextcord.ui import Button, View, button
 
-from db_integration import db_functions as db
 from domain import (
     CategoryName,
     ChannelName,
@@ -81,7 +80,7 @@ class Tickets(Cog):
             send_messages=False,
         )
         msg = await interaction.original_message()
-        await db.log_buttons(view, interaction.channel.id, msg.id)
+        await uf.record_view(view, interaction.channel.id, msg.id)
 
     @slash_command(
         description="Initiates ticket system - creates categories, channels etc",
@@ -132,7 +131,7 @@ async def create_claimable_channel(cat: CategoryChannel) -> None:
         await chnl.set_permissions(muted_role, send_messages=True)
     view = OpenTicketView()
     msg = await chnl.send(CLAIMABLE_CHANNEL_MESSAGE, view=view)
-    await db.log_buttons(view, chnl.id, msg.id)
+    await uf.record_view(view, chnl.id, msg.id)
 
 
 async def get_or_create_tickets_log(interaction: Interaction) -> TextChannel:

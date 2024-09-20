@@ -3,8 +3,8 @@
 import logging
 import os
 
-from db_integration import db_functions as db
 from domain import Format, Standby
+from postgres.setup import init_connection
 
 ENV = os.getenv("ENV")
 
@@ -34,5 +34,5 @@ async def on_ready() -> None:
 
 
 standby.load_cogs()
-standby.bot.loop.run_until_complete(db.init_connection())
+standby.bot.loop.run_until_complete(init_connection())
 standby.bot.run(standby.token)
