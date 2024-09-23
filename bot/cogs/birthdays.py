@@ -143,12 +143,13 @@ class Birthdays(Cog):
             mentions.append(member.mention)
 
         if len(mentions) > 1:
-            mentions = ", ".join(mentions[:-1]) + " and " + str(mentions[-1])
+            congrats = ", ".join(mentions[:-1]) + " and " + str(mentions[-1])
         else:
-            bday_havers = bday_havers[0]
+            congrats = mentions[0]
+
         general = uf.get_channel("general")
         await general.send("🎂🎂🎂")
-        await general.send(f"Happy Birthday {mentions}!")
+        await general.send(f"Happy Birthday {congrats}!")
 
 
 async def set_user_birthday(user: Member, birthday: date) -> SQLResult:
