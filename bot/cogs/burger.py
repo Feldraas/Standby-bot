@@ -92,7 +92,7 @@ class Burger(Cog):
     @user_command(name="Burger")
     async def burger_context(self, interaction: Interaction, user: Member) -> None:
         """Burger a user through the user context menu."""
-        await uf.invoke_slash_command("burger", self, interaction, user)
+        await uf.invoke_slash_command("burger", interaction, user)
 
     @slash_command(description="Yoink the burger")
     async def yoink(self, interaction: Interaction) -> None:
@@ -118,7 +118,7 @@ class Burger(Cog):
                 f"burger from the {current_holder.mention}. The punishment for such a "
                 "heinous crime is jail.",
             )
-            await uf.invoke_slash_command("jail", self, interaction, interaction.user)
+            await uf.invoke_slash_command("jail", interaction, interaction.user)
             return
 
         last_yoink = await get_last_transfer_time(

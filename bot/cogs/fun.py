@@ -191,7 +191,7 @@ class Fun(Cog):
     @user_command(name="Hug")
     async def hug_context(self, interaction: Interaction, user: Member) -> None:
         """Invoke the hug command through the user context menu."""
-        await uf.invoke_slash_command("hug", self, interaction, user)
+        await uf.invoke_slash_command("hug", interaction, user)
 
     @slash_command(description="Pay your respects")
     async def f(

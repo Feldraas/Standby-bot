@@ -110,7 +110,7 @@ class Services(Cog):
     @user_command(name="Avatar")
     async def avatar_context(self, interaction: Interaction, user: Member) -> None:
         """Invoke the avatar command through the user context menu."""
-        await uf.invoke_slash_command("avatar", self, interaction, user)
+        await uf.invoke_slash_command("avatar", interaction, user)
 
     @slash_command(
         description="Returns the Urban Dictionary definition of a word or phrase",

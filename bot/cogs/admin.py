@@ -280,7 +280,7 @@ class Admin(Cog):
     )
     async def punish_context(self, interaction: Interaction, user: Member) -> None:
         """Invoke the Punish command through the user context menu."""
-        await uf.invoke_slash_command("punish", self, interaction, user)
+        await uf.invoke_slash_command("punish", interaction, user)
 
     @slash_command(
         description="Reacts to a message (only emotes from this server or default set)",
@@ -532,7 +532,7 @@ class Admin(Cog):
     @user_command(name="Jail", default_member_permissions=Permissions.MODS_AND_GUIDES)
     async def jail_context(self, interaction: Interaction, offender: Member) -> None:
         """Invoke the jail command through the user context menu."""
-        await uf.invoke_slash_command("jail", self, interaction, offender)
+        await uf.invoke_slash_command("jail", interaction, offender)
 
     @slash_command(
         description="Release a user from jail",
@@ -569,7 +569,7 @@ class Admin(Cog):
     )
     async def release_context(self, interaction: Interaction, prisoner: Member) -> None:
         """Invoke the release command through the user context menu."""
-        await uf.invoke_slash_command("release", self, interaction, prisoner)
+        await uf.invoke_slash_command("release", interaction, prisoner)
 
     @slash_command(
         description="Voidifies a user's avatar.",
