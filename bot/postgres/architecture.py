@@ -39,6 +39,7 @@ STRUCTURE = {
     },
     "starboard": {
         "columns": {
+            "user_id": "BIGINT",
             "message_id": "BIGINT PRIMARY KEY",
             "starboard_id": "BIGINT",
             "stars": "INTEGER",
