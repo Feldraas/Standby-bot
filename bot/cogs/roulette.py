@@ -101,11 +101,11 @@ async def record_roulette_result(user: Member, *, win: bool) -> None:
     )
 
 
-async def get_streaks(user: Member) -> tuple[int, int, int, int]:
+async def get_streaks(lookup_id: int) -> tuple[int, int, int, int]:
     """Get streaks for the provided user and for the server.
 
     Args:
-        user (Member): User to look up
+        lookup_id (int): User ID to look up
 
     Returns:
         tuple[int, int, int, int]: Current and maximum streaks for
@@ -130,12 +130,11 @@ async def get_streaks(user: Member) -> tuple[int, int, int, int]:
     for user_id in user_ids:
         results = [record["win"] for record in records if record["user_id"] == user_id]
         current, maximum = parse_results(results)
-        if user_id == user.id:
+        if user_id == lookup_id:
             user_current = current
             user_max = maximum
-        else:
-            server_current = max(server_current, current)
-            server_max = max(server_max, maximum)
+        server_current = max(server_current, current)
+        server_max = max(server_max, maximum)
 
     return user_current, user_max, server_current, server_max
 
@@ -155,7 +154,8 @@ def parse_results(results: list[bool]) -> tuple[int, int]:
         false_indices[i] - false_indices[i - 1] - 1
         for i in range(1, len(false_indices))
     ]
-
+    if len(streaks) == 1:
+        return streaks[0], streaks[0]
     return streaks[-1], max([0, *streaks[:-1]])
 
 
