@@ -121,27 +121,45 @@ class Hangman(Cog, name="Void Hangman"):
         ),
     ) -> None:
         """Start a game of Hangman."""
-        await game.lock.acquire()
-
         if game.status != "Inactive":
             await interaction.send("A game is already running.", ephemeral=True)
+            return
 
-        else:
-            if len(phrase) > MAX_PHRASE_LENGTH:
-                await interaction.send(
-                    "Phrase is too long, please try again",
-                    ephemeral=True,
-                )
-                return
-
+        if len(phrase) > MAX_PHRASE_LENGTH:
             await interaction.send(
-                "Phrase accepted - game is starting!",
+                "Phrase is too long, please try again",
                 ephemeral=True,
             )
-            await interaction.channel.send("Void Hangman has begun!")
-            game.setup(phrase, interaction.user, interaction.channel)
-            await interaction.channel.send(embed=game.embed)
-            game.lock.release()
+            return
+
+        try:
+            number = int(phrase)
+            if number == 69:  # noqa: PLR2004
+                image_text = "Haha sex number"
+            elif number == 420:  # noqa: PLR2004
+                image_text = "Haha weed number"
+            else:
+                image_text = None
+            await interaction.send(
+                file=uf.simpsons_error_image(
+                    dad=interaction.guild.me,
+                    son=interaction.user,
+                    text=image_text,
+                ),
+            )
+            return
+        except ValueError:
+            pass
+
+        await game.lock.acquire()
+        await interaction.send(
+            "Phrase accepted - game is starting!",
+            ephemeral=True,
+        )
+        await interaction.channel.send("Void Hangman has begun!")
+        game.setup(phrase, interaction.user, interaction.channel)
+        await interaction.channel.send(embed=game.embed)
+        game.lock.release()
 
     @hangman.subcommand(description="Attempt a guess")
     async def guess(  # noqa: C901, PLR0912
