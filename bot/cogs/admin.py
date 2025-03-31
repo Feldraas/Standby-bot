@@ -822,7 +822,7 @@ class Admin(Cog):
             after (Role): The role after the change
         """
         logger.debug("Roles updated")
-        await self.standby.reconnect_buttons()
+        await self.standby.recreate_views()
 
     @slash_command(
         description="Frenchify!",
