@@ -6,6 +6,7 @@ import logging
 import random
 import re
 import urllib.request
+from time import sleep
 
 import nextcord
 import requests
@@ -37,6 +38,48 @@ from domain import (
 from utils import util_functions as uf
 
 logger = logging.getLogger(__name__)
+french_map = {
+    "getting-started": "commencer",
+    "introductions": "présentations",
+    "news-and-events": "actualités-et-événements",
+    "event-submissions": "soumissions-dévénements",
+    "suggestions": "les-suggestions",
+    "giveaways": "tombolas",
+    "offers": "offres",
+    "general": "générale",
+    "legs-and-cows-and-whatever": "jambes-et-vaches-et-tout-ce-que",
+    "off-topic": "hors-sujet",
+    "shit-post": "post-de-connerie",
+    "starboard": "tableau-des-étoiles",
+    "jail": "geôle",
+    "animu": "le-animu",
+    "netflix-and-read": "cinémathèque-et-bibliothèque",
+    "music": "musique",
+    "awww": "toutous-et-minous",
+    "cooking-channel": "omelette-du-fromage",
+    "creations": "œuvres",
+    "tech-chat": "discussions-technologique",
+    "bot-spam": "spam-de-robots",
+    "mod-chat": "discussions-de-modérateurs",
+    "mod-log": "journal-du-modérateur",
+    "maintenance-channel": "canal-de-maintenance",
+    "alliance-mod-chat": "discussions-de-modérateurs-de-lalliance",
+    "secret-leaderboards": "classements-secrets",
+    "hoyo-shit": "merde-de-hoyo",
+    "minecraft": "fabrication-de-mines",
+    "other-games": "autres-jeux",
+    "voids-and-sneks": "vides-et-serpents",
+    "warframe": "châssis-de-guerre",
+    "pokemon-go": "pokemon-aller",
+    "heroes-of-the-storm": "héros-de-la-tempête",
+    "vcr-voice-chat-response": "rvpc-réponse-vocale-par-chat",
+    "himan": "saluthomme",
+    "Retirement Home": "maison-de-vieillards",
+    "peepeepoopoo": "pipipipicacacaca",
+    "Jorm's Metal Dungeon": "Le donjon métallique de Jorm",
+    "Purgatory": "Purgatoire",
+    "spawnpeeked | on cams": "aperçu de l'apparition | devant la caméra",
+}
 
 
 class Admin(Cog):
@@ -780,6 +823,37 @@ class Admin(Cog):
         """
         logger.debug("Roles updated")
         await self.standby.reconnect_buttons()
+
+    @slash_command(
+        description="Frenchify!",
+        default_member_permissions=Permissions.MODS_AND_GUIDES,
+    )
+    async def frenchify(self, interaction: Interaction) -> None:
+        await interaction.response.defer()
+        for channel in self.standby.guild.channels:
+            if channel.name in french_map:
+                try:  # noqa: SIM105
+                    await channel.edit(name=french_map[channel.name], reason="Apr 1st")
+                except:
+                    pass
+                sleep(1)
+        await interaction.send("Prêt!")
+
+    @slash_command(
+        description="Unfrenchify!",
+        default_member_permissions=Permissions.MODS_AND_GUIDES,
+    )
+    async def unfrenchify(self, interaction: Interaction) -> None:
+        await interaction.response.defer()
+        inverse_map = {v: k for k, v in french_map.items()}
+        for channel in self.standby.guild.channels:
+            if channel.name in inverse_map:
+                try:  # noqa: SIM105
+                    await channel.edit(name=inverse_map[channel.name], reason="Apr 2nd")
+                except:
+                    pass
+                sleep(1)
+        await interaction.send("Done!")
 
 
 async def move_or_copy_message(
