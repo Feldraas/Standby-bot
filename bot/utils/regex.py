@@ -54,7 +54,9 @@ async def ping_resp(message: Message) -> None:
         await message.channel.send(f"{message.author.mention}")
 
 
-regex_responses.append(RegexResponse(trigger=str(ID.BOT), response=ping_resp))
+regex_responses.append(
+    RegexResponse(trigger="^" + uf.id_to_mention(ID.BOT) + "$", response=ping_resp),
+)
 
 
 async def uwu_resp(message: Message) -> None:
@@ -1109,6 +1111,20 @@ async def so_true_resp(message: Message) -> None:
 
 regex_responses.append(
     RegexResponse(trigger="^.{0,4}so true.{0,4}$", response=so_true_resp),
+)
+
+
+async def is_this_real_resp(message: Message) -> None:
+    await uf.invoke_slash_command(name="8ball", interaction=message.channel)  # 🦆
+
+
+regex_responses.append(
+    RegexResponse(
+        trigger="^.{0,4}(@grok|"
+        + uf.id_to_mention(ID.BOT)
+        + ") is this (true|real).{0,4}$",
+        response=is_this_real_resp,
+    ),
 )
 
 
