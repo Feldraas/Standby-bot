@@ -1122,7 +1122,8 @@ regex_responses.append(
     RegexResponse(
         trigger="^.{0,4}(@grok|"
         + uf.id_to_mention(ID.BOT)
-        + ") is this (true|real).{0,4}$",
+        + r")\W+(is|are|am|was|were|do|does|did|have|has|had|can|can't|"
+        + r"could|will|won't|would|shall|shan't|should|may|might|must)(n't)?\W.*\?",
         response=is_this_real_resp,
     ),
 )
