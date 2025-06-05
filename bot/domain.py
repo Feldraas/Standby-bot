@@ -296,6 +296,7 @@ class Color(IntEnum):
     PALE_BLUE = 0xADD8E6
     LIGHT_BLUE = 0x1F75FE
     VIE_PURPLE = 0xA569BD
+    PUKE_GREEN = 0x2E4D36
 
 
 class Duration:

@@ -84,7 +84,7 @@ STRUCTURE = {
             "win": "BOOLEAN",
         },
     },
-    "award": {
+    "simple_award": {
         "columns": {
             "user_id": "BIGINT PRIMARY KEY",
             "thanks": "INTEGER DEFAULT 0",
@@ -136,5 +136,67 @@ async def setup_database(con: Pool) -> None:
                 ALTER TABLE {schema}.{table}
                 ADD CONSTRAINT {constraint_name} {constraint_spec}
                 """)
+
+    await con.execute(f"""
+        CREATE OR REPLACE VIEW {schema}.award AS
+        SELECT
+            COALESCE(
+                sa.user_id,
+                brg.recipient_id,
+                mbrg.giver_id,
+                prd.user_id,
+                sb.user_id
+            ) AS user_id,
+            thanks,
+            skulls,
+            burgers,
+            moldy_burgers,
+            orbs,
+            stars
+        FROM
+            {schema}.simple_award AS sa
+            FULL OUTER JOIN (
+                SELECT
+                    recipient_id,
+                    COUNT(*) AS burgers
+                FROM
+                    {schema}.burger
+                WHERE
+                    reason != 'mold'
+                GROUP BY
+                    recipient_id
+            ) AS brg ON brg.recipient_id = sa.user_id
+            FULL OUTER JOIN (
+                SELECT
+                    giver_id,
+                    COUNT(*) AS moldy_burgers
+                FROM
+                    {schema}.burger
+                WHERE
+                    reason = 'mold'
+                GROUP BY
+                    giver_id
+            ) AS mbrg ON mbrg.giver_id = sa.user_id
+            FULL OUTER JOIN (
+                SELECT
+                    user_id,
+                    COUNT(*) AS orbs
+                FROM
+                    {schema}.prediction
+                WHERE
+                    status = 'Confirmed'
+                GROUP BY
+                    user_id
+            ) AS prd ON prd.user_id = sa.user_id
+            FULL OUTER JOIN (
+                SELECT
+                    user_id,
+                    SUM(stars) AS stars
+                FROM
+                    {schema}.starboard
+                GROUP BY
+                    user_id
+            ) AS sb ON sb.user_id = sa.user_id
+        """)
 
     logger.info("Database creation complete")

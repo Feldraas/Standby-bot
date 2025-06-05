@@ -3,10 +3,10 @@
 import logging
 from enum import StrEnum
 
-from nextcord import Interaction, Member, SlashOption, slash_command
+from nextcord import Embed, Interaction, Member, SlashOption, slash_command
 from nextcord.ext.commands import Bot, Cog
 
-from domain import ID, Standby, ValidTextChannel
+from domain import ID, Color, Standby, ValidTextChannel
 from utils import util_functions as uf
 
 logger = logging.getLogger(__name__)
@@ -16,19 +16,17 @@ standby = Standby()
 class Award(StrEnum):
     """Enum for award types."""
 
-    THANKS = "Thanks"
-    SKULL = "Skull"
+    THANKS = "thanks"
+    SKULL = "skulls"
+    BURGER = "burgers"
+    MOLDY_BURGER = "moldy_burgers"
+    ORB = "orbs"
+    STAR = "stars"
 
     @classmethod
-    def giveable(cls) -> list["Award"]:
+    def simple(cls) -> list["Award"]:
         """Awards that users may give to each other."""
         return [cls.THANKS, cls.SKULL]
-
-
-column_mapping = {
-    Award.THANKS: "thanks",
-    Award.SKULL: "skulls",
-}
 
 
 class Awards(Cog):
@@ -46,7 +44,7 @@ class Awards(Cog):
         recipient: Member = SlashOption(description="The person to give the award to"),
         award: str = SlashOption(
             description="The type of award you want to give",
-            choices=Award.giveable(),
+            choices=Award.simple(),
         ),
     ) -> None:
         """Give an award to a user.
@@ -76,19 +74,80 @@ class Awards(Cog):
             ephemeral=True,
         )
 
+    @award.subcommand(description="Check leaderboard for an award")
+    async def leaderboard(
+        self,
+        interaction: Interaction,
+        award: str = SlashOption(
+            description="The type of award to check",
+            choices=Award,
+        ),
+    ) -> None:
+        """Reply with a leaderboard for the requested award."""
+        stats = await get_all_award_counts(award)
+        embed = create_leaderboard_embed(award, stats, interaction.user.id)
+        await interaction.send(embed=embed)
+
+
+def create_leaderboard_embed(
+    award: Award,
+    stats: dict[int, int],
+    requesting_user_id: int,
+) -> Embed:
+    """Creates an Embed containing the top ranking users.
+
+    Args:
+        award (Award): Award type to create leaderboard for
+        stats (dict[int, int]): User data
+        requesting_user_id (int): ID of user requesting the leaderboard
+            (included regardless of ranking)
+    """
+    title = award.capitalize().replace("_", " ").rstrip("s").replace("Thank", "Thanks")
+    if not stats:
+        return Embed(description=f"The {title} leaderboard is currently empty.")
+
+    max_size = 12
+    users = []
+    scores = []
+
+    for user_id, score in stats.items():
+        if (
+            len(users) < max_size  # Add until max size
+            or score == scores[-1]  #  Include ties at the end
+            or user_id == requesting_user_id  # Include requesting user
+        ):
+            users.append(uf.id_to_mention(user_id))
+            scores.append(str(score))
+
+    color_map = {
+        Award.STAR: Color.STARBOARD,
+        Award.SKULL: Color.GREY,
+        Award.MOLDY_BURGER: Color.PUKE_GREEN,
+    }
+    embed = Embed(
+        color=color_map.get(award, Color.VIE_PURPLE),
+        title=title + " leaderboard",
+    )
+    embed.add_field(name="User", value="\n".join(users))
+    embed.add_field(name=award.capitalize().replace("_", " "), value="\n".join(scores))
+    return embed
+
+
+async def get_all_award_counts(award: Award) -> dict[int, int]:
+    """Get dict of user IDs and award counts."""
+    records = await standby.pg_pool.fetch(f"""
+        SELECT
+            user_id, {award}
+        FROM
+            {standby.schema}.award
+        """)
+    return {record["user_id"]: record[award] or 0 for record in records}
+
 
 async def get_award_count(user: Member, award: Award) -> int:
     """Check award count for a user and award type."""
-    column = column_mapping[award]
-    count = await standby.pg_pool.fetchval(f"""
-        SELECT
-            {column}
-        FROM
-            {standby.schema}.award
-        WHERE
-            user_id = {user.id}
-        """)
-    return count or 0
+    counts = await get_all_award_counts(award)
+    return counts.get(user.id, 0)
 
 
 async def give_award(
@@ -132,18 +191,16 @@ async def give_award(
 
 async def increment_award_count(user: Member, award: Award) -> None:
     """Increase award count for a user."""
-    column = column_mapping[award]
-
     await standby.pg_pool.execute(f"""
         INSERT INTO
-            {standby.schema}.award (user_id, {column})
+            {standby.schema}.simple_award (user_id, {award})
         VALUES
             ({user.id}, 1)
         ON CONFLICT ON CONSTRAINT award_pkey DO UPDATE
         SET
-            {column} = award.{column} + 1
+            {award} = simple_award.{award} + 1
         WHERE
-            award.user_id = {user.id}
+            simple_award.user_id = {user.id}
         """)
 
 
