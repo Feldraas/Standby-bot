@@ -22,6 +22,7 @@ class Award(StrEnum):
     MOLDY_BURGER = "moldy_burgers"
     ORB = "orbs"
     STAR = "stars"
+    BRAIN = "brains"
 
     @classmethod
     def simple(cls) -> list["Award"]:
@@ -111,6 +112,8 @@ def create_leaderboard_embed(
     scores = []
 
     for user_id, score in stats.items():
+        if score == 0:
+            continue
         if (
             len(users) < max_size  # Add until max size
             or score == scores[-1]  #  Include ties at the end
@@ -140,6 +143,8 @@ async def get_all_award_counts(award: Award) -> dict[int, int]:
             user_id, {award}
         FROM
             {standby.schema}.award
+        ORDER BY
+            {award} DESC
         """)
     return {record["user_id"]: record[award] or 0 for record in records}
 

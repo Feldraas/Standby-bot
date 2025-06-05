@@ -622,8 +622,8 @@ def get_trivia_question() -> dict[str, str | list[str]]:
         data = json.loads(response.text)[0]
         question = {
             "question": data["question"]["text"],
-            "correct": [data["correctAnswer"]],
-            "wrong": data["incorrectAnswers"][:3],
+            "options": [data["correctAnswer"]] + data["incorrectAnswers"][:3],
+            "correct": data["correctAnswer"],
         }
     except:
         logger.warning(
@@ -632,30 +632,26 @@ def get_trivia_question() -> dict[str, str | list[str]]:
         questions = [
             {
                 "question": "How much does the average American ambulance trip cost?",
-                "correct": ["$1200"],
-                "wrong": ["$200", "$800", "$500"],
+                "options": ["$200", "$800", "$500", "$1200"],
+                "correct": "$1200",
             },
             {
                 "question": "How many Americans think the sun revolves around the earth?",  # noqa: E501
-                "correct": ["1 in 4"],
-                "wrong": ["1 in 2", "1 in 3", "1 in 5"],
+                "options": ["1 in 2", "1 in 3", "1 in 5", "1 in 4"],
+                "correct": "1 in 4",
             },
             {
                 "question": "How many avocados do Americans eat a year combined?",
-                "correct": ["4.2 bn"],
-                "wrong": ["2 bn", "6.5 bn", "13.8 bn"],
+                "options": ["2 bn", "6.5 bn", "13.8 bn", "4.2 bn"],
+                "correct": "4.2 bn",
             },
             {
                 "question": "How many Americans get injuries related to a TV falling every year?",  # noqa: E501
-                "correct": ["11 800"],
-                "wrong": ["5 200", "13 900", "9 200"],
+                "options": ["5 200", "13 900", "9 200", "11 800"],
+                "correct": "11 800",
             },
         ]
         question = random.choice(questions)
 
-    answers = [*question["correct"], *question["wrong"]]
-    shuffled = answers.copy()
-    random.shuffle(shuffled)
-    question["ordering"] = [answers.index(elem) for elem in shuffled]
-
+    random.shuffle(question["options"])
     return question

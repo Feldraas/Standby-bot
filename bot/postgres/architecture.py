@@ -89,6 +89,7 @@ STRUCTURE = {
             "user_id": "BIGINT PRIMARY KEY",
             "thanks": "INTEGER DEFAULT 0",
             "skulls": "INTEGER DEFAULT 0",
+            "brains": "INTEGER DEFAULT 0",
         },
     },
     "repost": {
@@ -152,7 +153,8 @@ async def setup_database(con: Pool) -> None:
             burgers,
             moldy_burgers,
             orbs,
-            stars
+            stars,
+            brains
         FROM
             {schema}.simple_award AS sa
             FULL OUTER JOIN (

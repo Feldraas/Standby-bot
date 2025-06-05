@@ -228,10 +228,9 @@ class BurgerView(View):
     def __init__(self, params: dict | None = None) -> None:
         super().__init__(timeout=None)
         self.params = params or {}
-        answers = [*params["correct"], *params["wrong"]]
 
-        for index in self.params["ordering"]:
-            self.add_item(self.BurgerButton(label=answers[index]))
+        for option in self.params["options"]:
+            self.add_item(self.BurgerButton(label=option))
 
     class BurgerButton(Button):
         """Button for each answer option."""
@@ -256,7 +255,7 @@ class BurgerView(View):
                 )
                 return
 
-            if self.label not in self.view.params["correct"]:
+            if self.label != self.view.params["correct"]:
                 await interaction.send(
                     f"{self.label} is not the correct answer - better luck next time!",
                     ephemeral=True,
