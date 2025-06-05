@@ -829,6 +829,7 @@ class Admin(Cog):
         default_member_permissions=Permissions.MODS_AND_GUIDES,
     )
     async def frenchify(self, interaction: Interaction) -> None:
+        """Give all (most) channels french names."""
         await interaction.response.defer()
         for channel in self.standby.guild.channels:
             if channel.name in french_map:
@@ -844,6 +845,7 @@ class Admin(Cog):
         default_member_permissions=Permissions.MODS_AND_GUIDES,
     )
     async def unfrenchify(self, interaction: Interaction) -> None:
+        """Revert to regular channel names."""
         await interaction.response.defer()
         inverse_map = {v: k for k, v in french_map.items()}
         for channel in self.standby.guild.channels:

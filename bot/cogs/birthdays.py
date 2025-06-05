@@ -7,7 +7,7 @@ from asyncpg.exceptions import UniqueViolationError
 from nextcord import Interaction, Member, SlashOption, slash_command
 from nextcord.ext.commands import Bot, Cog
 
-from domain import ChannelName, RoleName, SQLResult, Standby
+from domain import RoleName, SQLResult, Standby
 from utils import util_functions as uf
 
 logger = logging.getLogger(__name__)
