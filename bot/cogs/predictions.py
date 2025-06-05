@@ -351,7 +351,11 @@ class PredictionView(View):
                 f"{uf.id_to_mention(self.owner_id)}'s prediction has been deemed "
                 "unworthy of an 🔮!",
             )
-            await delete_prediction(self.owner_id, self.label)
+            await set_prediction_status(
+                self.owner_id,
+                self.label,
+                PredictionStatus.DEBUNKED,
+            )
             old_lines = interaction.message.content.split("\n")
             old_lines[-1] = (
                 f"{uf.id_to_mention(self.owner_id)} was not awarded an 🔮 "
