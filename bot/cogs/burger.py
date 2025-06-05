@@ -1,12 +1,9 @@
 """Burger features."""
 
-import json
 import logging
-import random
 from datetime import datetime, timedelta
 from enum import StrEnum
 
-import requests
 from nextcord import (
     ButtonStyle,
     Interaction,
@@ -184,7 +181,7 @@ class Burger(Cog):
         for holder in burgered.members:
             await holder.remove_roles(burgered)
 
-        params = get_trivia_question()
+        params = uf.get_trivia_question()
         params["attempted"] = []
 
         general = await self.standby.guild.fetch_channel(ID.GENERAL)
@@ -376,57 +373,6 @@ async def get_mold_count(user: Member) -> int:
             giver_id = {user.id}
             AND reason = '{TransferReason.MOLD}'
         """)
-
-
-def get_trivia_question() -> dict[str, str | list[str]]:
-    """Fetch trivia question from API.
-
-    In case of error, return a random pre-set question.
-    """
-    try:
-        response = requests.get(
-            "https://the-trivia-api.com/v2/questions?limit=1",
-        )
-        data = json.loads(response.text)[0]
-        question = {
-            "question": data["question"]["text"],
-            "correct": [data["correctAnswer"]],
-            "wrong": data["incorrectAnswers"],
-        }
-    except:
-        logger.warning(
-            "Invalid response from Trivia API, using random default question",
-        )
-        questions = [
-            {
-                "question": "How much does the average American ambulance trip cost?",
-                "correct": ["$1200"],
-                "wrong": ["$200", "$800"],
-            },
-            {
-                "question": "How many Americans think the sun revolves around the earth?",  # noqa: E501
-                "correct": ["1 in 4"],
-                "wrong": ["1 in 2", "1 in 3", "1 in 5"],
-            },
-            {
-                "question": "How many avocados do Americans eat a year combined?",
-                "correct": ["4.2 bn"],
-                "wrong": ["2 bn", "6.5 bn"],
-            },
-            {
-                "question": "How many Americans get injuries related to a TV falling every year?",  # noqa: E501
-                "correct": ["11 800"],
-                "wrong": ["5 200", "13 900"],
-            },
-        ]
-        question = random.choice(questions)
-
-    answers = [*question["correct"], *question["wrong"]]
-    shuffled = answers.copy()
-    random.shuffle(shuffled)
-    question["ordering"] = [answers.index(elem) for elem in shuffled]
-
-    return question
 
 
 async def check_if_already_sent() -> bool:

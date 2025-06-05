@@ -69,6 +69,7 @@ select = ["ALL"]
 "bot/archive/*" = ["ALL"]
 "bot/cogs/*.py" = ["D101", "D107"]
 "bot/utils/regex.py" = ["D103"]
+"bot/cogs/rules.py" = ["ALL"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"

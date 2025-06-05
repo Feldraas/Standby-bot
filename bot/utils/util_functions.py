@@ -4,6 +4,7 @@ import asyncio
 import io
 import json
 import logging
+import random
 import re
 from collections.abc import Callable, Sequence
 from datetime import datetime, time, timedelta
@@ -607,3 +608,54 @@ async def clean_view_table() -> None:
                 await delete_view_record(record["message_id"])
         except NotFound:
             await delete_view_record(record["message_id"])
+
+
+def get_trivia_question() -> dict[str, str | list[str]]:
+    """Fetch trivia question from API.
+
+    In case of error, return a random pre-set question.
+    """
+    try:
+        response = requests.get(
+            "https://the-trivia-api.com/v2/questions?limit=1",
+        )
+        data = json.loads(response.text)[0]
+        question = {
+            "question": data["question"]["text"],
+            "correct": [data["correctAnswer"]],
+            "wrong": data["incorrectAnswers"][:3],
+        }
+    except:
+        logger.warning(
+            "Invalid response from Trivia API, using random default question",
+        )
+        questions = [
+            {
+                "question": "How much does the average American ambulance trip cost?",
+                "correct": ["$1200"],
+                "wrong": ["$200", "$800", "$500"],
+            },
+            {
+                "question": "How many Americans think the sun revolves around the earth?",  # noqa: E501
+                "correct": ["1 in 4"],
+                "wrong": ["1 in 2", "1 in 3", "1 in 5"],
+            },
+            {
+                "question": "How many avocados do Americans eat a year combined?",
+                "correct": ["4.2 bn"],
+                "wrong": ["2 bn", "6.5 bn", "13.8 bn"],
+            },
+            {
+                "question": "How many Americans get injuries related to a TV falling every year?",  # noqa: E501
+                "correct": ["11 800"],
+                "wrong": ["5 200", "13 900", "9 200"],
+            },
+        ]
+        question = random.choice(questions)
+
+    answers = [*question["correct"], *question["wrong"]]
+    shuffled = answers.copy()
+    random.shuffle(shuffled)
+    question["ordering"] = [answers.index(elem) for elem in shuffled]
+
+    return question
