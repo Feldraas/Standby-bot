@@ -23,6 +23,7 @@ class Award(StrEnum):
     ORB = "orbs"
     STAR = "stars"
     BRAIN = "brains"
+    REE = "reposts"
 
     @classmethod
     def simple(cls) -> list["Award"]:

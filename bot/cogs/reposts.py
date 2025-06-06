@@ -70,7 +70,7 @@ class Reposts(Cog):
     @uf.delayed_loop(minutes=1)
     async def check_reposters(self) -> None:
         """Check if a user's reposter status should be removed."""
-        logger.info("Checking reposts")
+        logger.debug("Checking reposts")
         records = await self.standby.pg_pool.fetch(f"""
             SELECT
                 user_id, message_id

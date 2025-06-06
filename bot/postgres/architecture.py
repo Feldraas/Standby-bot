@@ -151,7 +151,8 @@ async def setup_database(con: Pool) -> None:
                 brg.recipient_id,
                 mbrg.giver_id,
                 prd.user_id,
-                sb.user_id
+                sb.user_id,
+                ree.user_id
             ) AS user_id,
             thanks,
             skulls,
@@ -159,7 +160,8 @@ async def setup_database(con: Pool) -> None:
             moldy_burgers,
             orbs,
             stars,
-            brains
+            brains,
+            reposts
         FROM
             {schema}.simple_award AS sa
             FULL OUTER JOIN (
@@ -204,6 +206,15 @@ async def setup_database(con: Pool) -> None:
                 GROUP BY
                     user_id
             ) AS sb ON sb.user_id = sa.user_id
+            FULL OUTER JOIN (
+                SELECT
+                    user_id,
+                    COUNT(*) AS reposts
+                FROM
+                    {schema}.repost
+                GROUP BY
+                    user_id
+            ) AS ree ON ree.user_id = sa.user_id
         """)
 
     logger.info("Database creation complete")
