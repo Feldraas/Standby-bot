@@ -4,7 +4,7 @@ import logging
 
 from nextcord import ButtonStyle, Interaction, slash_command
 from nextcord.ext.commands import Bot, Cog
-from nextcord.ui import Button, View
+from nextcord.ui import Button
 
 import utils.util_functions as uf
 from cogs.awards import Award, increment_award_count

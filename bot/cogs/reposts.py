@@ -1,14 +1,20 @@
 """Punish users who repost memes."""
 
 import logging
+from datetime import timedelta
 
 from nextcord import RawReactionActionEvent
 from nextcord.ext.commands import Bot, Cog
 
-from domain import Duration, Emoji, RoleName, Standby, Threshold, TimerType
+from domain import Standby
 from utils import util_functions as uf
 
 logger = logging.getLogger(__name__)
+
+DURATION = timedelta(hours=8)
+THRESHOLD = 4
+EMOJI = "FEELSREEE"
+ROLE = "REE-poster"
 
 
 class Reposts(Cog):
@@ -18,9 +24,9 @@ class Reposts(Cog):
 
     @Cog.listener()
     async def on_raw_reaction_add(self, payload: RawReactionActionEvent) -> None:
-        """Trigger when users adda REEPOSTER emoji react."""
-        reemoji = uf.get_emoji(Emoji.REEPOSTER)
-        reeposter = uf.get_role(RoleName.REEPOSTER)
+        """Trigger when users add a REEPOSTER emoji react."""
+        reemoji = uf.get_emoji(EMOJI)
+        reeposter = uf.get_role(ROLE)
 
         if not (
             isinstance(payload, RawReactionActionEvent) and payload.emoji == reemoji
@@ -31,7 +37,7 @@ class Reposts(Cog):
         message = await channel.fetch_message(payload.message_id)
         message_age = uf.utcnow() - message.created_at
 
-        if message_age > Duration.REPOSTER / 3:
+        if message_age > DURATION / 3:
             logger.info("Message is too old - ignoring")
             return
 
@@ -40,42 +46,53 @@ class Reposts(Cog):
             if emoji.emoji == reemoji:
                 rees = emoji.count
 
-        if rees >= Threshold.REEPOSTER:
-            await message.author.add_roles(reeposter)
-            exists = await self.standby.pg_pool.fetch(
-                "SELECT * FROM tmers "
-                f"WHERE ttype={TimerType.REPOST} AND usr_id = {message.author.id}",
-            )
+        if rees < THRESHOLD:
+            return
 
-            if not exists:
-                logger.info(f"Adding reeposter role to {reeposter}")
-                expires = message.created_at + Duration.REPOSTER
-                expires = expires.replace(microsecond=0, tzinfo=None)
-                await self.standby.pg_pool.execute(
-                    "INSERT INTO tmers (usr_id, expires, ttype) VALUES ($1, $2, $3)",
-                    message.author.id,
-                    expires,
-                    TimerType.REPOST,
-                )
+        await message.author.add_roles(reeposter)
+        expires = message.created_at + DURATION
+        expires = expires.replace(microsecond=0, tzinfo=None)
 
-    @uf.delayed_loop(seconds=60)
+        await self.standby.pg_pool.execute(
+            f"""
+            INSERT INTO
+                {self.standby.schema}.repost (user_id, message_id, expires_at)
+            VALUES
+                ($1, $2, $3)
+            ON CONFLICT ON CONSTRAINT repost_pkey
+                DO NOTHING
+            """,
+            message.author.id,
+            message.id,
+            expires,
+        )
+
+    @uf.delayed_loop(minutes=1)
     async def check_reposters(self) -> None:
         """Check if a user's reposter status should be removed."""
-        gtable = await self.standby.pg_pool.fetch(
-            f"SELECT * FROM tmers WHERE ttype={TimerType.REPOST}",
-        )
-        for rec in gtable:
-            timenow = uf.utcnow()
-            if timenow.replace(tzinfo=None) <= rec["expires"]:
-                continue
-
-            logger.info("Reepost timer expired")
-            user = await self.standby.guild.fetch_member(rec["usr_id"])
-            reeposter = uf.get_role(RoleName.REEPOSTER)
+        logger.info("Checking reposts")
+        records = await self.standby.pg_pool.fetch(f"""
+            SELECT
+                user_id, message_id
+            FROM
+                {self.standby.schema}.repost
+            WHERE
+                expires_at < NOW()
+                AND NOT processed
+            """)
+        for rec in records:
+            logger.info("Repost timer expired - removing role")
+            user = await self.standby.guild.fetch_member(rec["user_id"])
+            reeposter = uf.get_role(ROLE)
             await user.remove_roles(reeposter)
-            await self.standby.pg_pool.execute(
-                f"DELETE FROM tmers WHERE tmer_id = {rec['tmer_id']};",
-            )
+            await self.standby.pg_pool.execute(f"""
+                UPDATE {self.standby.schema}.repost
+                SET
+                    processed = TRUE
+                WHERE
+                    user_id = {rec["user_id"]}
+                    AND message_id = {rec["message_id"]}
+                """)
 
 
 def setup(bot: Bot) -> None:

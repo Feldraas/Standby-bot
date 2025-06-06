@@ -227,7 +227,6 @@ class CategoryName(StrEnum):
 class RoleName(StrEnum):
     """Often occuring role names."""
 
-    REEPOSTER = "REE-poster"
     BIRTHDAY = "Birthday Haver"
     MOD = "Moderator"
     GUIDE = "Guides of the Void"
@@ -301,18 +300,6 @@ class Color(IntEnum):
     PUKE_GREEN = 0x2E4D36
 
 
-class Duration:
-    """Durations for different events."""
-
-    REPOSTER = timedelta(days=1)
-
-
-class Threshold(IntEnum):
-    """Thresholds for different events."""
-
-    REEPOSTER = 4
-
-
 class Format(StrEnum):
     """Format strings."""
 
@@ -321,12 +308,6 @@ class Format(StrEnum):
     YYYYMMDD_HHMMSSZ = "%Y-%m-%dT%H:%M:%S%z"
     LOGGING = "%(levelname)s | %(name)s:%(lineno)s | %(funcName)s | %(message)s"
     LOGGING_DEV = f"%(asctime)s | {LOGGING}"
-
-
-class Emoji(StrEnum):
-    """Special emoji names."""
-
-    REEPOSTER = "FEELSREEE"
 
 
 class SQLResult(Enum):

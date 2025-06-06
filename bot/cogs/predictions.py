@@ -12,7 +12,7 @@ from nextcord import (
     slash_command,
 )
 from nextcord.ext.commands import Bot, Cog
-from nextcord.ui import Button, View, button
+from nextcord.ui import Button, button
 
 from domain import EMPTY_STRING, SQLResult, Standby
 from utils import util_functions as uf
@@ -189,7 +189,8 @@ async def record_prediction(user: Member, label: str, text: str) -> SQLResult:
             {standby.schema}.prediction (user_id, predicted_at, label, text, status)
         VALUES
             ({user.id}, '{uf.now()}', '{label}', '{text}', '{PredictionStatus.ACTIVE}')
-        ON CONFLICT ON CONSTRAINT prediction_pkey DO NOTHING
+        ON CONFLICT ON CONSTRAINT prediction_pkey
+            DO NOTHING
         """)
     if result == "INSERT 0 0":
         return SQLResult.NONE

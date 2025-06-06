@@ -95,7 +95,12 @@ STRUCTURE = {
     "repost": {
         "columns": {
             "user_id": "BIGINT",
+            "message_id": "BIGINT",
             "expires_at": "TIMESTAMPTZ",
+            "processed": "BOOLEAN DEFAULT FALSE",
+        },
+        "constraints": {
+            "repost_pkey": "PRIMARY KEY (user_id, message_id)",
         },
     },
 }

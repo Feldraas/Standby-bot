@@ -13,7 +13,7 @@ from nextcord import (
     slash_command,
 )
 from nextcord.ext.commands import Bot, Cog
-from nextcord.ui import Button, View, button
+from nextcord.ui import Button, button
 
 from domain import (
     CategoryName,

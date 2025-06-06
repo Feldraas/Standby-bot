@@ -13,7 +13,7 @@ from nextcord import (
     user_command,
 )
 from nextcord.ext.commands import Bot, Cog
-from nextcord.ui import Button, View
+from nextcord.ui import Button
 
 from domain import (
     ID,
