@@ -67,7 +67,10 @@ class Quiz(Cog):
     def __init__(self) -> None:
         self.standby = Standby()
 
-    @slash_command(description="asdf")
+    @slash_command(
+        description="Post a random trivia question. "
+        "Answering correctly awards a brain.",
+    )
     async def quiz(self, interaction: Interaction) -> None:
         """Post a trivia question."""
         params = uf.get_trivia_question()
