@@ -1,4 +1,4 @@
-"""Features for handing out simple awards."""
+"""Award features."""
 
 import logging
 from enum import StrEnum
@@ -26,7 +26,7 @@ class Award(StrEnum):
     REE = "reposts"
 
     @classmethod
-    def simple(cls) -> list["Award"]:
+    def giveable(cls) -> list["Award"]:
         """Awards that users may give to each other."""
         return [cls.THANKS, cls.SKULL]
 
@@ -46,7 +46,10 @@ class Awards(Cog):
         recipient: Member = SlashOption(description="The person to give the award to"),
         award: str = SlashOption(
             description="The type of award you want to give",
-            choices=Award.simple(),
+            choices={
+                award.rstrip("s").replace("thank", "thanks"): award
+                for award in Award.giveable()
+            },
         ),
     ) -> None:
         """Give an award to a user.
@@ -66,15 +69,15 @@ class Awards(Cog):
         interaction: Interaction,
         award: str = SlashOption(
             description="The type of award to check",
-            choices=Award,
+            choices={award.capitalize().replace("_", " "): award for award in Award},
         ),
     ) -> None:
         """Check award count."""
         count = await get_award_count(interaction.user, Award(award))
-        await interaction.send(
-            f"You currently have {count} {award.lower()}(s).",
-            ephemeral=True,
-        )
+        noun = award.lower().replace("_", " ")
+        if count == 1:
+            noun = noun.rstrip("s")
+        await interaction.send(f"You currently have {count} {noun}.", ephemeral=True)
 
     @award.subcommand(description="Check leaderboard for an award")
     async def leaderboard(
