@@ -1,5 +1,6 @@
 """Standby class + various enums and constants."""
 
+import asyncio
 import importlib
 import json
 import logging
@@ -132,6 +133,7 @@ class Standby:
             view = ViewClass(params)
 
             await message.edit(view=view)
+            await asyncio.sleep(7)
 
     async def set_status(self, status: str) -> None:
         """Set the bot's status message.
