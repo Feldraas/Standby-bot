@@ -7,9 +7,10 @@ from domain import Format, Standby
 from postgres.setup import init_connection
 
 ENV = os.getenv("ENV")
+LOG_LEVEL = os.getenv("LOG_LEVEL") or logging.INFO
 
 logging.basicConfig(
-    level=logging.DEBUG if ENV == "dev" else logging.INFO,
+    level=logging.DEBUG if ENV == "dev" else LOG_LEVEL,
     format=Format.LOGGING_DEV if ENV == "dev" else Format.LOGGING,
     datefmt=Format.YYYYMMDD_HHMMSS,
 )
