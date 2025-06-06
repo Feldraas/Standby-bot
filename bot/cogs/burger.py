@@ -217,23 +217,21 @@ class Burger(Cog):
                 view=view,
             )
 
-        await uf.record_view(view, general.id, message.id)
+        await view.record(message)
 
 
-class BurgerView(View):
+class BurgerView(uf.PersistentView):
     """Trivia question buttons when the burger expires for a user."""
 
-    params: dict
-
     def __init__(self, params: dict | None = None) -> None:
-        super().__init__(timeout=None)
-        self.params = params or {}
-
+        super().__init__(params)
         for option in self.params["options"]:
             self.add_item(self.BurgerButton(label=option))
 
     class BurgerButton(Button):
         """Button for each answer option."""
+
+        view: uf.PersistentView
 
         def __init__(self, label: str) -> None:
             """Set label."""
@@ -261,11 +259,7 @@ class BurgerView(View):
                     ephemeral=True,
                 )
                 self.view.params["attempted"].append(interaction.user.id)
-                await uf.record_view(
-                    self.view,
-                    interaction.channel.id,
-                    interaction.message.id,
-                )
+                await self.view.record(interaction.message)
                 return
 
             await interaction.response.defer()
@@ -288,7 +282,7 @@ class BurgerView(View):
                 f"{interaction.user.mention} has claimed the burger! "
                 "Now use it wisely.",
             )
-            await uf.delete_view_record(interaction.message.id)
+            await self.view.delete_record()
 
 
 class TransferReason(StrEnum):

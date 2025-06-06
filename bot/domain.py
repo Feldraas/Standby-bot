@@ -14,7 +14,6 @@ import nextcord
 from asyncpg import Pool
 from nextcord import Guild, Intents
 from nextcord.ext.commands import Bot
-from nextcord.ui import View
 from pytz import timezone
 
 logger = logging.getLogger(__name__)
@@ -121,15 +120,16 @@ class Standby:
                 for child in component.children
             ]
             if all(disabled):
-                logger.debug("All buttons disabled - ignoring")
+                logger.debug("All buttons disabled - deleting record")
+                await uf.delete_view_record(message.id)
                 continue
 
             logger.debug("Recreating view")
             params = json.loads(record["params"] or "{}")
 
             module = importlib.import_module(record["module"])
-            view_class: type[View] = getattr(module, record["class"])
-            view = view_class(params) if params else view_class()
+            ViewClass: type[uf.PersistentView] = getattr(module, record["class"])  # noqa: N806
+            view = ViewClass(params)
 
             await message.edit(view=view)
 

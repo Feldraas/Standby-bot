@@ -80,7 +80,7 @@ class Tickets(Cog):
             send_messages=False,
         )
         msg = await interaction.original_message()
-        await uf.record_view(view, interaction.channel.id, msg.id)
+        await view.record(msg)
 
     @slash_command(
         description="Initiates ticket system - creates categories, channels etc",
@@ -131,7 +131,7 @@ async def create_claimable_channel(cat: CategoryChannel) -> None:
         await chnl.set_permissions(muted_role, send_messages=True)
     view = OpenTicketView()
     msg = await chnl.send(CLAIMABLE_CHANNEL_MESSAGE, view=view)
-    await uf.record_view(view, chnl.id, msg.id)
+    await view.record(msg)
 
 
 async def get_or_create_tickets_log(interaction: Interaction) -> TextChannel:
@@ -201,7 +201,7 @@ async def get_highest_num(interaction: Interaction) -> int:
     for x in active_ticket_cat.channels:
         lst = x.name.split("-")
         try:
-            if int(lst[-1]) > num:
+            if int(lst[-1]) > num:  # noqa: PLR1730
                 num = int(lst[-1])
         except Exception:
             logger.exception(f"debug: {lst} has no number")
@@ -209,7 +209,7 @@ async def get_highest_num(interaction: Interaction) -> int:
     for x in resolved_ticket_cat.channels:
         lst = x.name.split("-")
         try:
-            if int(lst[-1]) > num:
+            if int(lst[-1]) > num:  # noqa: PLR1730
                 num = int(lst[-1])
         except Exception:
             logger.exception(f"debug: {lst} has no number")
@@ -217,11 +217,11 @@ async def get_highest_num(interaction: Interaction) -> int:
     return num
 
 
-class OpenTicketView(View):
+class OpenTicketView(uf.PersistentView):
     """View to create a new ticket."""
 
-    def __init__(self) -> None:
-        super().__init__(timeout=None)
+    def __init__(self, params: dict | None = None) -> None:
+        super().__init__(params)
 
     @button(style=ButtonStyle.green, label="Open ticket")
     async def create(self, button: Button, interaction: Interaction) -> None:  # noqa: ARG002
@@ -259,11 +259,11 @@ class OpenTicketView(View):
         )
 
 
-class ResolvedTicketView(View):
+class ResolvedTicketView(uf.PersistentView):
     """View for resolved tickets."""
 
-    def __init__(self, *, disabled: bool = False) -> None:
-        super().__init__(timeout=None)
+    def __init__(self, params: dict | None = None, *, disabled: bool = False) -> None:
+        super().__init__(params)
         if disabled:
             self.reopen.disabled = True
             self.scrap.disabled = True

@@ -130,7 +130,7 @@ class Rules(Cog):
             embed=alli_embed,
             view=view,
         )
-        # await db.log_buttons(view, rules_ch.id, alli_msg.id)
+        await view.record(alli_msg)
 
         await asyncio.sleep(delay)
 
@@ -139,9 +139,10 @@ class Rules(Cog):
             "Step 2 - If you're part of the Warframe alliance, "
             "use the menu below to select your clan."
         )
-        view = RoleChoiceView(role_type="clan")
+        params = {"role_type": "clan"}
+        view = RoleChoiceView(params)
         clan_msg = await rules_ch.send(embed=clan_embed, view=view)
-        # await db.log_buttons(view, rules_ch.id, clan_msg.id, {"role_type": "clan"})
+        await view.record(clan_msg)
         await asyncio.sleep(delay)
 
         opt_embed = Embed(color=Color.VIE_PURPLE)
@@ -151,16 +152,17 @@ class Rules(Cog):
         )
         view = OptInView()
         opt_msg = await rules_ch.send(embed=opt_embed, view=view)
-        # await db.log_buttons(view, rules_ch.id, opt_msg.id)
+        await view.record(opt_msg)
 
         color_embed = Embed(color=Color.VIE_PURPLE)
         color_embed.title = (
             "Step 4 - Use the menu below if you want a different display color "
             "than the one provided by your clan"
         )
-        view = RoleChoiceView(role_type="color")
+        params = {"role_type": "color"}
+        view = RoleChoiceView(params)
         color_msg = await rules_ch.send(embed=color_embed, view=view)
-        # await db.log_buttons(view, rules_ch.id, color_msg.id, {"role_type": "color"})
+        await view.record(color_msg)
         await asyncio.sleep(delay)
 
         general = uf.get_channel("general")
@@ -294,8 +296,7 @@ class Rules(Cog):
             try:
                 maint = await self.standby.bot.fetch_channel(ID.ERROR_CHANNEL)
                 await maint.send(
-                    f"{member.name}{discriminator} has been kicked "
-                    "due to inactivity.",
+                    f"{member.name}{discriminator} has been kicked due to inactivity.",
                 )
             except Exception:
                 logger.exception("Error channel not found")
@@ -308,9 +309,9 @@ class Rules(Cog):
                 )
 
 
-class StepOneView(View):
-    def __init__(self) -> None:
-        super().__init__(timeout=None)
+class StepOneView(uf.PersistentView):
+    def __init__(self, params: dict | None = None) -> None:
+        super().__init__()
         self.add_item(self.WarframeButton())
         self.add_item(self.CommunityButton())
 
@@ -355,13 +356,12 @@ class StepOneView(View):
             await interaction.user.remove_roles(*all_clan_roles)
 
 
-class RoleChoiceView(View):
+class RoleChoiceView(uf.PersistentView):
     """View containing dropdown menu(s) containing choosable roles."""
 
     def __init__(self, params: dict | None = None) -> None:
-        if params is None:
-            params = {}
-        super().__init__(timeout=None)
+        params = params or {}
+        super().__init__(params)
         self.choice = None
         role_type = params.get("role_type", "clan")
         type_delimiter = DELIMITERS[role_type]
@@ -434,11 +434,11 @@ class RoleChoiceView(View):
                 await interaction.user.add_roles(role)
 
 
-class OptInView(View):
+class OptInView(uf.PersistentView):
     """Dropdown menu(s) for opt-in roles."""
 
-    def __init__(self) -> None:
-        super().__init__(timeout=None)
+    def __init__(self, params: dict | None = None) -> None:
+        super().__init__()
         opt_in_roles = uf.get_roles_by_type(DELIMITERS["opt-in"])
         groups = [
             opt_in_roles[i : i + MAX_SELECT_MENU_SIZE]

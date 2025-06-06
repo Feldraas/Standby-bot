@@ -543,44 +543,45 @@ def titlecase(s: str) -> str:
     return "".join(as_list)
 
 
-async def record_view(
-    view: View,
-    channel_id: int,
-    message_id: int,
-) -> None:
-    """Record a view in the database so it can be recreated.
+class PersistentView(View):
+    """View subclass that persists between bot restarts."""
 
-    If the view has already been recorded, update its parameters.
+    def __init__(self, params: dict | None = None) -> None:
+        """Initialize view."""
+        super().__init__(timeout=None)
+        self.params = params or {}
 
-    Args:
-        view (View): View object containing the buttons
-        channel_id (int): ID of the channel
-        message_id (int): ID of the message
-    """
-    try:
-        params = view.params
-    except AttributeError:
-        params = None
+    async def record(self, message: Message) -> None:
+        """Record or update view data in DB.
 
-    params_string = json.dumps(params or {}).replace("'", "''")
+        Args:
+            message (Message): Message the view is attached to.
+        """
+        self.message_id = message.id
+        self.channel_id = message.channel.id
+        params_string = json.dumps(self.params).replace("'", "''")
 
-    await standby.pg_pool.execute(f"""
-        INSERT INTO
-            {standby.schema}.view (module, class, channel_id, message_id, params)
-        VALUES
-            (
-                '{view.__class__.__module__}',
-                '{view.__class__.__name__}',
-                {channel_id},
-                {message_id},
-                '{params_string}'
-            )
-        ON CONFLICT ON CONSTRAINT view_pkey DO UPDATE
-        SET
-            module = '{view.__class__.__module__}',
-            class = '{view.__class__.__name__}',
-            params = '{params_string}'
-        """)
+        await standby.pg_pool.execute(f"""
+            INSERT INTO
+                {standby.schema}.view (module, class, channel_id, message_id, params)
+            VALUES
+                (
+                    '{self.__class__.__module__}',
+                    '{self.__class__.__name__}',
+                    {self.channel_id},
+                    {self.message_id},
+                    '{params_string}'
+                )
+            ON CONFLICT ON CONSTRAINT view_pkey DO UPDATE
+            SET
+                module = '{self.__class__.__module__}',
+                class = '{self.__class__.__name__}',
+                params = '{params_string}'
+            """)
+
+    async def delete_record(self) -> None:
+        """Delete view record from DB."""
+        await delete_view_record(self.message_id)
 
 
 async def delete_view_record(message_id: int) -> None:
@@ -597,7 +598,7 @@ async def delete_view_record(message_id: int) -> None:
 
 
 async def clean_view_table() -> None:
-    """C."""
+    """Delete view records where view is no longer interactable."""
     logger.debug("Cleaning view table")
     records = await standby.pg_pool.fetch(f"""SELECT * FROM {standby.schema}.view""")
     for record in records:
@@ -605,8 +606,10 @@ async def clean_view_table() -> None:
             channel = await standby.bot.fetch_channel(record["channel_id"])
             message = await channel.fetch_message(record["message_id"])
             if len(message.components) == 0:
+                logger.debug("No components in message - deleting record")
                 await delete_view_record(record["message_id"])
         except NotFound:
+            logger.debug("Channel or message not found - deleting record")
             await delete_view_record(record["message_id"])
 
 

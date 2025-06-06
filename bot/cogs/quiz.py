@@ -13,9 +13,9 @@ from domain import Standby
 logger = logging.getLogger(__name__)
 
 
-class TriviaView(View):
+class TriviaView(uf.PersistentView):
     def __init__(self, params: dict) -> None:
-        super().__init__()
+        super().__init__(params)
         self.params = params or {}
         self.question = params["question"]
         self.options = params["options"]
@@ -26,6 +26,8 @@ class TriviaView(View):
 
     class AnswerButton(Button):
         """Button with one answer as label."""
+
+        view: "TriviaView"
 
         def __init__(self, label: str) -> None:
             """Set label."""
@@ -41,29 +43,24 @@ class TriviaView(View):
                 )
                 return
 
-            if self.label == self.view.answer:
+            if self.label != self.view.answer:
                 await interaction.send(
                     f"`{self.label}` is not the correct answer - "
                     "better luck next time!",
                     ephemeral=True,
                 )
                 self.view.params["attempted"].append(interaction.user.id)
-                await uf.record_view(
-                    self.view,
-                    interaction.channel.id,
-                    interaction.message.id,
-                )
-                return
+                await self.view.record(interaction.message)
 
-            for child in self.view.children:
-                child.disabled = True
-            await interaction.edit(view=self.view)
-            await interaction.send(
-                f"{interaction.user.mention} has answered the question correctly"
-                " and has been awarded a brain 🧠",
-            )
-            await increment_award_count(interaction.user, Award.BRAIN)
-            await uf.delete_view_record(interaction.message.id)
+            else:
+                for child in self.view.children:
+                    child.disabled = True
+                await interaction.edit(view=self.view)
+                await interaction.send(
+                    f"{interaction.user.mention} has answered the question correctly"
+                    " and has been awarded a brain 🧠",
+                )
+                await increment_award_count(interaction.user, Award.BRAIN)
 
 
 class Quiz(Cog):
@@ -79,7 +76,7 @@ class Quiz(Cog):
         view = TriviaView(params)
         await interaction.send(content=params["question"], view=view)
         msg = await interaction.original_message()
-        await uf.record_view(view, interaction.channel.id, msg.id)
+        await view.record(msg)
 
 
 def setup(bot: Bot) -> None:

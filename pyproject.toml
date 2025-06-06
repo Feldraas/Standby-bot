@@ -29,7 +29,7 @@ transliterate = "^1.10.2"
 [tool.poetry.group.dev.dependencies]
 asyncpg-stubs = "^0.30.0"
 ipykernel = "^6.29.4"
-ruff = "^0.11.11"
+ruff = "^0.11.13"
 
 [build-system]
 build-backend = "poetry.core.masonry.api"
@@ -42,9 +42,7 @@ output-format = "concise"
 
 [tool.ruff.lint]
 ignore = [
-  "ANN101",
-  "ANN102",
-  "TCH002",
+  "TC002",
   "ASYNC",
   "B008",
   "BLE001",

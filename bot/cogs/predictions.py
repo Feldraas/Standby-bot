@@ -104,7 +104,7 @@ class Predictions(Cog):
             view=view,
         )
         msg = await interaction.original_message()
-        await uf.record_view(view, interaction.channel.id, msg.id)
+        await view.record(msg)
 
     @prediction.subcommand(description="Check a prediction (privately)")
     async def check(
@@ -262,13 +262,12 @@ async def set_prediction_status(
         """)
 
 
-class PredictionView(View):
+class PredictionView(uf.PersistentView):
     """Buttons for voting on whether a predFiction was correct."""
 
     def __init__(self, params: dict) -> None:
-        super().__init__(timeout=None)
+        super().__init__(params)
         self.standby = Standby()
-        self.params = params
         self.label = params["label"]
         self.owner_id = params["owner_id"]
         self.votes_for = params["votes_for"]
@@ -314,7 +313,7 @@ class PredictionView(View):
             new_text = "\n".join(old_lines)
             await interaction.message.edit(content=new_text, view=None)
         else:
-            await uf.record_view(self, interaction.channel.id, interaction.message.id)
+            await self.record(interaction.message)
 
     @button(emoji="❌", style=ButtonStyle.blurple)
     async def deny_orb(self, button: Button, interaction: Interaction) -> None:  # noqa: ARG002
@@ -364,7 +363,7 @@ class PredictionView(View):
             new_text = "\n".join(old_lines)
             await interaction.message.edit(content=new_text, view=None)
         else:
-            await uf.record_view(self, interaction.channel.id, interaction.message.id)
+            await self.record(interaction.message)
 
 
 def setup(bot: Bot) -> None:
