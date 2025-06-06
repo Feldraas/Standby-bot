@@ -21,8 +21,8 @@ class TriviaView(uf.PersistentView):
         self.options = params["options"]
         self.answer = params["correct"]
 
-        for i in range(4):
-            self.add_item(self.AnswerButton(label=self.options[i]))
+        for option in self.options:
+            self.add_item(self.AnswerButton(label=option))
 
     class AnswerButton(Button):
         """Button with one answer as label."""
@@ -57,8 +57,8 @@ class TriviaView(uf.PersistentView):
                     child.disabled = True
                 await interaction.edit(view=self.view)
                 await interaction.send(
-                    f"{interaction.user.mention} has answered the question correctly"
-                    " and has been awarded a brain 🧠",
+                    f"`{self.label}` is correct! "
+                    f"{interaction.user.mention} has been awarded a brain 🧠",
                 )
                 await increment_award_count(interaction.user, Award.BRAIN)
 
