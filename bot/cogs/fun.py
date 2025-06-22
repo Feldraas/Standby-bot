@@ -242,9 +242,7 @@ class Fun(Cog):
             meme (str): Meme to send.
         """
         if meme == "list":
-            help_text = (
-                f"```Currently available memes:\n{"\n".join(["list", *ALL_MEMES])}```"
-            )
+            help_text = f"```Currently available memes:\n{'\n'.join(ALL_MEMES)}```"
             await interaction.response.send_message(help_text, ephemeral=True)
             return
 
@@ -286,7 +284,7 @@ class Fun(Cog):
             )
             await interaction.response.send_autocomplete(matches[:25])
         else:
-            await interaction.response.send_autocomplete([])
+            await interaction.response.send_autocomplete(["list"])
 
     @slash_command(description="Convert text into cyrillic")
     async def cyrillify(
