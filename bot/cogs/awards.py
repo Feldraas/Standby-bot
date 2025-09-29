@@ -90,6 +90,7 @@ class Awards(Cog):
     ) -> None:
         """Reply with a leaderboard for the requested award."""
         stats = await get_all_award_counts(award)
+        print(stats)
         embed = create_leaderboard_embed(award, stats, interaction.user.id)
         await interaction.send(embed=embed)
 
@@ -150,7 +151,10 @@ async def get_all_award_counts(award: Award) -> dict[int, int]:
         ORDER BY
             {award} DESC
         """)
-    return {record["user_id"]: record[award] or 0 for record in records}
+
+    out = {record["user_id"]: record[award] or 0 for record in records}
+    out = {k: out[k] for k in sorted(out, key=out.get, reverse=True)}
+    return out
 
 
 async def get_award_count(user: Member, award: Award) -> int:
