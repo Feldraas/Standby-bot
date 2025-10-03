@@ -350,8 +350,13 @@ def get_text_dimensions(text: str, font: ImageFont.FreeTypeFont) -> tuple[int, i
     """
     ascent, descent = font.getmetrics()
 
-    width = font.getmask(text).getbbox()[2]
-    height = font.getmask(text).getbbox()[3] + descent
+    bbox = font.getmask(text).getbbox()
+
+    if bbox:
+        width = font.getmask(text).getbbox()[2]
+        height = font.getmask(text).getbbox()[3] + descent
+    else:
+        width = height = 0
 
     return width, height
 

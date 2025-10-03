@@ -3,6 +3,7 @@
 import logging
 from datetime import datetime, timedelta
 from enum import StrEnum
+from random import randint
 
 from nextcord import (
     ButtonStyle,
@@ -63,10 +64,18 @@ class Burger(Cog):
             return
 
         if target == interaction.user:
-            await interaction.send(
-                "You can't burger yourself - you are already burgered!",
-                ephemeral=True,
-            )
+            if randint(1, 2) == 1:
+                await interaction.send("You can't burger yourself!")
+                await interaction.channel.send(URL.GITHUB_STATIC + "/images/obama.jpg")
+            else:
+                await interaction.send(
+                    file=uf.simpsons_error_image(
+                        dad=interaction.guild.me,
+                        son=interaction.user,
+                        text="You can't burger yourself!",
+                        filename="selfburger.png",
+                    ),
+                )
             return
 
         if target.bot:

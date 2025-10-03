@@ -90,7 +90,6 @@ class Awards(Cog):
     ) -> None:
         """Reply with a leaderboard for the requested award."""
         stats = await get_all_award_counts(award)
-        print(stats)
         embed = create_leaderboard_embed(award, stats, interaction.user.id)
         await interaction.send(embed=embed)
 
