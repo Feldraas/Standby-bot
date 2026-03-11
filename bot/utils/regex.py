@@ -5,6 +5,7 @@ import random
 import re
 from collections.abc import Callable
 from dataclasses import dataclass
+from urllib.parse import quote
 
 import requests
 from nextcord import File, Message
@@ -1126,6 +1127,17 @@ regex_responses.append(
         + r"could|will|won't|would|shall|shan't|should|may|might|must)(n't)?\W.*\?",
         response=is_this_real_resp,
     ),
+)
+
+
+async def absolute_cinema_resp(message: Message) -> None:
+    await message.channel.send(
+        quote(URL.GITHUB_STATIC + "/images/memes/Absolute cinema.png", safe=":/"),
+    )
+
+
+regex_responses.append(
+    RegexResponse(trigger="^.*absolute cinema.*", response=absolute_cinema_resp),
 )
 
 
